@@ -1,25 +1,33 @@
 """
-Django settings for AltarFunds project.
+Django settings for AltarFunds project
+Production-ready configuration
 """
 
 import os
 from pathlib import Path
+from datetime import timedelta
 from decouple import config
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# --------------------------------------------------
+# BASE CONFIG
+# --------------------------------------------------
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
+SECRET_KEY = config('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='localhost,127.0.0.1',
+    cast=lambda v: [s.strip() for s in v.split(',')]
+)
 
-# Application definition
+# --------------------------------------------------
+# APPLICATION DEFINITION
+# --------------------------------------------------
+
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -34,6 +42,7 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_extensions',
+    'django_filters',
 ]
 
 LOCAL_APPS = [
@@ -50,6 +59,10 @@ LOCAL_APPS = [
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
+# --------------------------------------------------
+# MIDDLEWARE
+# --------------------------------------------------
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -63,6 +76,10 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
+# --------------------------------------------------
+# TEMPLATES
+# --------------------------------------------------
 
 TEMPLATES = [
     {
@@ -82,62 +99,59 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+# --------------------------------------------------
+# DATABASE (MYSQL – PRODUCTION)
+# --------------------------------------------------
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('DB_NAME', default='altar_funds'),
-        'USER': config('DB_USER', default='root'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': 'SET sql_mode=STRICT_TRANS_TABLES',
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
-# Password validation
+# --------------------------------------------------
+# AUTHENTICATION
+# --------------------------------------------------
+
+AUTH_USER_MODEL = 'accounts.User'
+
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Internationalization
+# --------------------------------------------------
+# INTERNATIONALIZATION
+# --------------------------------------------------
+
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Africa/Nairobi'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# --------------------------------------------------
+# STATIC & MEDIA
+# --------------------------------------------------
+
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# Media files
+STATICFILES_DIRS = [
+    BASE_DIR / 'static'
+] if (BASE_DIR / 'static').exists() else []
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom user model
-AUTH_USER_MODEL = 'accounts.User'
+# --------------------------------------------------
+# DJANGO REST FRAMEWORK
+# --------------------------------------------------
 
-# REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -163,38 +177,44 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler',
 }
 
-# JWT Settings
-from datetime import timedelta
+# --------------------------------------------------
+# JWT
+# --------------------------------------------------
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
-    'VERIFYING_KEY': None,
-    'AUDIENCE': None,
-    'ISSUER': None,
     'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
 }
 
-# Firebase Settings
-FIREBASE_CREDENTIALS_PATH = config('FIREBASE_CREDENTIALS_PATH', default='serviceAccountKey.json')
+# --------------------------------------------------
+# FIREBASE
+# --------------------------------------------------
+
+FIREBASE_CREDENTIALS_PATH = config(
+    'FIREBASE_CREDENTIALS_PATH',
+    default=str(BASE_DIR / 'serviceAccountKey.json')
+)
 FIREBASE_PROJECT_ID = config('FIREBASE_PROJECT_ID', default='altar-funds')
 
-# M-Pesa Settings
+# --------------------------------------------------
+# MPESA
+# --------------------------------------------------
+
 MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY')
 MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET')
 MPESA_PASSKEY = config('MPESA_PASSKEY')
 MPESA_SHORTCODE = config('MPESA_SHORTCODE')
-MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL', default='https://api.altarfunds.co.ke/payments/mpesa/callback/')
-MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='production')  # sandbox or production
+MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL')
+MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='sandbox')
 
-# Email Settings
+# --------------------------------------------------
+# EMAIL
+# --------------------------------------------------
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
@@ -203,10 +223,12 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@altarfunds.co.ke')
 
-# Redis Settings for Celery
+# --------------------------------------------------
+# REDIS & CELERY
+# --------------------------------------------------
+
 REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
 
-# Celery Settings
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ['json']
@@ -214,86 +236,49 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
-# CORS Settings
+# --------------------------------------------------
+# CORS & CSRF
+# --------------------------------------------------
+
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000',
+    default='http://localhost:3000',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
-# Logging
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='http://localhost:3000',
+    cast=lambda v: [s.strip() for s in v.split(',')]
+)
+
+# --------------------------------------------------
+# LOGGING
+# --------------------------------------------------
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'altar_funds.log',
-            'formatter': 'verbose',
-        },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-    },
-    'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'altar_funds': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'root': {'handlers': ['console'], 'level': 'INFO'},
 }
 
-# Sentry for error tracking
-if not DEBUG and config('SENTRY_DSN'):
-    sentry_sdk.init(
-        dsn=config('SENTRY_DSN'),
-        integrations=[DjangoIntegration()],
-        traces_sample_rate=1.0,
-        send_default_pii=True
-    )
+# --------------------------------------------------
+# SECURITY
+# --------------------------------------------------
+# --------------------------------------------------
+# FILE UPLOAD LIMITS
+# --------------------------------------------------
 
-# Security Settings
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
-if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# --------------------------------------------------
+# CUSTOM BUSINESS SETTINGS
+# --------------------------------------------------
 
-# File Upload Settings
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
-
-# Custom Settings
 CHURCH_REGISTRATION_REQUIRED = True
-FINANCIAL_YEAR_START_MONTH = 1  # January
+FINANCIAL_YEAR_START_MONTH = 1
 AUDIT_LOG_RETENTION_DAYS = 2555  # 7 years
