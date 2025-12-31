@@ -8,7 +8,8 @@ from .views import (
     SmallGroupListCreateView, SmallGroupDetailView,
     ChurchBankAccountListCreateView, ChurchBankAccountDetailView,
     MpesaAccountListCreateView, MpesaAccountDetailView,
-    church_summary, church_options, department_options, small_group_options
+    church_summary, church_options, department_options, small_group_options,
+    ChurchRegistrationView
 )
 
 app_name = 'churches'
@@ -23,6 +24,7 @@ urlpatterns = [
     path('churches/<int:pk>/', ChurchDetailView.as_view(), name='church_detail'),
     path('churches/<int:pk>/verify/', ChurchVerificationView.as_view(), name='church_verify'),
     path('churches/<int:pk>/status/', ChurchStatusUpdateView.as_view(), name='church_status_update'),
+    path('register/', ChurchRegistrationView.as_view(), name='register'),
     path('campuses/', CampusListCreateView.as_view(), name='campus_list_create'),
     path('campuses/<int:pk>/', CampusDetailView.as_view(), name='campus_detail'),
     path('departments/', DepartmentListCreateView.as_view(), name='department_list_create'),

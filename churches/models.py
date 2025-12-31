@@ -198,20 +198,11 @@ class Church(TimeStampedModel, SoftDeleteModel):
     
     def generate_church_code(self):
         """Generate unique church code"""
-        if self.church_code:
-            return self.church_code
-        
-        # Use city abbreviation + sequence
-        city_abbr = self.city[:3].upper() if self.city else 'UNK'
-        
-        # Get last sequence for this city
-        last_church = Church.objects.filter(
-            church_code__startswith=city_abbr
-        ).order_by('-church_code').first()
-        
-        if last_church and last_church.church_code:
-            sequence = int(last_church.church_code[3:]) + 1
-        else:
+        if not self.church_code:
+            # Generate code based on city and a number
+            city_code = self.city[:3].upper() if self.city else 'UNK'
+            count = Church.objects.filter(church_code__startswith=city_code).count()
+            self.church_code = f"{city_code}{count + 1:03d}"
             sequence = 1
         
         self.church_code = f"{city_abbr}{sequence:03d}"
@@ -613,3 +604,59 @@ class MpesaAccount(FinancialModel):
             validate_paybill_number(self.business_number)
         elif self.account_type == 'till':
             validate_till_number(self.business_number)
+
+
+class ChurchDocument(TimeStampedModel):
+    """Model for church legal documents"""
+    
+    DOCUMENT_TYPES = [
+        ('registration_certificate', _('Registration Certificate')),
+        ('tax_exemption', _('Tax Exemption Certificate')),
+        ('constitution', _('Church Constitution')),
+        ('bylaws', _('Bylaws')),
+        ('board_resolution', _('Board Resolution')),
+        ('pastor_appointment', _('Pastor Appointment Letter')),
+        ('bank_account', _('Bank Account Verification')),
+        ('other', _('Other Document')),
+    ]
+    
+    church = models.ForeignKey(
+        Church,
+        on_delete=models.CASCADE,
+        related_name='documents'
+    )
+    document_type = models.CharField(
+        _('Document Type'),
+        max_length=30,
+        choices=DOCUMENT_TYPES
+    )
+    title = models.CharField(_('Document Title'), max_length=200)
+    file = models.FileField(
+        _('Document File'),
+        upload_to='church_documents/%Y/%m/',
+        max_length=255
+    )
+    description = models.TextField(_('Description'), blank=True)
+    uploaded_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_documents'
+    )
+    is_verified = models.BooleanField(_('Verified'), default=False)
+    verification_notes = models.TextField(_('Verification Notes'), blank=True)
+    
+    class Meta:
+        db_table = 'church_documents'
+        verbose_name = _('Church Document')
+        verbose_name_plural = _('Church Documents')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['church', 'document_type']),
+            models.Index(fields=['is_verified']),
+        ]
+        unique_together = ['church', 'document_type']
+    
+    def __str__(self):
+        return f"{self.church.name} - {self.get_document_type_display()}"

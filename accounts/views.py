@@ -3,6 +3,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login, logout
+from django.shortcuts import render, redirect
+from django.views import View
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
+from .forms import LoginForm, RegisterForm
 from django.utils import timezone
 from django.db import transaction
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -532,3 +537,53 @@ def can_manage_user(admin_user, target_user):
             target_user.church == admin_user.church and
             target_user.role not in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
         )
+
+# Template-based Authentication Views
+
+class RegisterView(View):
+    """Handles user registration for the web interface."""
+    def get(self, request):
+        form = RegisterForm()
+        return render(request, 'auth/register.html', {'form': form})
+
+    def post(self, request):
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Registration successful. Please log in.')
+            return redirect('auth:login')
+        return render(request, 'auth/register.html', {'form': form})
+
+class LoginView(View):
+    """Handles user login for the web interface."""
+    def get(self, request):
+        form = LoginForm()
+        return render(request, 'auth/login.html', {'form': form})
+
+    def post(self, request):
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data.get('email')
+            password = form.cleaned_data.get('password')
+            user = authenticate(request, email=email, password=password)
+            if user is not None:
+                login(request, user)
+                
+                # Check if user is registered to a church
+                if not user.church:
+                    messages.info(request, 'Please register your church to continue.')
+                    return redirect('churches:register')
+                
+                # Redirect to dashboard or home page after login
+                return redirect('dashboard:home')
+            else:
+                messages.error(request, 'Invalid email or password.')
+        return render(request, 'auth/login.html', {'form': form})
+
+class LogoutView(View):
+    """Handles user logout for the web interface."""
+    def get(self, request):
+        logout(request)
+        messages.info(request, 'You have been logged out.')
+        return redirect('auth:login')
+

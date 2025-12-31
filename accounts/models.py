@@ -17,6 +17,13 @@ class User(AbstractUser):
         ('other', _('Other')),
     ]
 
+    # Use email as the username field for authentication
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['first_name', 'last_name']
+
+    # Override the email field to make it unique
+    email = models.EmailField(_('email address'), unique=True)
+
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
     church = models.ForeignKey('churches.Church', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
     phone_number = models.CharField(max_length=20, blank=True, null=True)

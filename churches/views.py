@@ -5,10 +5,14 @@ from django.db import transaction
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter
+from django.shortcuts import render, redirect
+from django.views import View
+from django.contrib import messages
+from django import forms
 
 from .models import (
     Denomination, Church, Campus, Department, SmallGroup,
-    ChurchBankAccount, MpesaAccount
+    ChurchBankAccount, MpesaAccount, ChurchDocument
 )
 from .serializers import (
     DenominationSerializer, ChurchSerializer, ChurchRegistrationSerializer,
@@ -650,3 +654,165 @@ def can_view_church(user, church):
         return church.denomination == user.church.denomination
     else:
         return church == user.church
+
+
+# Template-based Church Registration Views
+
+class ChurchDocumentForm(forms.ModelForm):
+    """Form for uploading church documents."""
+    
+    class Meta:
+        model = ChurchDocument
+        fields = ['document_type', 'title', 'file', 'description']
+        widgets = {
+            'document_type': forms.Select(attrs={'class': 'form-control form-control-lg'}),
+            'title': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'file': forms.FileInput(attrs={'class': 'form-control form-control-lg'}),
+            'description': forms.Textarea(attrs={'class': 'form-control form-control-lg', 'rows': 2}),
+        }
+
+
+class ChurchRegistrationForm(forms.ModelForm):
+    """Form for church registration."""
+    
+    # Required documents
+    registration_certificate = forms.FileField(
+        label="Registration Certificate",
+        widget=forms.FileInput(attrs={'class': 'form-control form-control-lg', 'required': 'required'}),
+        required=True,
+        help_text="Upload your church registration certificate"
+    )
+    
+    tax_exemption = forms.FileField(
+        label="Tax Exemption Certificate",
+        widget=forms.FileInput(attrs={'class': 'form-control form-control-lg'}),
+        required=False,
+        help_text="Upload tax exemption certificate if available"
+    )
+    
+    constitution = forms.FileField(
+        label="Church Constitution",
+        widget=forms.FileInput(attrs={'class': 'form-control form-control-lg'}),
+        required=False,
+        help_text="Upload church constitution or bylaws"
+    )
+    
+    pastor_appointment = forms.FileField(
+        label="Pastor Appointment Letter",
+        widget=forms.FileInput(attrs={'class': 'form-control form-control-lg'}),
+        required=False,
+        help_text="Upload letter appointing the senior pastor"
+    )
+    
+    class Meta:
+        model = Church
+        fields = ['name', 'address_line1', 'address_line2', 'city', 'county', 'postal_code', 
+                 'phone_number', 'email', 'website', 'denomination', 'senior_pastor_name', 
+                 'senior_pastor_phone', 'senior_pastor_email', 'established_date']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'address_line1': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'address_line2': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'city': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'county': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'postal_code': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control form-control-lg'}),
+            'website': forms.URLInput(attrs={'class': 'form-control form-control-lg'}),
+            'denomination': forms.Select(attrs={'class': 'form-control form-control-lg'}),
+            'senior_pastor_name': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'senior_pastor_phone': forms.TextInput(attrs={'class': 'form-control form-control-lg'}),
+            'senior_pastor_email': forms.EmailInput(attrs={'class': 'form-control form-control-lg'}),
+            'established_date': forms.DateInput(attrs={'class': 'form-control form-control-lg', 'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['denomination'].queryset = Denomination.objects.filter(is_active=True)
+        self.fields['denomination'].empty_label = "Select a denomination"
+        
+        # Reorder fields to put documents at the end
+        field_order = ['name', 'denomination', 'phone_number', 'email', 'website',
+                      'senior_pastor_name', 'senior_pastor_phone', 'senior_pastor_email', 'established_date',
+                      'address_line1', 'address_line2', 'city', 'county', 'postal_code',
+                      'registration_certificate', 'tax_exemption', 'constitution', 'pastor_appointment']
+        self.order_fields(field_order)
+
+
+class ChurchRegistrationView(View):
+    """Handles church registration for the web interface."""
+    
+    def get(self, request):
+        form = ChurchRegistrationForm()
+        return render(request, 'churches/register.html', {'form': form})
+
+    def post(self, request):
+        form = ChurchRegistrationForm(request.POST, request.FILES)
+        if form.is_valid():
+            with transaction.atomic():
+                # Create the church
+                church = form.save()
+                
+                # Generate church code if not set
+                if not church.church_code:
+                    church.generate_church_code()
+                
+                # Handle document uploads
+                documents_to_create = []
+                
+                # Registration Certificate (required)
+                if 'registration_certificate' in request.FILES:
+                    documents_to_create.append(ChurchDocument(
+                        church=church,
+                        document_type='registration_certificate',
+                        title='Church Registration Certificate',
+                        file=request.FILES['registration_certificate'],
+                        uploaded_by=request.user,
+                        description='Official church registration certificate'
+                    ))
+                
+                # Tax Exemption Certificate (optional)
+                if 'tax_exemption' in request.FILES:
+                    documents_to_create.append(ChurchDocument(
+                        church=church,
+                        document_type='tax_exemption',
+                        title='Tax Exemption Certificate',
+                        file=request.FILES['tax_exemption'],
+                        uploaded_by=request.user,
+                        description='Tax exemption certificate for the church'
+                    ))
+                
+                # Constitution/Bylaws (optional)
+                if 'constitution' in request.FILES:
+                    documents_to_create.append(ChurchDocument(
+                        church=church,
+                        document_type='constitution',
+                        title='Church Constitution',
+                        file=request.FILES['constitution'],
+                        uploaded_by=request.user,
+                        description='Church constitution or bylaws document'
+                    ))
+                
+                # Pastor Appointment Letter (optional)
+                if 'pastor_appointment' in request.FILES:
+                    documents_to_create.append(ChurchDocument(
+                        church=church,
+                        document_type='pastor_appointment',
+                        title='Pastor Appointment Letter',
+                        file=request.FILES['pastor_appointment'],
+                        uploaded_by=request.user,
+                        description='Official letter appointing the senior pastor'
+                    ))
+                
+                # Bulk create all documents
+                if documents_to_create:
+                    ChurchDocument.objects.bulk_create(documents_to_create)
+                
+                # Associate the current user with this church
+                request.user.church = church
+                request.user.save()
+                
+                messages.success(request, f'Church "{church.name}" registered successfully with {len(documents_to_create)} documents uploaded!')
+                return redirect('dashboard:home')
+        
+        return render(request, 'churches/register.html', {'form': form})
