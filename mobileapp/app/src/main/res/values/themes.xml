@@ -13,4 +13,22 @@
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
     </style>
+    
+    <!-- Theme for activities without action bar -->
+    <style name="Theme.AltarFunds.NoActionBar" parent="Theme.AltarFunds">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    
+    <!-- App bar overlay theme -->
+    <style name="Theme.AltarFunds.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="colorPrimary">@color/toscaSecondary</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">@color/white</item>
+    </style>
+    
+    <!-- Popup overlay theme -->
+    <style name="Theme.AltarFunds.PopupOverlay" parent="ThemeOverlay.AppCompat.Light">
+        <item name="colorPrimary">@color/toscaSecondary</item>
+    </style>
 </resources>

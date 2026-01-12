@@ -6,7 +6,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.ismaeldivita.chipnavigation.ChipNavigationBar
 import com.altarfunds.mobile.databinding.ActivityMainBinding
-import com.altarfunds.mobile.ui.fragments.GivingFragment
+import com.altarfunds.mobile.ui.fragments.GivingFragmentModern
 import com.altarfunds.mobile.ui.fragments.ProfileFragment
 import com.altarfunds.mobile.ui.fragments.HistoryFragment
 import com.altarfunds.mobile.ui.fragments.ChurchFragment
@@ -20,8 +20,12 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Simple app bar setup
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.title = "AltarFunds"
+
         // Initialize fragments
-        val givingFragment = GivingFragment()
+        val givingFragment = GivingFragmentModern()
         val historyFragment = HistoryFragment()
         val churchFragment = ChurchFragment()
         val profileFragment = ProfileFragment()
@@ -34,10 +38,15 @@ class MainActivity : AppCompatActivity() {
         binding.chipAppBar.setOnItemSelectedListener { itemId ->
             when (itemId) {
                 R.id.ic_transaction -> makeCurrentFragment(givingFragment)
+                R.id.ic_settings -> startActivity(Intent(this, SettingsActivity::class.java))
                 R.id.ic_account -> makeCurrentFragment(profileFragment)
             }
             true
         }
+        
+        // Ensure bottom navigation is visible
+        binding.bottomNavigation.visibility = android.view.View.VISIBLE
+        binding.chipAppBar.visibility = android.view.View.VISIBLE
 
         // Check if user is logged in
         if (!isUserLoggedIn()) {

@@ -11,6 +11,14 @@
         />
 
     <item
+        android:id="@+id/ic_settings"
+        android:icon="@drawable/ic_settings"
+        android:title="Settings"
+        app:cnb_iconColor="@color/toscaSecondary"
+        app:cnb_backgroundColor="#402EC4B6"
+        />
+
+    <item
         android:id="@+id/blank"
         android:title=""
         android:enabled="false"

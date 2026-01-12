@@ -83,7 +83,12 @@ class MobileLoginView(views.APIView):
                 'device': MobileDeviceSerializer(device).data
             })
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'error': True,
+            'message': 'Login failed. Please check your email and password.',
+            'details': serializer.errors,
+            'error_code': 'INVALID_CREDENTIALS'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class MobileGoogleLoginView(views.APIView):
@@ -171,13 +176,22 @@ class MobileRegisterView(views.APIView):
     def post(self, request):
         serializer = MobileRegisterSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': True,
+                'message': 'Registration failed. Please check your information and try again.',
+                'details': serializer.errors,
+                'error_code': 'VALIDATION_ERROR'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         email = serializer.validated_data['email'].lower()
         password = serializer.validated_data['password']
 
         if User.objects.filter(email=email).exists():
-            return Response({'error': 'Email already registered'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': True,
+                'message': 'This email is already registered. Please use a different email or try logging in.',
+                'error_code': 'EMAIL_EXISTS'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.create_user(username=email, email=email)
         user.set_password(password)

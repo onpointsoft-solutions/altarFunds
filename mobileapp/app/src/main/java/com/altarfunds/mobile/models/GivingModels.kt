@@ -1,7 +1,5 @@
 package com.altarfunds.mobile.models
 
-import com.google.gson.annotations.SerializedName
-
 data class LoginRequest(
     val email: String,
     val password: String,
@@ -306,7 +304,8 @@ data class ChurchInfo(
     val code: String,
     val logo: String?,
     val is_verified: Boolean,
-    val is_active: Boolean
+    val is_active: Boolean,
+    val description: String
 )
 
 data class GivingCategory(

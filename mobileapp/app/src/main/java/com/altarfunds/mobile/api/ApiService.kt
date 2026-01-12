@@ -10,8 +10,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiService {
-    private const val BASE_URL = "http://127.0.0.1:8000"  // Local testing URL
-    // private const val BASE_URL = "https://altarfunds.pythonanywhere.com"  // Production URL
+   // private const val BASE_URL = "http://127.0.0.1:8000"  // Local testing URL
+     private const val BASE_URL = "https://altarfunds.pythonanywhere.com"  // Production URL
     
     private lateinit var retrofit: Retrofit
     private lateinit var apiInterface: ApiInterface

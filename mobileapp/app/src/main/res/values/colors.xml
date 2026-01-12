@@ -42,4 +42,7 @@
     <!-- Alpha colors -->
     <color name="white_alpha_80">#CCFFFFFF</color>
     <color name="white_alpha_60">#99FFFFFF</color>
+    <!-- Additional colors for modern dashboard -->
+    <color name="toscaPrimary">@color/toscaSecondary</color>
+    <color name="toscaLight">#E8F6F3</color>
 </resources>
