@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Permission explanations for user consent -->
+    <string name="permission_camera_title">Camera Access</string>
+    <string name="permission_camera_message">We need camera access to let you upload profile pictures and donation receipts.</string>
+    
+    <string name="permission_storage_title">Storage Access</string>
+    <string name="permission_storage_message">We need storage access to save donation receipts and profile images.</string>
+    
+    <string name="permission_notification_title">Notifications</string>
+    <string name="permission_notification_message">We need notifications to send you donation confirmations and church updates.</string>
+</resources>
