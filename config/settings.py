@@ -20,7 +20,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'localhost',
-    '127.0.0.1',
+    '127.0.0.1:3000',
     'altar-funds.com',
     'www.altar-funds.com',
     'altarfunds.pythonanywhere.com'
