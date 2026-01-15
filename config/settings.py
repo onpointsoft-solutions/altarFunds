@@ -49,6 +49,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    'admin_management',
     'accounts',
     'common',
     'churches',

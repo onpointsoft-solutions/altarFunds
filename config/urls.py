@@ -16,6 +16,7 @@ urlpatterns = [
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # API Modules
+    path('api/admin/', include('admin_management.urls')),
     path('api/accounts/', include('accounts.urls')),
     path('api/mobile/', include('mobile.urls')),
     path('api/churches/', include('churches.urls')),
