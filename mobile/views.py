@@ -367,13 +367,13 @@ class MobileUserProfileView(views.APIView):
         return Response(MobileUserProfileSerializer(profile_data).data)
 
 
-class MobileGivingSummaryView(views.APIView):
-    """Get mobile giving summary"""
+class MobileEnhancedDashboardView(views.APIView):
+    """Enhanced mobile dashboard with comprehensive data"""
     
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        """Get giving summary for mobile dashboard"""
+        """Get comprehensive dashboard data for mobile app"""
         user = request.user
         
         if not hasattr(user, 'member_profile') or not user.member_profile:
@@ -381,28 +381,236 @@ class MobileGivingSummaryView(views.APIView):
         
         member = user.member_profile
         
-        # Get giving statistics
+        # Import dashboard functions for enhanced data
+        from dashboard.views import financial_summary, monthly_trend, income_breakdown, expense_breakdown
+        
+        # Get all dashboard data
+        financial_data = financial_summary(request).data
+        trend_data = monthly_trend(request).data
+        income_data = income_breakdown(request).data
+        expense_data = expense_breakdown(request).data
+        
+        # Personal giving statistics
+        from giving.models import GivingTransaction, RecurringGiving
+        from expenses.models import Expense
+        from members.models import Member
+        
+        now = timezone.now()
+        current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        # Personal metrics
+        personal_giving = GivingTransaction.objects.filter(
+            member=member,
+            status='completed'
+        ).aggregate(
+            total=Sum('amount'),
+            this_month=Sum('amount', filter=Q(transaction_date__gte=current_month_start)),
+            count=Count('id')
+        )
+        
+        # Church metrics
+        total_members = Member.objects.filter(church=user.church).count()
+        active_members = Member.objects.filter(
+            church=user.church, 
+            user__is_active=True
+        ).count()
+        
+        # Recent activity
+        recent_transactions = GivingTransaction.objects.filter(
+            church=user.church
+        ).order_by('-transaction_date')[:5]
+        
+        recent_expenses = Expense.objects.filter(
+            church=user.church
+        ).order_by('-created_at')[:5]
+        
+        # Dashboard summary
+        dashboard_data = {
+            'financial_overview': {
+                'total_income': financial_data.get('totalIncome', 0),
+                'monthly_income': financial_data.get('monthlyIncome', 0),
+                'total_expenses': financial_data.get('totalExpenses', 0),
+                'monthly_expenses': financial_data.get('monthlyExpenses', 0),
+                'net_balance': financial_data.get('totalIncome', 0) - financial_data.get('totalExpenses', 0),
+                'monthly_net': financial_data.get('monthlyIncome', 0) - financial_data.get('monthlyExpenses', 0)
+            },
+            
+            'personal_giving': {
+                'total_giving': personal_giving.get('total', 0),
+                'this_month': personal_giving.get('this_month', 0),
+                'transaction_count': personal_giving.get('count', 0),
+                'percentage_of_church': (personal_giving.get('this_month', 0) / financial_data.get('monthlyIncome', 1)) * 100 if financial_data.get('monthlyIncome', 0) > 0 else 0
+            },
+            
+            'church_metrics': {
+                'total_members': total_members,
+                'active_members': active_members,
+                'member_growth_rate': self._calculate_growth_rate(user.church)
+            },
+            
+            'trends': trend_data,
+            'income_breakdown': income_data,
+            'expense_breakdown': expense_data,
+            
+            'recent_activity': {
+                'recent_transactions': [
+                    {
+                        'id': t.id,
+                        'amount': t.amount,
+                        'member': t.member.user.get_full_name() or t.member.user.email,
+                        'category': t.category.name,
+                        'date': t.transaction_date
+                    } for t in recent_transactions
+                ],
+                'recent_expenses': [
+                    {
+                        'id': e.id,
+                        'amount': e.amount,
+                        'description': e.description,
+                        'category': e.category.name if e.category else 'General',
+                        'date': e.created_at
+                    } for e in recent_expenses
+                ]
+            },
+            
+            'quick_stats': {
+                'avg_monthly_giving': self._calculate_avg_monthly_giving(member),
+                'giving_goal_progress': self._calculate_giving_goal_progress(member),
+                'days_until_next_recurring': self._days_until_next_recurring(member)
+            }
+        }
+        
+        return Response(dashboard_data)
+    
+    def _calculate_growth_rate(self, church):
+        """Calculate member growth rate"""
+        from members.models import Member
+        from datetime import timedelta
+        
+        now = timezone.now()
+        last_month = now - timedelta(days=30)
+        
+        current_members = Member.objects.filter(church=church).count()
+        previous_members = Member.objects.filter(
+            church=church,
+            created_at__lt=last_month
+        ).count()
+        
+        if previous_members == 0:
+            return 100
+        
+        growth = ((current_members - previous_members) / previous_members) * 100
+        return round(growth, 2)
+    
+    def _calculate_avg_monthly_giving(self, member):
+        """Calculate average monthly giving"""
+        from giving.models import GivingTransaction
+        
+        total = GivingTransaction.objects.filter(
+            member=member,
+            status='completed'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        # Get months since first donation
+        first_donation = GivingTransaction.objects.filter(
+            member=member,
+            status='completed'
+        ).order_by('transaction_date').first()
+        
+        if not first_donation:
+            return 0
+        
+        months = (timezone.now().date() - first_donation.transaction_date.date()).days / 30
+        if months < 1:
+            months = 1
+        
+        return round(total / months, 2)
+    
+    def _calculate_giving_goal_progress(self, member):
+        """Calculate progress towards giving goal (assuming $1000/month goal)"""
+        from giving.models import GivingTransaction
+        
+        monthly_goal = 1000  # This could be configurable
+        current_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        current_giving = GivingTransaction.objects.filter(
+            member=member,
+            status='completed',
+            transaction_date__gte=current_month
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        return {
+            'goal': monthly_goal,
+            'current': current_giving,
+            'progress': (current_giving / monthly_goal) * 100,
+            'remaining': max(0, monthly_goal - current_giving)
+        }
+    
+    def _days_until_next_recurring(self, member):
+        """Calculate days until next recurring payment"""
+        from giving.models import RecurringGiving
+        
+        next_payment = RecurringGiving.objects.filter(
+            member=member,
+            status='active'
+        ).order_by('next_payment_date').first()
+        
+        if not next_payment or not next_payment.next_payment_date:
+            return None
+        
+        days = (next_payment.next_payment_date.date() - timezone.now().date()).days
+        return max(0, days)
+
+
+class MobileGivingSummaryView(views.APIView):
+    """Get enhanced mobile giving summary using dashboard data"""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get enhanced giving summary for mobile dashboard"""
+        user = request.user
+        
+        if not hasattr(user, 'member_profile') or not user.member_profile:
+            return Response({'error': 'Member profile not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        member = user.member_profile
+        
+        # Import dashboard functions for enhanced data
+        from dashboard.views import financial_summary, monthly_trend, income_breakdown, expense_breakdown
+        
+        # Get enhanced financial data
+        financial_data = financial_summary(request).data
+        
+        # Get monthly trends
+        trend_data = monthly_trend(request).data
+        
+        # Get income breakdown
+        income_data = income_breakdown(request).data
+        
+        # Get expense breakdown  
+        expense_data = expense_breakdown(request).data
+        
+        # Personal giving statistics (member-specific)
         from giving.models import GivingTransaction, RecurringGiving
         
         now = timezone.now()
         current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         current_year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        # Total giving
-        total_giving = GivingTransaction.objects.filter(
+        # Personal giving totals
+        personal_total_giving = GivingTransaction.objects.filter(
             member=member,
             status='completed'
         ).aggregate(total=Sum('amount'))['total'] or 0
         
-        # This month
-        this_month = GivingTransaction.objects.filter(
+        personal_this_month = GivingTransaction.objects.filter(
             member=member,
             status='completed',
             transaction_date__gte=current_month_start
         ).aggregate(total=Sum('amount'))['total'] or 0
         
-        # This year
-        this_year = GivingTransaction.objects.filter(
+        personal_this_year = GivingTransaction.objects.filter(
             member=member,
             status='completed',
             transaction_date__gte=current_year_start
@@ -429,16 +637,57 @@ class MobileGivingSummaryView(views.APIView):
             status='active'
         ).values('category__name', 'frequency', 'amount', 'next_payment_date')
         
+        # Enhanced summary data combining church-wide and personal data
         summary_data = {
-            'total_giving': total_giving,
-            'this_month': this_month,
-            'this_year': this_year,
-            'last_transaction': last_transaction,
-            'giving_categories': list(categories),
-            'recurring_giving': list(recurring)
+            # Church-wide financial data (from enhanced dashboard)
+            'church_financial': financial_data,
+            'monthly_trends': trend_data,
+            'income_breakdown': income_data,
+            'expense_breakdown': expense_data,
+            
+            # Personal giving data
+            'personal_giving': {
+                'total_giving': personal_total_giving,
+                'this_month': personal_this_month,
+                'this_year': personal_this_year,
+                'last_transaction': last_transaction,
+                'giving_categories': list(categories),
+                'recurring_giving': list(recurring)
+            },
+            
+            # Summary metrics
+            'summary': {
+                'personal_percentage': (personal_this_month / financial_data.get('monthlyIncome', 1)) * 100 if financial_data.get('monthlyIncome', 0) > 0 else 0,
+                'giving_streak': self._calculate_giving_streak(member),
+                'next_recurring_payment': self._get_next_recurring_payment(recurring)
+            }
         }
         
         return Response(MobileGivingSummarySerializer(summary_data).data)
+    
+    def _calculate_giving_streak(self, member):
+        """Calculate consecutive months of giving"""
+        from giving.models import GivingTransaction
+        from django.db.models import Max
+        
+        # Get months with giving transactions
+        giving_months = GivingTransaction.objects.filter(
+            member=member,
+            status='completed'
+        ).extra({
+            'month': "strftime('%Y-%m', transaction_date)"
+        }).values('month').distinct().order_by('-month')
+        
+        # Calculate streak (simplified)
+        return len(giving_months) if giving_months else 0
+    
+    def _get_next_recurring_payment(self, recurring):
+        """Get next recurring payment date"""
+        if not recurring:
+            return None
+        
+        next_payment = min((r['next_payment_date'] for r in recurring if r['next_payment_date']), default=None)
+        return next_payment
 
 
 class MobileChurchInfoView(views.APIView):

@@ -63,12 +63,24 @@
             android:theme="@style/Theme.AltarFunds.NoActionBar" />
 
         <!-- Main App Activities -->
+        <activity
+            android:name=".MemberDashboardActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds.NoActionBar" />
+        
         <activity android:name=".MainActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds.NoActionBar" />
 
         <!-- Giving Activities -->
+        <activity
+            android:name="com.altarfunds.mobile.EnhancedGivingActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds.NoActionBar" />
+        
         <activity
             android:name="com.altarfunds.mobile.NewGivingActivity"
             android:exported="false"
@@ -122,6 +134,18 @@
         <!-- Church Activities -->
         <activity
             android:name="com.altarfunds.mobile.ChurchDetailsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds.NoActionBar" />
+        
+        <activity
+            android:name="com.altarfunds.mobile.HelpActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds.NoActionBar" />
+        
+        <activity
+            android:name="com.altarfunds.mobile.WebViewActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds.NoActionBar" />

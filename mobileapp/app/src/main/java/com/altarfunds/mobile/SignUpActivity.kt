@@ -92,7 +92,7 @@ class SignUpActivity : AppCompatActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val loginResponse = response.body()!!
                     (application as AltarFundsApp).preferencesManager.saveUserSession(loginResponse)
-                    startActivity(Intent(this@SignUpActivity, MainActivity::class.java))
+                    startActivity(Intent(this@SignUpActivity, MemberDashboardActivity::class.java))
                     finish()
                 } else {
                     Toast.makeText(
@@ -161,7 +161,7 @@ class SignUpActivity : AppCompatActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val loginResponse = response.body()!!
                     (application as AltarFundsApp).preferencesManager.saveUserSession(loginResponse)
-                    startActivity(Intent(this@SignUpActivity, MainActivity::class.java))
+                    startActivity(Intent(this@SignUpActivity, MemberDashboardActivity::class.java))
                     finish()
                 } else {
                     Toast.makeText(

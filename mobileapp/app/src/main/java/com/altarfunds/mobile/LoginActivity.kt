@@ -30,7 +30,7 @@ class LoginActivity : AppCompatActivity() {
 
         // Check if already logged in
         if (isUserLoggedIn()) {
-            startActivity(Intent(this, MainActivity::class.java))
+            startActivity(Intent(this, MemberDashboardActivity::class.java))
             finish()
             return
         }
@@ -99,8 +99,8 @@ class LoginActivity : AppCompatActivity() {
                     val preferencesManager = (application as AltarFundsApp).preferencesManager
                     preferencesManager.saveUserSession(loginResponse)
 
-                    // Navigate to main activity
-                    startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                    // Navigate to member dashboard
+                    startActivity(Intent(this@LoginActivity, MemberDashboardActivity::class.java))
                     finish()
                 } else {
                     Toast.makeText(
@@ -169,7 +169,7 @@ class LoginActivity : AppCompatActivity() {
                     val loginResponse = response.body()!!
                     val preferencesManager = (application as AltarFundsApp).preferencesManager
                     preferencesManager.saveUserSession(loginResponse)
-                    startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                    startActivity(Intent(this@LoginActivity, MemberDashboardActivity::class.java))
                     finish()
                 } else {
                     Toast.makeText(

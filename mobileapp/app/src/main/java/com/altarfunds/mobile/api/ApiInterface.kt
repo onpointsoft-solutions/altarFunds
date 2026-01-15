@@ -28,8 +28,12 @@ interface ApiInterface {
     suspend fun getUserProfile(): Response<UserProfileResponse>
     
     // Comprehensive Giving Features
-    @GET("api/mobile/giving/summary/")
+    @GET("api/mobile/giving-summary/")
     suspend fun getGivingSummary(): Response<GivingSummaryResponse>
+    
+    // Enhanced Dashboard
+    @GET("api/mobile/dashboard/")
+    suspend fun getEnhancedDashboard(): Response<EnhancedDashboardResponse>
     
     @POST("api/mobile/giving/initiate/")
     suspend fun initiateGiving(@Body givingRequest: ComprehensiveGivingRequest): Response<PaymentInitiationResponse>

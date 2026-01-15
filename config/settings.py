@@ -249,7 +249,7 @@ CELERY_TIMEZONE = TIME_ZONE
 
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000',
+    default='http://localhost:3000,https://altarfunds.pythonanywhere.com',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
@@ -257,7 +257,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='http://localhost:3000',
+    default='http://localhost:3000,https://altarfunds.pythonanywhere.com',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 

@@ -20,6 +20,13 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Check if user is logged in and redirect to dashboard
+        if (isUserLoggedIn()) {
+            startActivity(Intent(this, MemberDashboardActivity::class.java))
+            finish()
+            return
+        }
+
         // Simple app bar setup
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "AltarFunds"
@@ -47,12 +54,6 @@ class MainActivity : AppCompatActivity() {
         // Ensure bottom navigation is visible
         binding.bottomNavigation.visibility = android.view.View.VISIBLE
         binding.chipAppBar.visibility = android.view.View.VISIBLE
-
-        // Check if user is logged in
-        if (!isUserLoggedIn()) {
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish()
-        }
     }
 
     private fun makeCurrentFragment(fragment: Fragment) {

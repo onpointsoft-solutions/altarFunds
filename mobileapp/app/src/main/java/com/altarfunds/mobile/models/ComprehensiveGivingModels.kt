@@ -1,5 +1,85 @@
 package com.altarfunds.mobile.models
 
+// Enhanced Dashboard Models
+data class EnhancedDashboardResponse(
+    val financial_overview: FinancialOverview,
+    val personal_giving: PersonalGiving,
+    val church_metrics: ChurchMetrics,
+    val trends: List<TrendData>,
+    val income_breakdown: List<CategoryBreakdown>,
+    val expense_breakdown: List<CategoryBreakdown>,
+    val recent_activity: RecentActivity,
+    val quick_stats: QuickStats
+)
+
+data class FinancialOverview(
+    val total_income: Double,
+    val monthly_income: Double,
+    val total_expenses: Double,
+    val monthly_expenses: Double,
+    val net_balance: Double,
+    val monthly_net: Double
+)
+
+data class PersonalGiving(
+    val total_giving: Double,
+    val this_month: Double,
+    val transaction_count: Int,
+    val percentage_of_church: Double
+)
+
+data class ChurchMetrics(
+    val total_members: Int,
+    val active_members: Int,
+    val member_growth_rate: Double
+)
+
+data class TrendData(
+    val month: String,
+    val income: Double,
+    val expenses: Double
+)
+
+data class CategoryBreakdown(
+    val category: String,
+    val amount: Double,
+    val percentage: Double
+)
+
+data class RecentActivity(
+    val recent_transactions: List<RecentTransaction>,
+    val recent_expenses: List<RecentExpense>
+)
+
+data class RecentTransaction(
+    val id: Int,
+    val amount: Double,
+    val member: String,
+    val category: String,
+    val date: String
+)
+
+data class RecentExpense(
+    val id: Int,
+    val amount: Double,
+    val description: String,
+    val category: String,
+    val date: String
+)
+
+data class QuickStats(
+    val avg_monthly_giving: Double,
+    val giving_goal_progress: GivingGoalProgress,
+    val days_until_next_recurring: Int?
+)
+
+data class GivingGoalProgress(
+    val goal: Double,
+    val current: Double,
+    val progress: Double,
+    val remaining: Double
+)
+
 // Comprehensive Giving Request Models
 data class ComprehensiveGivingRequest(
     val amount: Double,

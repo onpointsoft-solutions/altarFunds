@@ -284,7 +284,7 @@ data class Member(
     val member_type: String,
     val join_date: String,
     val is_active: Boolean,
-    val church: Int
+    val church: ChurchInfo
 )
 
 data class Device(

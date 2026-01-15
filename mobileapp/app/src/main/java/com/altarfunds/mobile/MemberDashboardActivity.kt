@@ -68,27 +68,27 @@ class MemberDashboardActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // Load giving summary
-                val givingSummaryResponse = com.altarfunds.mobile.api.ApiService.getApiInterface().getGivingSummary()
+                // Load enhanced dashboard data
+                val enhancedDashboardResponse = com.altarfunds.mobile.api.ApiService.getApiInterface().getEnhancedDashboard()
                 
-                // Load recent transactions
+                // Load recent transactions (still needed for detailed view)
                 val transactionsResponse = com.altarfunds.mobile.api.ApiService.getApiInterface().getGivingTransactions()
                 
-                // Load pledges
+                // Load pledges (still needed for pledge management)
                 val pledgesResponse = com.altarfunds.mobile.api.ApiService.getApiInterface().getPledges()
                 
-                // Load user profile
+                // Load user profile (still needed for user info)
                 val profileResponse = com.altarfunds.mobile.api.ApiService.getApiInterface().getUserProfile()
 
-                // Load churches for transfer functionality
+                // Load churches for transfer functionality (still needed)
                 val churchesResponse = com.altarfunds.mobile.api.ApiService.getApiInterface().searchChurches(query = "", location = null)
 
                 // Wait for all requests to complete
                 kotlinx.coroutines.delay(100)
 
-                // Update UI with real data
-                updateUIWithDashboardData(
-                    givingSummaryResponse.body(),
+                // Update UI with enhanced dashboard data
+                updateUIWithEnhancedDashboardData(
+                    enhancedDashboardResponse.body(),
                     transactionsResponse.body()?.results ?: emptyList(),
                     pledgesResponse.body()?.pledges ?: emptyList(),
                     profileResponse.body(),
@@ -96,11 +96,113 @@ class MemberDashboardActivity : AppCompatActivity() {
                 )
 
             } catch (e: Exception) {
-                Toast.makeText(this@MemberDashboardActivity, "Failed to load dashboard data", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MemberDashboardActivity, "Failed to load dashboard data: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
                 binding.progressBar.visibility = View.GONE
             }
         }
+    }
+
+    private fun updateUIWithEnhancedDashboardData(
+        enhancedDashboard: EnhancedDashboardResponse?,
+        transactions: List<GivingTransactionResponse>,
+        pledges: List<Pledge>,
+        profile: UserProfileResponse?,
+        churches: List<ChurchSearchResult>
+    ) {
+        // Update UI with enhanced dashboard data
+        enhancedDashboard?.let { dashboard ->
+            // Financial Overview - Map to existing UI elements
+            updateFinancialOverviewWithBasicUI(dashboard.financial_overview)
+            
+            // Personal Giving - Map to existing UI elements
+            updatePersonalGivingWithBasicUI(dashboard.personal_giving)
+            
+            // Church Metrics - Show in existing elements or log
+            updateChurchMetricsWithBasicUI(dashboard.church_metrics)
+            
+            // Quick Stats - Show some stats in existing elements
+            updateQuickStatsWithBasicUI(dashboard.quick_stats)
+        }
+        
+        // Update other UI components
+        updateTransactionsList(transactions)
+        updatePledgesList(pledges)
+        updateProfileInfo(profile)
+        updateChurchesList(churches)
+    }
+    
+    private fun updateFinancialOverviewWithBasicUI(financialOverview: FinancialOverview) {
+        // Use existing basic UI elements for financial data
+        binding.tvTotalGiving.text = CurrencyUtils.formatCurrency(financialOverview.total_income)
+        binding.tvThisMonth.text = CurrencyUtils.formatCurrency(financialOverview.monthly_income)
+        binding.tvThisYear.text = CurrencyUtils.formatCurrency(financialOverview.total_income)
+        
+        // Show net balance in last transaction amount temporarily
+        binding.tvLastTransactionAmount.text = CurrencyUtils.formatCurrency(financialOverview.net_balance)
+        binding.tvLastTransactionDate.text = if (financialOverview.net_balance >= 0) "Net Balance" else "Net Loss"
+    }
+    
+    private fun updatePersonalGivingWithBasicUI(personalGiving: PersonalGiving) {
+        // Update personal giving in existing elements
+        binding.tvTotalGiving.text = CurrencyUtils.formatCurrency(personalGiving.total_giving)
+        binding.tvThisMonth.text = CurrencyUtils.formatCurrency(personalGiving.this_month)
+        
+        // Show transaction count and percentage in existing elements
+        binding.tvLastTransactionCategory.text = "${personalGiving.transaction_count} transactions"
+        binding.tvLastTransactionDate.text = "${String.format("%.1f", personalGiving.percentage_of_church)}% of church"
+    }
+    
+    private fun updateChurchMetricsWithBasicUI(churchMetrics: ChurchMetrics) {
+        // Log church metrics since we don't have specific UI elements
+        android.util.Log.d("Dashboard", "Church Metrics: ${churchMetrics.total_members} total, ${churchMetrics.active_members} active, ${churchMetrics.member_growth_rate}% growth")
+        
+        // Could show member count in church name temporarily
+        binding.tvMemberChurch.text = "${churchMetrics.total_members} members"
+    }
+    
+    private fun updateQuickStatsWithBasicUI(quickStats: QuickStats) {
+        // Log quick stats since we don't have specific UI elements
+        android.util.Log.d("Dashboard", "Quick Stats: Avg monthly: ${quickStats.avg_monthly_giving}, Goal progress: ${quickStats.giving_goal_progress.progress}%")
+        
+        // Show avg monthly giving in a temporary location
+        binding.tvLastTransactionAmount.text = CurrencyUtils.formatCurrency(quickStats.avg_monthly_giving)
+        binding.tvLastTransactionDate.text = "Avg Monthly"
+    }
+    
+    private fun updateTransactionsList(transactions: List<GivingTransactionResponse>) {
+        givingHistoryAdapter.submitList(transactions)
+    }
+    
+    private fun updatePledgesList(pledges: List<Pledge>) {
+        pledgeAdapter.updatePledges(pledges)
+    }
+    
+    private fun updateProfileInfo(profile: UserProfileResponse?) {
+        profile?.let {
+            binding.tvMemberName.text = it.user?.first_name?.let { firstName ->
+                it.user?.last_name?.let { lastName ->
+                    "$firstName $lastName"
+                } ?: firstName
+            } ?: it.user?.email ?: "User"
+            
+            binding.tvMemberEmail.text = it.user?.email ?: "No email"
+            
+            // Update church info
+            it.member?.church?.let { church ->
+                binding.tvMemberChurch.text = church.name
+                binding.tvChurchVerified.visibility = android.view.View.VISIBLE
+                binding.tvChurchUnverified.visibility = android.view.View.GONE
+            } ?: run {
+                binding.tvMemberChurch.text = "No church assigned"
+                binding.tvChurchVerified.visibility = android.view.View.GONE
+                binding.tvChurchUnverified.visibility = android.view.View.VISIBLE
+            }
+        }
+    }
+    
+    private fun updateChurchesList(churches: List<ChurchSearchResult>) {
+        churchAdapter.updateChurches(churches)
     }
 
     private fun updateUIWithDashboardData(

@@ -12,6 +12,9 @@ urlpatterns = [
     path('devices/', views.MobileDeviceListView.as_view(), name='device-list'),
     path('devices/<int:pk>/', views.MobileDeviceDetailView.as_view(), name='device-detail'),
     
+    # Enhanced Dashboard
+    path('dashboard/', views.MobileEnhancedDashboardView.as_view(), name='enhanced-dashboard'),
+    
     # App Configuration
     path('config/', views.MobileAppConfigView.as_view(), name='app-config'),
     
