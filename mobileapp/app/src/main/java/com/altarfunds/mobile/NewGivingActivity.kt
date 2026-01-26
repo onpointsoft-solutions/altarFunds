@@ -66,14 +66,30 @@ class NewGivingActivity : AppCompatActivity() {
             try {
                 val response = com.altarfunds.mobile.api.ApiService.getApiInterface().getGivingCategories()
 
-                if (response.isSuccessful && response.body()?.success == true) {
-                    val categories = response.body()?.data ?: emptyList()
-                    setupCategorySpinner(categories)
+                if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    if (responseBody?.success == true) {
+                        val categories = responseBody.data ?: emptyList()
+                        setupCategorySpinner(categories)
+                        
+                        // Debug: Log the categories
+                        android.util.Log.d("NewGivingActivity", "Loaded ${categories.size} categories")
+                        categories.forEach { category ->
+                            android.util.Log.d("NewGivingActivity", "Category: ${category.name} (ID: ${category.id})")
+                        }
+                    } else {
+                        val errorMessage = responseBody?.message ?: "Unknown error"
+                        android.util.Log.e("NewGivingActivity", "API returned success=false: $errorMessage")
+                        Toast.makeText(this@NewGivingActivity, "Failed to load categories: $errorMessage", Toast.LENGTH_LONG).show()
+                    }
                 } else {
-                    Toast.makeText(this@NewGivingActivity, "Failed to load categories", Toast.LENGTH_SHORT).show()
+                    val errorBody = response.errorBody()?.string()
+                    android.util.Log.e("NewGivingActivity", "HTTP error: ${response.code()} - $errorBody")
+                    Toast.makeText(this@NewGivingActivity, "Failed to load categories: ${response.message()}", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@NewGivingActivity, "Failed to load categories", Toast.LENGTH_SHORT).show()
+                android.util.Log.e("NewGivingActivity", "Exception loading categories", e)
+                Toast.makeText(this@NewGivingActivity, "Failed to load categories: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 binding.progressBar.visibility = View.GONE
             }

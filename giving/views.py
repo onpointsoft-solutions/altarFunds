@@ -23,14 +23,63 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def giving_categories(request):
+    """Get giving categories for user's church"""
+    try:
+        user = request.user
+        logger.info(f"Fetching categories for user: {user.email}, role: {user.role}, church: {user.church}")
+        
+        # Check if user has a church
+        if not user.church:
+            logger.warning(f"User {user.email} has no church assigned")
+            return Response({
+                'success': False,
+                'message': 'User is not associated with any church',
+                'data': []
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get categories for user's church
+        if user.role == 'system_admin':
+            categories = GivingCategory.objects.filter(is_active=True)
+            logger.info(f"System admin fetching all active categories: {categories.count()} found")
+        else:
+            categories = GivingCategory.objects.filter(church=user.church, is_active=True)
+            logger.info(f"User {user.email} fetching categories for church {user.church.name}: {categories.count()} found")
+        
+        serializer = GivingCategorySerializer(categories, many=True)
+        
+        response_data = {
+            'success': True,
+            'message': f'Found {len(categories)} categories',
+            'data': serializer.data
+        }
+        logger.info(f"Returning categories response: {response_data}")
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error fetching giving categories: {str(e)}")
+        return Response({
+            'success': False,
+            'message': 'Failed to fetch categories',
+            'data': []
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class GivingCategoryViewSet(viewsets.ModelViewSet):
     queryset = GivingCategory.objects.all()
     serializer_class = GivingCategorySerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Filter active categories"""
-        return GivingCategory.objects.filter(is_active=True)
+        """Filter active categories for user's church"""
+        user = self.request.user
+        if user.role == 'system_admin':
+            return GivingCategory.objects.filter(is_active=True)
+        else:
+            return GivingCategory.objects.filter(church=user.church, is_active=True)
 
 
 class GivingTransactionViewSet(viewsets.ModelViewSet):
