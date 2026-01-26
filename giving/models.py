@@ -225,7 +225,7 @@ class GivingTransaction(FinancialModel):
         ]
     
     def __str__(self):
-        return f"{self.member.user.full_name} - KES {self.amount} - {self.get_status_display()}"
+        return f"{self.member.user.get_full_name()} - KES {self.amount} - {self.get_status_display()}"
     
     def mark_completed(self, payment_reference=None):
         """Mark transaction as completed"""
