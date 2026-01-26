@@ -55,7 +55,10 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds.NoActionBar" />
-        
+        <activity android:name=".MemberDashboardModernActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            />
         <activity
             android:name="com.altarfunds.mobile.ForgotPasswordActivity"
             android:exported="false"
@@ -146,6 +149,19 @@
         
         <activity
             android:name="com.altarfunds.mobile.WebViewActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds.NoActionBar" />
+
+        <!-- Reports and Devotionals Activities -->
+        <activity
+            android:name="com.altarfunds.mobile.ReportsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds.NoActionBar" />
+        
+        <activity
+            android:name="com.altarfunds.mobile.DevotionalsActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds.NoActionBar" />

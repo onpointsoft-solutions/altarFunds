@@ -42,17 +42,12 @@ class ChurchAdapter(
         fun bind(church: ChurchSearchResult) {
             binding.apply {
                 tvChurchName.text = church.name
-                tvChurchCode.text = church.code
+                tvChurchCode.text = church.id
                 tvChurchDescription.text = church.location
                 
-                // Set verification status
-                if (church.is_verified) {
-                    tvVerificationStatus.text = "Verified"
-                    tvVerificationStatus.setTextColor(android.graphics.Color.parseColor("#FFA500"))
-                } else {
-                    tvVerificationStatus.text = "Not Verified"
-                    tvVerificationStatus.setTextColor(android.graphics.Color.YELLOW)
-                }
+                // Set verification status (default to not verified since not available in search result)
+                tvVerificationStatus.text = "Not Verified"
+                tvVerificationStatus.setTextColor(android.graphics.Color.YELLOW)
                 
                 // Set active status (always active for search results)
                 tvActiveStatus.text = "Active"

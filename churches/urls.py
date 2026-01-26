@@ -8,7 +8,8 @@ from .views import (
     ChurchBankAccountListCreateView, ChurchBankAccountDetailView,
     MpesaAccountListCreateView, MpesaAccountDetailView,
     church_summary, church_options, department_options, small_group_options,
-    ChurchRegistrationView, join_church
+    ChurchRegistrationView, join_church, transfer_church, pending_churches,
+    approve_church, reject_church, church_members
 )
 from .search_views import search_churches
 
@@ -21,7 +22,14 @@ urlpatterns = [
     path('<int:pk>/', ChurchDetailView.as_view(), name='church_detail'),
     path('<int:pk>/verify/', ChurchVerificationView.as_view(), name='church_verify'),
     path('<int:pk>/status/', ChurchStatusUpdateView.as_view(), name='church_status_update'),
+    path('<int:pk>/approve/', approve_church, name='approve_church'),
+    path('<int:pk>/reject/', reject_church, name='reject_church'),
+    path('<int:pk>/members/', church_members, name='church_members'),
     path('register/', ChurchRegistrationView.as_view(), name='register'),
+    path('transfer/', transfer_church, name='transfer_church'),
+    path('pending-approval/', pending_churches, name='pending_churches'),
+    path('join/', join_church, name='join_church'),
+    path('search/', search_churches, name='search_churches'),
     path('campuses/', CampusListCreateView.as_view(), name='campus_list_create'),
     path('campuses/<int:pk>/', CampusDetailView.as_view(), name='campus_detail'),
     path('departments/', DepartmentListCreateView.as_view(), name='department_list_create'),
@@ -36,6 +44,4 @@ urlpatterns = [
     path('options/churches/', church_options, name='church_options'),
     path('options/departments/', department_options, name='department_options'),
     path('options/small-groups/', small_group_options, name='small_group_options'),
-    path('join/', join_church, name='join_church'),
-    path('search/', search_churches, name='search_churches'),
 ]

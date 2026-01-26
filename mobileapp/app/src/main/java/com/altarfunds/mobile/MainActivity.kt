@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import com.ismaeldivita.chipnavigation.ChipNavigationBar
+// import com.ismaeldivita.chipnavigation.ChipNavigationBar
 import com.altarfunds.mobile.databinding.ActivityMainBinding
 import com.altarfunds.mobile.ui.fragments.GivingFragmentModern
 import com.altarfunds.mobile.ui.fragments.ProfileFragment
@@ -22,7 +22,7 @@ class MainActivity : AppCompatActivity() {
 
         // Check if user is logged in and redirect to dashboard
         if (isUserLoggedIn()) {
-            startActivity(Intent(this, MemberDashboardActivity::class.java))
+            startActivity(Intent(this, MemberDashboardModernActivity::class.java))
             finish()
             return
         }
@@ -38,10 +38,11 @@ class MainActivity : AppCompatActivity() {
         val profileFragment = ProfileFragment()
 
         // Set default fragment
-        binding.chipAppBar.setItemSelected(R.id.ic_transaction, true)
+        // binding.chipAppBar.setItemSelected(R.id.ic_transaction, true)
         makeCurrentFragment(givingFragment)
 
         // Set up bottom navigation
+        /*
         binding.chipAppBar.setOnItemSelectedListener { itemId ->
             when (itemId) {
                 R.id.ic_transaction -> makeCurrentFragment(givingFragment)
@@ -50,10 +51,11 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
+        */
         
         // Ensure bottom navigation is visible
+        // binding.chipAppBar.visibility = android.view.View.VISIBLE
         binding.bottomNavigation.visibility = android.view.View.VISIBLE
-        binding.chipAppBar.visibility = android.view.View.VISIBLE
     }
 
     private fun makeCurrentFragment(fragment: Fragment) {

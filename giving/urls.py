@@ -5,7 +5,8 @@ from .views import (
     GivingTransactionViewSet, 
     RecurringGivingViewSet, 
     PledgeViewSet, 
-    GivingCampaignViewSet
+    GivingCampaignViewSet,
+    church_givings
 )
 
 app_name = 'giving'
@@ -19,4 +20,5 @@ router.register(r'campaigns', GivingCampaignViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('church/<int:church_id>/', church_givings, name='church_givings'),
 ]

@@ -9,8 +9,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
 import com.altarfunds.mobile.databinding.ActivityEnhancedGivingBinding
-import com.altarfunds.mobile.utils.CurrencyUtils
-import com.altarfunds.mobile.utils.ValidationUtils
 import com.altarfunds.mobile.ui.adapters.TransactionHistoryAdapter
 import com.altarfunds.mobile.ui.adapters.GivingCategoryAdapter
 import com.altarfunds.mobile.ui.adapters.RecurringGivingAdapter

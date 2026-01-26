@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/nav_dashboard"
+        android:icon="@drawable/ic_dashboard"
+        android:title="Dashboard"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/nav_giving"
+        android:icon="@drawable/ic_heart"
+        android:title="Giving"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/nav_churches"
+        android:icon="@drawable/ic_church"
+        android:title="Churches"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/nav_devotionals"
+        android:icon="@drawable/ic_book"
+        android:title="Devotionals"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/nav_profile"
+        android:icon="@drawable/ic_person"
+        android:title="Profile"
+        app:showAsAction="ifRoom" />
+
+</menu>

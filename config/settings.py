@@ -219,6 +219,15 @@ MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL')
 MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='sandbox')
 
 # --------------------------------------------------
+# PAYSTACK
+# --------------------------------------------------
+
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
+PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
+PAYSTACK_CALLBACK_URL = config('PAYSTACK_CALLBACK_URL', default='https://altarfunds.pythonanywhere.com/api/payments/paystack/callback/')
+PAYSTACK_WEBHOOK_URL = config('PAYSTACK_WEBHOOK_URL', default='https://altarfunds.pythonanywhere.com/api/payments/paystack/webhook/')
+
+# --------------------------------------------------
 # EMAIL
 # --------------------------------------------------
 

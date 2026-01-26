@@ -19,6 +19,7 @@ def comprehensive_dashboard(request):
     if not user.church:
         return Response({
             'church': None,
+            'currency': 'KES',
             'message': 'No church assigned. Please join a church to view financial data.',
             'financial_summary': {
                 'totalIncome': 0,
@@ -43,12 +44,12 @@ def comprehensive_dashboard(request):
     ).aggregate(total=Sum('amount'))['total'] or 0
     
     total_expenses = Expense.objects.filter(
-        church=church
+        user__church=church
     ).aggregate(total=Sum('amount'))['total'] or 0
     
     monthly_expenses = Expense.objects.filter(
-        church=church,
-        created_at__gte=timezone.now() - timedelta(days=30)
+        user__church=church,
+        date__gte=(timezone.now() - timedelta(days=30)).date()
     ).aggregate(total=Sum('amount'))['total'] or 0
     
     # Monthly Trend (simplified for performance)
@@ -64,8 +65,8 @@ def comprehensive_dashboard(request):
         ).aggregate(total=Sum('amount'))['total'] or 0
         
         expenses = Expense.objects.filter(
-            church=church,
-            created_at__range=[month_start, month_end]
+            user__church=church,
+            date__range=[month_start.date(), month_end.date()]
         ).aggregate(total=Sum('amount'))['total'] or 0
         
         trend_data.append({
@@ -79,10 +80,11 @@ def comprehensive_dashboard(request):
         'church': {
             'id': church.id,
             'name': church.name,
-            'code': church.code,
+            'code': church.church_code,
             'is_verified': church.is_verified,
             'is_active': church.is_active
         },
+        'currency': 'KES',
         'financial_summary': {
             'totalIncome': total_income,
             'monthlyIncome': monthly_income,

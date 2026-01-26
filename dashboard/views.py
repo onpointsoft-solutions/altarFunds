@@ -49,12 +49,12 @@ def financial_summary(request):
     
     # Calculate expenses
     total_expenses = Expense.objects.filter(
-        church=church
+        user__church=church
     ).aggregate(total=Sum('amount'))['total'] or 0
     
     monthly_expenses = Expense.objects.filter(
-        church=church,
-        created_at__gte=timezone.now() - timedelta(days=30)
+        user__church=church,
+        date__gte=(timezone.now() - timedelta(days=30)).date()
     ).aggregate(total=Sum('amount'))['total'] or 0
     
     return Response({
@@ -63,10 +63,11 @@ def financial_summary(request):
         'totalExpenses': total_expenses,
         'monthlyExpenses': monthly_expenses,
         'netBalance': total_income - total_expenses,
+        'currency': 'KES',
         'church': {
             'id': church.id,
             'name': church.name,
-            'code': church.code,
+            'code': church.church_code,
             'is_verified': church.is_verified,
             'is_active': church.is_active
         }
@@ -83,6 +84,7 @@ def monthly_trend(request):
         return Response({
             'trend': [],
             'church': None,
+            'currency': 'KES',
             'message': 'No church assigned. Please join a church to view financial data.'
         }, status=200)
     
@@ -100,8 +102,8 @@ def monthly_trend(request):
         ).aggregate(total=Sum('amount'))['total'] or 0
         
         expenses = Expense.objects.filter(
-            church=church,
-            created_at__range=[month_start, month_end]
+            user__church=church,
+            date__range=[month_start.date(), month_end.date()]
         ).aggregate(total=Sum('amount'))['total'] or 0
         
         trend_data.append({
@@ -113,10 +115,11 @@ def monthly_trend(request):
     
     return Response({
         'trend': trend_data,
+        'currency': 'KES',
         'church': {
             'id': church.id,
             'name': church.name,
-            'code': church.code,
+            'code': church.church_code,
             'is_verified': church.is_verified,
             'is_active': church.is_active
         }
@@ -133,6 +136,7 @@ def income_breakdown(request):
         return Response({
             'breakdown': [],
             'church': None,
+            'currency': 'KES',
             'message': 'No church assigned. Please join a church to view financial data.'
         }, status=200)
     
@@ -156,10 +160,11 @@ def income_breakdown(request):
     
     return Response({
         'breakdown': breakdown,
+        'currency': 'KES',
         'church': {
             'id': church.id,
             'name': church.name,
-            'code': church.code,
+            'code': church.church_code,
             'is_verified': church.is_verified,
             'is_active': church.is_active
         }
@@ -176,25 +181,26 @@ def expense_breakdown(request):
         return Response({
             'breakdown': [],
             'church': None,
+            'currency': 'KES',
             'message': 'No church assigned. Please join a church to view financial data.'
         }, status=200)
     
     church = user.church
     
-    # Group expenses by category
-    expenses = Expense.objects.filter(church=church).values('category').annotate(
+    # Group expenses by category - filter by users in the same church
+    expenses = Expense.objects.filter(user__church=church).values('category__name').annotate(
         total=Sum('amount'),
         count=Count('id')
     ).order_by('-total')
     
-    total_expenses = Expense.objects.filter(church=church).aggregate(
+    total_expenses = Expense.objects.filter(user__church=church).aggregate(
         total=Sum('amount')
     )['total'] or 1
     
     breakdown = []
     for expense in expenses:
         breakdown.append({
-            'category': expense['category'],
+            'category': expense['category__name'],
             'amount': expense['total'],
             'count': expense['count'],
             'percentage': (expense['total'] / total_expenses) * 100
@@ -202,10 +208,11 @@ def expense_breakdown(request):
     
     return Response({
         'breakdown': breakdown,
+        'currency': 'KES',
         'church': {
             'id': church.id,
             'name': church.name,
-            'code': church.code,
+            'code': church.church_code,
             'is_verified': church.is_verified,
             'is_active': church.is_active
         }

@@ -1,6 +1,7 @@
 from rest_framework import generics, status, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
 from django.db import transaction
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -20,9 +21,13 @@ from .serializers import (
     ChurchListSerializer, ChurchSummarySerializer,
     ChurchVerificationSerializer, ChurchStatusUpdateSerializer
 )
-from common.permissions import IsChurchAdmin, IsDenominationAdmin, IsSystemAdmin
+from common.permissions import (
+    IsChurchAdmin, IsDenominationAdmin, IsSystemAdmin, 
+    CanApproveChurches, CanManageChurch, IsMember
+)
 from common.services import AuditService
 from common.exceptions import AltarFundsException
+import uuid
 
 
 @api_view(['POST'])
@@ -829,3 +834,281 @@ class ChurchRegistrationView(View):
                 return redirect('dashboard:home')
         
         return render(request, 'churches/register.html', {'form': form})
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def transfer_church(request):
+    """Transfer from one church to another"""
+    from_church_id = request.data.get('from_church_id')
+    to_church_id = request.data.get('to_church_id')
+    reason = request.data.get('reason', '')
+    request_letter = request.data.get('request_transfer_letter', False)
+    
+    if not from_church_id or not to_church_id:
+        return Response({
+            'success': False,
+            'message': 'From church and to church are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if from_church_id == to_church_id:
+        return Response({
+            'success': False,
+            'message': 'Cannot transfer to the same church'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        with transaction.atomic():
+            user = request.user
+            from_church = Church.objects.get(id=from_church_id)
+            to_church = Church.objects.get(id=to_church_id)
+            
+            # Verify user belongs to from_church
+            if user.church != from_church:
+                return Response({
+                    'success': False,
+                    'message': 'You can only transfer from your current church'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Create transfer record (you might need to create a TransferRequest model)
+            transfer_data = {
+                'user': user,
+                'from_church': from_church,
+                'to_church': to_church,
+                'reason': reason,
+                'status': 'pending',
+                'reference': f"TF-{uuid.uuid4().hex[:12].upper()}"
+            }
+            
+            # Log the transfer request
+            AuditService.log_user_action(
+                user=user,
+                action='CHURCH_TRANSFER_REQUEST',
+                details={
+                    'from_church': from_church.name,
+                    'to_church': to_church.name,
+                    'reason': reason
+                },
+                ip_address=get_client_ip(request)
+            )
+            
+            return Response({
+                'success': True,
+                'data': transfer_data,
+                'message': 'Transfer request submitted successfully'
+            }, status=status.HTTP_200_OK)
+            
+    except Church.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Church not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'Transfer request failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([CanApproveChurches])
+def pending_churches(request):
+    """Get list of pending church registrations (Super Admin only)"""
+    try:
+        pending_churches = Church.objects.filter(status='pending').order_by('-created_at')
+        
+        serializer = ChurchListSerializer(pending_churches, many=True)
+        
+        return Response({
+            'success': True,
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'Failed to fetch pending churches: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([CanApproveChurches])
+def approve_church(request, church_id):
+    """Approve a church registration (Super Admin only)"""
+    try:
+        with transaction.atomic():
+            church = Church.objects.get(id=church_id)
+            
+            if church.status != 'pending':
+                return Response({
+                    'success': False,
+                    'message': 'Church is not pending approval'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            church.status = 'verified'
+            church.approved_by = request.user
+            church.approved_date = timezone.now()
+            church.save()
+            
+            # Log approval
+            AuditService.log_user_action(
+                user=request.user,
+                action='CHURCH_APPROVAL',
+                details={'church': church.name},
+                ip_address=get_client_ip(request)
+            )
+            
+            # Send notification to church admin
+            from common.services import NotificationService
+            NotificationService.send_church_approval_notification(church)
+            
+            return Response({
+                'success': True,
+                'message': f'Church "{church.name}" approved successfully'
+            }, status=status.HTTP_200_OK)
+            
+    except Church.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Church not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'Church approval failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([CanApproveChurches])
+def reject_church(request, church_id):
+    """Reject a church registration (Super Admin only)"""
+    reason = request.data.get('reason', '')
+    
+    if not reason:
+        return Response({
+            'success': False,
+            'message': 'Rejection reason is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        with transaction.atomic():
+            church = Church.objects.get(id=church_id)
+            
+            if church.status != 'pending':
+                return Response({
+                    'success': False,
+                    'message': 'Church is not pending approval'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            church.status = 'rejected'
+            church.rejection_reason = reason
+            church.rejected_by = request.user
+            church.rejected_date = timezone.now()
+            church.save()
+            
+            # Log rejection
+            AuditService.log_user_action(
+                user=request.user,
+                action='CHURCH_REJECTION',
+                details={
+                    'church': church.name,
+                    'reason': reason
+                },
+                ip_address=get_client_ip(request)
+            )
+            
+            # Send notification to church admin
+            from common.services import NotificationService
+            NotificationService.send_church_rejection_notification(church, reason)
+            
+            return Response({
+                'success': True,
+                'message': f'Church "{church.name}" rejected successfully'
+            }, status=status.HTTP_200_OK)
+            
+    except Church.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Church not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'Church rejection failed: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def church_members(request, church_id):
+    """Get list of church members (Church Admin only)"""
+    try:
+        user = request.user
+        
+        # Check if user is church admin or system admin
+        if user.role not in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']:
+            return Response({
+                'success': False,
+                'message': 'Insufficient permissions'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        church = Church.objects.get(id=church_id)
+        
+        # Check if user belongs to this church (except system admin)
+        if user.role != 'system_admin' and user.church != church:
+            return Response({
+                'success': False,
+                'message': 'You can only view members of your own church'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get members
+        from accounts.models import Member
+        members = Member.objects.filter(church=church).select_related('user')
+        
+        member_data = []
+        for member in members:
+            member_data.append({
+                'id': member.id,
+                'user_id': member.user.id,
+                'name': member.user.get_full_name(),
+                'email': member.user.email,
+                'phone': member.user.phone_number,
+                'membership_number': member.membership_number,
+                'membership_status': member.membership_status,
+                'joined_date': member.membership_date,
+                'is_tithe_payer': member.is_tithe_payer
+            })
+        
+        return Response({
+            'success': True,
+            'data': {
+                'church': {
+                    'id': church.id,
+                    'name': church.name
+                },
+                'members': member_data,
+                'total_members': len(member_data)
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Church.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Church not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': f'Failed to fetch church members: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def get_client_ip(request):
+    """Get client IP address"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip

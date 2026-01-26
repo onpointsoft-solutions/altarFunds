@@ -30,7 +30,7 @@ class LoginActivity : AppCompatActivity() {
 
         // Check if already logged in
         if (isUserLoggedIn()) {
-            startActivity(Intent(this, MemberDashboardActivity::class.java))
+            startActivity(Intent(this, MemberDashboardModernActivity::class.java))
             finish()
             return
         }
@@ -100,7 +100,7 @@ class LoginActivity : AppCompatActivity() {
                     preferencesManager.saveUserSession(loginResponse)
 
                     // Navigate to member dashboard
-                    startActivity(Intent(this@LoginActivity, MemberDashboardActivity::class.java))
+                    startActivity(Intent(this@LoginActivity, MemberDashboardModernActivity::class.java))
                     finish()
                 } else {
                     Toast.makeText(

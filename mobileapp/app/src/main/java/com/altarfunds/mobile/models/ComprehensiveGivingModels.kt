@@ -216,7 +216,7 @@ data class GivingStatementResponse(
     val total_tithe: Double,
     val total_offering: Double,
     val total_missions: Double,
-    val transactions: List<GivingTransaction>
+    val transactions: List<GivingTransactionResponse>
 )
 
 // Pledge Models
@@ -261,14 +261,6 @@ data class PledgeFulfillmentRequest(
     val notes: String? = null
 )
 
-// Church Management Models
-data class ChurchTransferRequest(
-    val target_church_id: Int,
-    val target_church_code: String,
-    val reason: String,
-    val verification_code: String? = null
-)
-
 data class ChurchTransferResponse(
     val success: Boolean,
     val message: String,
@@ -281,30 +273,6 @@ data class ChurchSearchResponse(
     val success: Boolean,
     val message: String,
     val churches: List<ChurchSearchResult>
-)
-
-data class ChurchSearchResult(
-    val id: Int,
-    val name: String,
-    val code: String,
-    val location: String,
-    val distance: Double? = null,
-    val member_count: Int,
-    val is_verified: Boolean
-)
-
-data class ChurchJoinRequest(
-    val church_id: Int,
-    val church_code: String,
-    val verification_method: String, // "code", "phone", "id"
-    val verification_data: String
-)
-
-data class ChurchJoinResponse(
-    val success: Boolean,
-    val message: String,
-    val requires_approval: Boolean,
-    val approval_method: String? = null
 )
 
 // PIN System Models

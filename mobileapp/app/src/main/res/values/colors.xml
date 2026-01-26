@@ -1,51 +1,155 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Basic Android colors - required for system components -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+
+    <!-- Orange colors for branding -->
     <color name="orangePrimary">#ff9f1c</color>
-    <color name="toscaSecondary">#2ec4b6</color>
     <color name="orangeSecondary">#ffbf69</color>
-    <color name="toscaWhite">#cbf3f0</color>
-    <color name="greenIncome">#489E4C</color>
-    <color name="redExpense">#D11818</color>
     <color name="toscaDarker">#03A5A3</color>
     <color name="mdtp_accent_color">#ff9f1c</color>
     <color name="mdtp_ampm_text_color">#787878</color>
-    <!-- Material Design theme colors -->
-    <color name="colorPrimary">@color/toscaSecondary</color>
-    <color name="colorPrimaryVariant">#ff9f1c</color>
-    <color name="colorPrimaryDark">#ff9f1c</color>
-    <color name="colorAccent">@color/orangePrimary</color>
-    <color name="colorSecondary">@color/teal_200</color>
-    <color name="colorSecondaryVariant">@color/teal_700</color>
-    <color name="colorOnPrimary">@color/white</color>
-    <color name="colorOnSecondary">@color/black</color>
-    <!-- Semantic text colors -->
-    <color name="primary_color">@color/toscaSecondary</color>
-    <color name="accent_color">@color/orangePrimary</color>
-    <color name="text_primary">@color/black</color>
-    <color name="text_secondary">#787878</color>
-    <!-- Status colors -->
-    <color name="success_color">@color/greenIncome</color>
-    <color name="error_color">@color/redExpense</color>
-    <color name="warning_color">@color/orangePrimary</color>
-    <!-- Status colors -->
-    <color name="orange">@color/orangePrimary</color>
-    <color name="red">@color/redExpense</color>
-    <color name="gray">@color/mdtp_ampm_text_color</color>
+
+    <!-- Material Design 3 Light Theme Colors -->
+    <color name="md_theme_light_primary">#006493</color>
+    <color name="md_theme_light_onPrimary">#ffffff</color>
+    <color name="md_theme_light_primaryContainer">#cae6ff</color>
+    <color name="md_theme_light_onPrimaryContainer">#001e30</color>
+
+    <color name="md_theme_light_secondary">#50607a</color>
+    <color name="md_theme_light_onSecondary">#ffffff</color>
+    <color name="md_theme_light_secondaryContainer">#d8e4f8</color>
+    <color name="md_theme_light_onSecondaryContainer">#0c1d35</color>
+
+    <color name="md_theme_light_tertiary">#65587b</color>
+    <color name="md_theme_light_onTertiary">#ffffff</color>
+    <color name="md_theme_light_tertiaryContainer">#ecdcff</color>
+    <color name="md_theme_light_onTertiaryContainer">#201634</color>
+
+    <color name="md_theme_light_error">#ba1a1a</color>
+    <color name="md_theme_light_onError">#ffffff</color>
+    <color name="md_theme_light_errorContainer">#ffdad6</color>
+    <color name="md_theme_light_onErrorContainer">#410002</color>
+
+    <color name="md_theme_light_background">#fffbfe</color>
+    <color name="md_theme_light_onBackground">#1a1b1e</color>
+    <color name="md_theme_light_surface">#fffbfe</color>
+    <color name="md_theme_light_onSurface">#1a1b1e</color>
+    <color name="md_theme_light_surfaceVariant">#dfe2eb</color>
+    <color name="md_theme_light_onSurfaceVariant">#43474e</color>
+    <color name="md_theme_light_outline">#73777f</color>
+    <color name="md_theme_light_outlineVariant">#c3c7cf</color>
+
+    <!-- Material Design 3 Dark Theme Colors -->
+    <color name="md_theme_dark_primary">#90cdff</color>
+    <color name="md_theme_dark_onPrimary">#003450</color>
+    <color name="md_theme_dark_primaryContainer">#004b71</color>
+    <color name="md_theme_dark_onPrimaryContainer">#cae6ff</color>
+
+    <color name="md_theme_dark_secondary">#b0c8ed</color>
+    <color name="md_theme_dark_onSecondary">#21324a</color>
+    <color name="md_theme_dark_secondaryContainer">#384961</color>
+    <color name="md_theme_dark_onSecondaryContainer">#d8e4f8</color>
+
+    <color name="md_theme_dark_tertiary">#d0bfbb</color>
+    <color name="md_theme_dark_onTertiary">#362b4a</color>
+    <color name="md_theme_dark_tertiaryContainer">#4d4162</color>
+    <color name="md_theme_dark_onTertiaryContainer">#ecdcff</color>
+
+    <color name="md_theme_dark_error">#ffb4ab</color>
+    <color name="md_theme_dark_onError">#690005</color>
+    <color name="md_theme_dark_errorContainer">#93000a</color>
+    <color name="md_theme_dark_onErrorContainer">#ffdad6</color>
+
+    <color name="md_theme_dark_background">#1a1b1e</color>
+    <color name="md_theme_dark_onBackground">#e3e2e6</color>
+    <color name="md_theme_dark_surface">#1a1b1e</color>
+    <color name="md_theme_dark_onSurface">#e3e2e6</color>
+    <color name="md_theme_dark_surfaceVariant">#43474e</color>
+    <color name="md_theme_dark_onSurfaceVariant">#c3c7cf</color>
+    <color name="md_theme_dark_outline">#8d9199</color>
+    <color name="md_theme_dark_outlineVariant">#43474e</color>
+
+    <!-- Legacy colors for backward compatibility -->
+    <color name="toscaSecondary">#006493</color>
+    <color name="toscaLight">#E8F6F3</color>
+    <color name="toscaWhite">#cbf3f0</color>
+    <color name="toscaPrimary">@color/toscaSecondary</color>
+    <color name="teal_200">#b0c8ed</color>
+    <color name="teal_700">#384961</color>
+
+    <!-- Additional app-specific colors -->
+    <color name="income_green">#22c55e</color>
+    <color name="greenIncome">#489E4C</color>
+    <color name="expense_red">#ef4444</color>
+    <color name="redExpense">#D11818</color>
+    <color name="neutral_gray">#6b7280</color>
+    <color name="warning_orange">#f59e0b</color>
+    
     <!-- Alpha colors -->
     <color name="white_alpha_80">#CCFFFFFF</color>
     <color name="white_alpha_60">#99FFFFFF</color>
-    <!-- Additional colors for modern dashboard -->
-    <color name="toscaPrimary">@color/toscaSecondary</color>
-    <color name="toscaLight">#E8F6F3</color>
-    <!-- Additional colors for payment methods -->
-    <color name="blue">#2196F3</color>
-    <color name="green">#4CAF50</color>
+    
+    <!-- Status colors (needed for drawables) -->
+    <color name="success_color">@color/income_green</color>
+    <color name="error_color">@color/expense_red</color>
+    <color name="warning_color">@color/warning_orange</color>
+    
+    <!-- Basic colors for drawables -->
+    <color name="gray">#787878</color>
     <color name="light_gray">#F5F5F5</color>
+    <color name="red">@color/expense_red</color>
+    <color name="blue">#2196F3</color>
+    <color name="green">@color/income_green</color>
+    
+    <!-- Holo colors for charts -->
+    <color name="holo_orange_dark">#FF6600</color>
+    <color name="holo_green_dark">#FF669900</color>
+    <color name="holo_blue_dark">#FF0099CC</color>
+    <color name="holo_red_dark">#FFCC0000</color>
+    <color name="holo_purple_dark">#FFAA66CC</color>
+
+    <!-- Text colors for layouts -->
+    <color name="text_primary">@color/black</color>
+    <color name="text_secondary">#787878</color>
+    
+    <!-- Theme color references for layouts -->
+    <color name="primary_color">@color/toscaSecondary</color>
+    <color name="accent_color">@color/orangePrimary</color>
+    <color name="colorPrimary">@color/toscaSecondary</color>
+    <color name="colorPrimaryVariant">@color/orangePrimary</color>
+    <color name="colorPrimaryDark">@color/orangePrimary</color>
+    <color name="colorAccent">@color/orangePrimary</color>
+    <color name="colorSecondary">@color/toscaWhite</color>
+    <color name="colorSecondaryVariant">@color/toscaWhite</color>
+    <color name="colorOnPrimary">@color/white</color>
+    <color name="colorOnSecondary">@color/black</color>
+    <color name="colorOnBackground">@color/black</color>
+    <color name="colorOnSurface">@color/black</color>
+
+    <!-- Chart colors -->
+    <color name="chart_blue">#3b82f6</color>
+    <color name="chart_green">#22c55e</color>
+    <color name="chart_orange">#f59e0b</color>
+    <color name="chart_purple">#8b5cf6</color>
+    <color name="chart_pink">#ec4899</color>
+    <color name="chart_cyan">#06b6d4</color>
+
+    <!-- Status colors -->
+    <color name="status_success">#22c55e</color>
+    <color name="status_warning">#f59e0b</color>
+    <color name="status_error">#ef4444</color>
+    <color name="status_info">#3b82f6</color>
+
+    <!-- Gradient colors -->
+    <color name="gradient_start">#006493</color>
+    <color name="gradient_end">#90cdff</color>
+
+    <!-- Shimmer colors -->
+    <color name="shimmer_base">#e3e2e6</color>
+    <color name="shimmer_highlight">#ffffff</color>
 </resources>

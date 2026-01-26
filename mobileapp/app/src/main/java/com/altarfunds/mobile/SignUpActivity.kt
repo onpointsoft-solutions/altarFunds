@@ -101,7 +101,10 @@ class SignUpActivity : AppCompatActivity() {
                             val churchJoinReq = ChurchJoinRequest(
                                 church_name = "", // Will be resolved by backend
                                 church_code = churchCode,
-                                user_id = loginResponse.user.id
+                                user_id = loginResponse.user.id,
+                                previousChurch = null,
+                                reason = "New member registration",
+                                skills = emptyList()
                             )
                             
                             val churchJoinResponse = ApiService.getApiInterface().joinChurch(churchJoinReq)
@@ -111,7 +114,7 @@ class SignUpActivity : AppCompatActivity() {
                                     "Successfully joined church!",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                startActivity(Intent(this@SignUpActivity, MemberDashboardActivity::class.java))
+                                startActivity(Intent(this@SignUpActivity, MemberDashboardModernActivity::class.java))
                                 finish()
                             } else {
                                 Toast.makeText(
@@ -127,12 +130,12 @@ class SignUpActivity : AppCompatActivity() {
                                 "Church joining failed, proceeding to dashboard",
                                 Toast.LENGTH_LONG
                             ).show()
-                            startActivity(Intent(this@SignUpActivity, MemberDashboardActivity::class.java))
+                            startActivity(Intent(this@SignUpActivity, MemberDashboardModernActivity::class.java))
                             finish()
                         }
                     } else {
                         // No church code, proceed to dashboard
-                        startActivity(Intent(this@SignUpActivity, MemberDashboardActivity::class.java))
+                        startActivity(Intent(this@SignUpActivity, MemberDashboardModernActivity::class.java))
                         finish()
                     }
                 } else {
@@ -202,7 +205,7 @@ class SignUpActivity : AppCompatActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val loginResponse = response.body()!!
                     (application as AltarFundsApp).preferencesManager.saveUserSession(loginResponse)
-                    startActivity(Intent(this@SignUpActivity, MemberDashboardActivity::class.java))
+                    startActivity(Intent(this@SignUpActivity, MemberDashboardModernActivity::class.java))
                     finish()
                 } else {
                     Toast.makeText(

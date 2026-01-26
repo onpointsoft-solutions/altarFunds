@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+
+{% block title %}API Documentation - {% endblock %}
+
+{% block extra_head %}
+<style>
+    .endpoint-card {
+        transition: all 0.3s ease;
+    }
+    .endpoint-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+    .code-block {
+        background: #1e293b;
+        color: #f8f8f2;
+        border-radius: 6px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    .method-badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        text-transform: uppercase;
+    }
+    .method-get { background: #10b981; color: white; }
+    .method-post { background: #3b82f6; color: white; }
+    .method-put { background: #f59e0b; color: white; }
+    .method-delete { background: #ef4444; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="gradient-bg text-white py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 class="text-4xl font-bold mb-4">OnPoint Pay API Documentation</h1>
+            <p class="text-xl mb-8">Complete API reference for Kenya's premier payment gateway</p>
+            <div class="flex justify-center space-x-4">
+                <a href="#authentication" class="bg-white text-indigo-600 px-6 py-3 rounded-lg font-medium hover:bg-gray-100">
+                    Authentication
+                </a>
+                <a href="#payments" class="bg-white text-indigo-600 px-6 py-3 rounded-lg font-medium hover:bg-gray-100">
+                    Payments
+                </a>
+                <a href="#webhooks" class="bg-white text-indigo-600 px-6 py-3 rounded-lg font-medium hover:bg-gray-100">
+                    Webhooks
+                </a>
+                <a href="#sandbox" class="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700">
+                    🧪 Sandbox Mode
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <!-- Base URL Configuration -->
+        <div class="bg-blue-50 border-l-4 border-blue-600 p-6 mb-8">
+            <div class="flex items-center mb-4">
+                <div class="text-blue-600 text-xl mr-3">🔧</div>
+                <h2 class="text-2xl font-bold text-gray-900">Base URLs</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Development</h3>
+                    <div class="code-block p-4 text-sm">
+                        http://localhost:8000/api/v1
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Production</h3>
+                    <div class="code-block p-4 text-sm">
+                        https://api.onpointpay.com/api/v1
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Authentication Section -->
+        <section id="authentication" class="mb-12">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8">🔐 Authentication</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Merchant Registration -->
+                <div class="endpoint-card bg-white rounded-lg p-6 card-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-semibold text-gray-900">Register Merchant</h3>
+                        <span class="method-badge method-post">POST</span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <code class="text-sm text-gray-600">POST /auth/register/</code>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-2">Request Body</h4>
+                            <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "business_name": "Example Business",
+    "business_email": "business@example.com",
+    "business_phone": "+254712345678",
+    "first_name": "John",
+    "last_name": "Doe",
+    "password": "SecurePassword123",
+    "confirm_password": "SecurePassword123",
+    "business_description": "Example business description",
+    "business_address": "Nairobi, Kenya",
+    "business_type": "Technology",
+    "registration_number": "BN-123456",
+    "tax_identification": "KRA-123456"
+}</pre>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-2">Response</h4>
+                            <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "message": "Merchant registered successfully",
+    "merchant": {
+        "id": "uuid",
+        "business_name": "Example Business",
+        "email": "business@example.com",
+        "is_verified": false
+    },
+    "tokens": {
+        "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+        "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+    }
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Merchant Login -->
+                <div class="endpoint-card bg-white rounded-lg p-6 card-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-semibold text-gray-900">Login Merchant</h3>
+                        <span class="method-badge method-post">POST</span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <code class="text-sm text-gray-600">POST /auth/login/</code>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-2">Request Body</h4>
+                            <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "email": "business@example.com",
+    "password": "SecurePassword123"
+}</pre>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-2">Response</h4>
+                            <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "message": "Login successful",
+    "merchant": { ... },
+    "tokens": {
+        "refresh": "refresh_token",
+        "access": "access_token"
+    }
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Payments Section -->
+        <section id="payments" class="mb-12">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8">💳 Payment APIs</h2>
+            
+            <!-- Initiate Payment -->
+            <div class="endpoint-card bg-white rounded-lg p-6 card-shadow mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">Initiate Payment</h3>
+                    <span class="method-badge method-post">POST</span>
+                </div>
+                
+                <div class="mb-4">
+                    <code class="text-sm text-gray-600">POST /payments/initiate/</code>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Headers</h4>
+                        <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>Authorization: Bearer sk_your_secret_key
+Content-Type: application/json</pre>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Request Body</h4>
+                        <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "amount": 100.00,
+    "currency": "KES",
+    "payment_method": "mpesa",
+    "phone": "254712345678",
+    "email": "customer@example.com",
+    "reference": "ORDER-12345",
+    "callback_url": "https://yourdomain.com/webhook",
+    "metadata": {
+        "order_id": "123",
+        "customer_name": "John Doe",
+        "product": "Test Product"
+    }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <h4 class="font-semibold text-gray-900 mb-2">Response</h4>
+                    <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "success": true,
+    "message": "Payment initiated successfully",
+    "transaction": {
+        "id": "transaction_uuid",
+        "reference": "TXN20240116ABC123",
+        "amount": 100.00,
+        "currency": "KES",
+        "status": "processing",
+        "payment_method": "mpesa"
+    },
+    "payment_details": {
+        "checkout_request_id": "ws_CO_123456789",
+        "customer_message": "Please enter your PIN to complete payment",
+        "phone_number": "254712345678"
+    }
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Status -->
+            <div class="endpoint-card bg-white rounded-lg p-6 card-shadow mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">Check Payment Status</h3>
+                    <span class="method-badge method-post">POST</span>
+                </div>
+                
+                <div class="mb-4">
+                    <code class="text-sm text-gray-600">POST /payments/status/</code>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Request Body</h4>
+                        <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "reference": "TXN20240116ABC123",
+    "payment_method": "mpesa"
+}</pre>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Response</h4>
+                        <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "success": true,
+    "transaction": {
+        "id": "transaction_uuid",
+        "reference": "TXN20240116ABC123",
+        "amount": 100.00,
+        "currency": "KES",
+        "status": "completed",
+        "payment_method": "mpesa",
+        "completed_at": "2024-01-16T12:00:00Z",
+        "mpesa_receipt": "LGR123456789"
+    }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Webhooks Section -->
+        <section id="webhooks" class="mb-12">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8">🔗 Webhooks</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- M-Pesa Callback -->
+                <div class="endpoint-card bg-white rounded-lg p-6 card-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-semibold text-gray-900">M-Pesa STK Callback</h3>
+                        <span class="method-badge method-post">POST</span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <code class="text-sm text-gray-600">POST /payments/mpesa/callback/</code>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-2">Callback Body</h4>
+                            <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "Body": {
+        "stkCallback": {
+            "MerchantRequestID": "12345-67890",
+            "CheckoutRequestID": "ws_CO_123456789",
+            "ResultCode": "0",
+            "ResultDesc": "The service request is processed successfully.",
+            "CallbackMetadata": {
+                "Item": [
+                    {
+                        "Name": "Amount",
+                        "Value": 100
+                    },
+                    {
+                        "Name": "MpesaReceiptNumber",
+                        "Value": "LGR123456789"
+                    },
+                    {
+                        "Name": "TransactionDate",
+                        "Value": "20240116120000"
+                    },
+                    {
+                        "Name": "PhoneNumber",
+                        "Value": "254712345678"
+                    }
+                ]
+            }
+        }
+    }
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- C2B Confirmation -->
+                <div class="endpoint-card bg-white rounded-lg p-6 card-shadow">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-semibold text-gray-900">C2B Confirmation</h3>
+                        <span class="method-badge method-post">POST</span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <code class="text-sm text-gray-600">POST /payments/mpesa/confirmation/</code>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-2">Confirmation Body</h4>
+                            <div class="code-block p-4 text-sm overflow-x-auto">
+<pre>{
+    "TransactionType": "Pay Bill",
+    "TransID": "LGR123456789",
+    "TransTime": "20240116120000",
+    "TransAmount": "100.00",
+    "BusinessShortCode": "174379",
+    "BillRefNumber": "ORDER-123",
+    "MSISDN": "254712345678",
+    "FirstName": "John",
+    "LastName": "Doe"
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sandbox Section -->
+        <section id="sandbox" class="mb-12">
+            <div class="bg-green-50 border-l-4 border-green-600 p-6">
+                <div class="flex items-center mb-4">
+                    <div class="text-green-600 text-xl mr-3">🧪</div>
+                    <h2 class="text-2xl font-bold text-gray-900">Sandbox Environment</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="font-semibold text-gray-900 mb-2">Sandbox Credentials</h3>
+                        <div class="space-y-2 text-sm">
+                            <div><strong>Consumer Key:</strong> <code class="bg-gray-100 px-2 py-1 rounded">YOUR_SANDBOX_CONSUMER_KEY</code></div>
+                            <div><strong>Consumer Secret:</strong> <code class="bg-gray-100 px-2 py-1 rounded">YOUR_SANDBOX_CONSUMER_SECRET</code></div>
+                            <div><strong>Passkey:</strong> <code class="bg-gray-100 px-2 py-1 rounded">YOUR_SANDBOX_PASSKEY</code></div>
+                            <div><strong>Shortcode:</strong> <code class="bg-gray-100 px-2 py-1 rounded">174379</code></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-semibold text-gray-900 mb-2">Test Phone Numbers</h3>
+                        <div class="space-y-2 text-sm">
+                            <div><strong>M-Pesa Test:</strong> <code class="bg-gray-100 px-2 py-1 rounded">254712345678</code></div>
+                            <div><strong>Amount Range:</strong> <code class="bg-gray-100 px-2 py-1 rounded">KES 10 - 100,000</code></div>
+                            <div><strong>Response Time:</strong> <code class="bg-gray-100 px-2 py-1 rounded">~2-5 seconds</code></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="text-yellow-600 text-xl mr-3">⚠️</div>
+                        <div>
+                            <h4 class="font-semibold text-yellow-800">Important Notes</h4>
+                            <ul class="text-yellow-700 text-sm mt-2 space-y-1">
+                                <li>• Use sandbox credentials for testing only</li>
+                                <li>• No real money transactions occur in sandbox</li>
+                                <li>• Test with small amounts before production</li>
+                                <li>• Contact support for production credentials</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -15,6 +15,10 @@ class RecentTransactionAdapter(
     private val onTransactionClick: (GivingTransactionResponse) -> Unit
 ) : ListAdapter<GivingTransactionResponse, RecentTransactionAdapter.TransactionViewHolder>(TransactionDiffCallback()) {
 
+    fun updateData(transactions: List<GivingTransactionResponse>) {
+        submitList(transactions)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransactionViewHolder {
         val binding = ItemRecentTransactionBinding.inflate(
             LayoutInflater.from(parent.context), parent, false
@@ -57,7 +61,7 @@ class RecentTransactionAdapter(
                     com.altarfunds.mobile.R.drawable.bg_status_completed
                 )
                 "pending" -> Pair(
-                    com.altarfunds.mobile.R.color.orange,
+                    com.altarfunds.mobile.R.color.warning_orange,
                     com.altarfunds.mobile.R.drawable.bg_status_pending
                 )
                 "failed" -> Pair(

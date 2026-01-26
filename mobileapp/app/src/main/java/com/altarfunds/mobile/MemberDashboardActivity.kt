@@ -1,6 +1,8 @@
 package com.altarfunds.mobile
 
 import android.content.Intent
+import android.icu.text.SimpleDateFormat
+import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
@@ -9,6 +11,7 @@ import android.widget.Toast
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -23,6 +26,8 @@ import com.altarfunds.mobile.utils.CurrencyUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.util.Date
+import java.util.Locale
 
 class MemberDashboardActivity : AppCompatActivity() {
 
@@ -30,7 +35,9 @@ class MemberDashboardActivity : AppCompatActivity() {
     private lateinit var givingHistoryAdapter: TransactionHistoryAdapter
     private lateinit var pledgeAdapter: PledgeAdapter
     private lateinit var churchAdapter: ChurchAdapter
+    private var currentProfile: UserProfileResponse? = null
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMemberDashboardBinding.inflate(layoutInflater)
@@ -99,7 +106,7 @@ class MemberDashboardActivity : AppCompatActivity() {
                     transactionsResponse.body()?.results ?: emptyList(),
                     pledgesResponse.body()?.pledges ?: emptyList(),
                     profileResponse.body(),
-                    churchesResponse.body()?.churches ?: emptyList()
+                    churchesResponse.body()?.churches as List<ChurchSearchResult>
                 )
 
             } catch (e: Exception) {
@@ -186,6 +193,7 @@ class MemberDashboardActivity : AppCompatActivity() {
     }
     
     private fun updateProfileInfo(profile: UserProfileResponse?) {
+        currentProfile = profile  // Store profile for later use
         profile?.let {
             binding.tvMemberName.text = it.user?.first_name?.let { firstName ->
                 it.user?.last_name?.let { lastName ->
@@ -261,6 +269,7 @@ class MemberDashboardActivity : AppCompatActivity() {
         updateSectionVisibility()
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     private fun showChurchTransferDialog() {
         val churches = churchAdapter.currentList.ifEmpty { emptyList() }
         if (churches.isEmpty()) {
@@ -268,7 +277,7 @@ class MemberDashboardActivity : AppCompatActivity() {
             return
         }
 
-        val churchNames = churches.map { church -> church.name + " (" + church.code + ")" }
+        val churchNames = churches.map { church -> "${church.name} (${church.id})" }
         val builder = AlertDialog.Builder(this)
         
         builder.setTitle("Transfer Church")
@@ -280,6 +289,7 @@ class MemberDashboardActivity : AppCompatActivity() {
         builder.show()
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     private fun showChurchTransferConfirmation(church: ChurchSearchResult) {
         val builder = AlertDialog.Builder(this)
         
@@ -292,13 +302,17 @@ class MemberDashboardActivity : AppCompatActivity() {
         builder.show()
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     private fun initiateChurchTransfer(church: ChurchSearchResult) {
         lifecycleScope.launch {
             try {
                 val transferRequest = ChurchTransferRequest(
-                    target_church_id = church.id,
-                    target_church_code = church.code,
-                    reason = "User requested transfer"
+                    currentChurchId = currentProfile?.member?.church?.id ?: "",
+                    newChurchId = church.id,
+                    reason = "User requested transfer",
+                    transferDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
+                    notifyCurrentChurch = true,
+                    requestMembershipLetter = false
                 )
 
                 val response = ApiService.getApiInterface().transferChurch(transferRequest)
@@ -355,9 +369,12 @@ class MemberDashboardActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val joinRequest = ChurchJoinRequest( // Will be resolved by backend using church_code
-                    church_code = churchCode,
                     church_name = "loading",
-                    user_id = (application as AltarFundsApp).preferencesManager.userId.toString()
+                    church_code = churchCode,
+                    user_id = (application as AltarFundsApp).preferencesManager.userId.toString(),
+                    previousChurch = null,
+                    reason = "Member transfer",
+                    skills = emptyList()
                 )
 
                 val response = ApiService.getApiInterface().joinChurch(joinRequest)
@@ -383,6 +400,7 @@ class MemberDashboardActivity : AppCompatActivity() {
         builder.show()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun setupClickListeners() {
         // Giving History
         binding.btnViewAllGiving.setOnClickListener {
@@ -440,6 +458,7 @@ class MemberDashboardActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun showStatementOptions() {
         val options = arrayOf("Monthly Statement", "Annual Statement", "Custom Period")
         
@@ -456,6 +475,7 @@ class MemberDashboardActivity : AppCompatActivity() {
             .show()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun showCustomPeriodDialog() {
         val builder = AlertDialog.Builder(this)
         val inflater = layoutInflater
@@ -475,13 +495,14 @@ class MemberDashboardActivity : AppCompatActivity() {
         builder.show()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun generateStatement(type: String, startDate: String? = null, endDate: String? = null) {
         lifecycleScope.launch {
             try {
-                val request = when (type) {
-                    "monthly" -> mapOf("month" to LocalDate.now().monthValue)
-                    "annual" -> mapOf("year" to LocalDate.now().year)
-                    "custom" -> mapOf(
+                val request: Map<String, Any> = when (type) {
+                    "monthly" -> mapOf<String, Any>("month" to LocalDate.now().monthValue)
+                    "annual" -> mapOf<String, Any>("year" to LocalDate.now().year)
+                    "custom" -> mapOf<String, Any>(
                         "start_date" to (startDate ?: ""),
                         "end_date" to (endDate ?: "")
                     )
@@ -520,6 +541,7 @@ class MemberDashboardActivity : AppCompatActivity() {
             .show()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun shareStatement(statement: Any) {
         val shareText = "My AltarFunds Statement\n\n" +
             "Generated on " + LocalDate.now()

@@ -55,7 +55,10 @@ data class DeviceRegistrationResponse(
 data class ChurchJoinRequest(
     val church_name: String,
     val church_code: String,
-    val user_id: String
+    val user_id: String,
+    val previousChurch: String?,
+    val reason: String,
+    val skills: List<String>
 )
 
 data class AppConfigResponse(

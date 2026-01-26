@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Custom Bottom Navigation (CNB) attributes -->
+    <declare-styleable name="CircularNavigationView">
+        <attr name="cnb_radius" format="dimension" />
+        <attr name="cnb_backgroundColor" format="color" />
+        <attr name="cnb_iconSize" format="dimension" />
+        <attr name="cnb_unselectedColor" format="color" />
+        <attr name="cnb_menuResource" format="reference" />
+        <attr name="cnb_iconColor" format="color" />
+    </declare-styleable>
+</resources>
