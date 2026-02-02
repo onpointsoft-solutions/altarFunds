@@ -65,7 +65,7 @@ data class ChurchSearchRequest(
 )
 
 data class ChurchTransferRequest(
-    val currentChurchId: String,
+    val currentChurchId: Any,
     val newChurchId: String,
     val reason: String,
     val transferDate: String,

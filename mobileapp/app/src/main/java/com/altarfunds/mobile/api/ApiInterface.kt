@@ -261,10 +261,10 @@ interface ApiInterface {
     suspend fun refreshToken(@Body refresh: RefreshToken): Response<AccessTokenResponse>
     
     @GET("accounts/profile/")
-    suspend fun getProfile(): Response<ApiResponse<UserProfile>>
+    suspend fun getProfile(): Response<UserProfileResponse>
     
     @PUT("accounts/profile/")
-    suspend fun updateProfile(@Body profile: ProfileUpdate): Response<ApiResponse<UserProfile>>
+    suspend fun updateProfile(@Body profile: ProfileUpdate): Response<UserProfileResponse>
     
     // Churches
     @GET("churches/")

@@ -16,16 +16,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    '127.0.0.1:3000',
-    'altar-funds.com',
-    'www.altar-funds.com',
-    'altarfunds.pythonanywhere.com'
-]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # --------------------------------------------------
 # APPLICATION DEFINITION
@@ -74,9 +67,9 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # --------------------------------------------------
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -154,6 +147,21 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --------------------------------------------------
+# DJANGO ADMIN
+# --------------------------------------------------
+
+# Custom admin configuration
+ADMIN_SITE = 'admin_management.custom_admin.altar_admin_site'
+
+# Admin settings
+ADMIN_TITLE = 'AltarFunds Administration'
+ADMIN_HEADER = 'AltarFunds Admin'
+ADMIN_INDEX_TITLE = 'Dashboard'
+
+# Enable admin toolbar
+ADMIN_TOOLBAR = True
 
 # --------------------------------------------------
 # DJANGO REST FRAMEWORK

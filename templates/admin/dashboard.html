@@ -1,0 +1,315 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">Home</a>
+&rsaquo; Dashboard
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="dashboard-container">
+        <!-- Header Section -->
+        <div class="dashboard-header">
+            <h1>System Dashboard</h1>
+            <p class="dashboard-subtitle">Real-time overview of AltarFunds platform</p>
+            <div class="dashboard-actions">
+                <button onclick="refreshStats()" class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button onclick="exportReport()" class="btn btn-secondary">
+                    <i class="fas fa-download"></i> Export Report
+                </button>
+            </div>
+        </div>
+
+        <!-- System Health Alert -->
+        <div id="health-alert" class="alert alert-{{ system_health.status }}" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="health-message"></span>
+        </div>
+
+        <!-- Overview Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-church"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.overview.total_churches }}</h3>
+                    <p>Total Churches</p>
+                    <div class="stat-change positive">
+                        <i class="fas fa-arrow-up"></i> +{{ stats.monthly_stats.new_churches }} this month
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.overview.total_users }}</h3>
+                    <p>Total Users</p>
+                    <div class="stat-change positive">
+                        <i class="fas fa-arrow-up"></i> +{{ stats.monthly_stats.new_users }} this month
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>${{ stats.monthly_stats.total_giving|floatformat:0 }}</h3>
+                    <p>Monthly Giving</p>
+                    <div class="stat-change {{ 'positive' if stats.growth.giving_growth > 0 else 'negative' }}">
+                        <i class="fas fa-arrow-{{ 'up' if stats.growth.giving_growth > 0 else 'down' }}"></i>
+                        {{ stats.growth.giving_growth|floatformat:1 }}%
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.overview.total_transactions }}</h3>
+                    <p>Total Transactions</p>
+                    <div class="stat-change positive">
+                        <i class="fas fa-arrow-up"></i> {{ stats.monthly_stats.successful_payments }} successful today
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <h3>Giving Trends</h3>
+                <canvas id="givingChart" width="400" height="200"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>User Growth</h3>
+                <canvas id="userGrowthChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Tables Section -->
+        <div class="tables-section">
+            <!-- Top Churches -->
+            <div class="table-container">
+                <h3>Top Performing Churches</h3>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Church Name</th>
+                                <th>Total Giving</th>
+                                <th>Transactions</th>
+                                <th>Growth</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for church in stats.top_churches %}
+                            <tr>
+                                <td>
+                                    <a href="/admin/churches/church/{{ church.id }}/change/">
+                                        {{ church.name }}
+                                    </a>
+                                </td>
+                                <td>${{ church.total_giving|default:0|floatformat:0 }}</td>
+                                <td>{{ church.transaction_count|default:0 }}</td>
+                                <td>
+                                    <span class="badge badge-success">+12%</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4">No data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="table-container">
+                <h3>Recent Transactions</h3>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Church</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in stats.recent_transactions %}
+                            <tr>
+                                <td>{{ transaction.user.email }}</td>
+                                <td>{{ transaction.church.name }}</td>
+                                <td>${{ transaction.amount|floatformat:2 }}</td>
+                                <td>
+                                    <span class="badge badge-{{ 'success' if transaction.status == 'completed' else 'warning' }}">
+                                        {{ transaction.status|title }}
+                                    </span>
+                                </td>
+                                <td>{{ transaction.created_at|date:"M d, H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5">No recent transactions</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Metrics -->
+        <div class="system-metrics">
+            <h3>System Health</h3>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="metric-label">CPU Usage</div>
+                    <div class="metric-value">
+                        <div class="progress">
+                            <div class="progress-bar" style="width: {{ system_health.cpu_usage }}%"></div>
+                        </div>
+                        <span>{{ system_health.cpu_usage|floatformat:1 }}%</span>
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Memory Usage</div>
+                    <div class="metric-value">
+                        <div class="progress">
+                            <div class="progress-bar" style="width: {{ system_health.memory_usage }}%"></div>
+                        </div>
+                        <span>{{ system_health.memory_usage|floatformat:1 }}%</span>
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Disk Usage</div>
+                    <div class="metric-value">
+                        <div class="progress">
+                            <div class="progress-bar" style="width: {{ system_health.disk_usage }}%"></div>
+                        </div>
+                        <span>{{ system_health.disk_usage|floatformat:1 }}%</span>
+                    </div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Active Sessions</div>
+                    <div class="metric-value">
+                        <span class="metric-number">{{ system_health.active_sessions }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'admin/js/custom_admin.js' %}"></script>
+<script>
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    checkSystemHealth();
+    setInterval(checkSystemHealth, 30000); // Check every 30 seconds
+});
+
+function initializeCharts() {
+    // Giving Trends Chart
+    const givingCtx = document.getElementById('givingChart').getContext('2d');
+    new Chart(givingCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Monthly Giving',
+                data: [12000, 19000, 15000, 25000, 22000, 30000],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // User Growth Chart
+    const userCtx = document.getElementById('userGrowthChart').getContext('2d');
+    new Chart(userCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: 'New Users',
+                data: [65, 59, 80, 81, 56, 95],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function checkSystemHealth() {
+    fetch('{% url "altar_admin:system_health" %}')
+        .then(response => response.json())
+        .then(data => {
+            updateHealthAlert(data);
+            updateSystemMetrics(data);
+        })
+        .catch(error => console.error('Error fetching system health:', error));
+}
+
+function updateHealthAlert(health) {
+    const alert = document.getElementById('health-alert');
+    const message = document.getElementById('health-message');
+    
+    if (health.status === 'warning') {
+        alert.style.display = 'block';
+        message.textContent = 'System resources are running high. Please monitor performance.';
+    } else {
+        alert.style.display = 'none';
+    }
+}
+
+function updateSystemMetrics(health) {
+    // Update progress bars
+    document.querySelectorAll('.progress-bar').forEach((bar, index) => {
+        const values = [health.cpu_usage, health.memory_usage, health.disk_usage];
+        if (values[index]) {
+            bar.style.width = values[index] + '%';
+        }
+    });
+}
+
+function refreshStats() {
+    location.reload();
+}
+
+function exportReport() {
+    window.open('{% url "altar_admin:api_stats" %}', '_blank');
+}
+</script>
+{% endblock %}

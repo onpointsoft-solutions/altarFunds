@@ -84,16 +84,21 @@ class ChurchSearchActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                // Load nearby churches (default search)
+                // Load all churches
                 val response = ApiService.getApiInterface().searchChurches(
                     query = "",
                     location = null
                 )
                 
                 if (response.isSuccessful) {
-                    churches = (response.body()?.churches ?: emptyList()) as List<ChurchSearchResult>
-                    updateChurchList(churches)
-                    updateSearchResults(churches.size)
+                    val searchResponse = response.body()
+                    if (searchResponse?.success == true) {
+                        churches = searchResponse.churches
+                        updateChurchList(churches)
+                        updateSearchResults(churches.size)
+                    } else {
+                        showError(searchResponse?.message ?: "Failed to load churches")
+                    }
                 } else {
                     showError("Failed to load churches")
                 }
@@ -145,12 +150,17 @@ class ChurchSearchActivity : AppCompatActivity() {
                 )
                 
                 if (response.isSuccessful) {
-                    val searchResults = response.body()?.churches ?: emptyList()
-                    updateChurchList(searchResults)
-                    updateSearchResults(searchResults.size)
-                    
-                    if (searchResults.isEmpty()) {
-                        showNoResults()
+                    val searchResponse = response.body()
+                    if (searchResponse?.success == true) {
+                        val searchResults = searchResponse.churches
+                        updateChurchList(searchResults)
+                        updateSearchResults(searchResults.size)
+                        
+                        if (searchResults.isEmpty()) {
+                            showNoResults()
+                        }
+                    } else {
+                        showError(searchResponse?.message ?: "Search failed")
                     }
                 } else {
                     showError("Search failed")
@@ -170,8 +180,120 @@ class ChurchSearchActivity : AppCompatActivity() {
     }
 
     private fun showJoinByCodeDialog() {
-        // TODO: Implement join by code dialog
-        Toast.makeText(this, "Join by code feature coming soon", Toast.LENGTH_SHORT).show()
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        val inflater = layoutInflater
+        val dialogView = inflater.inflate(android.R.layout.simple_list_item_1, null)
+        
+        // Create a custom view with EditText for church code
+        val editText = android.widget.EditText(this)
+        editText.hint = "Enter Church Code"
+        editText.inputType = android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+        
+        builder.setTitle("Join Church by Code")
+        builder.setMessage("Enter the church code provided by your church administrator")
+        builder.setView(editText)
+        
+        builder.setPositiveButton("Join") { dialog, _ ->
+            val churchCode = editText.text.toString().trim().uppercase()
+            if (churchCode.isEmpty()) {
+                Toast.makeText(this, "Please enter a church code", Toast.LENGTH_SHORT).show()
+                return@setPositiveButton
+            }
+            joinChurchByCode(churchCode)
+            dialog.dismiss()
+        }
+        
+        builder.setNegativeButton("Cancel") { dialog, _ ->
+            dialog.dismiss()
+        }
+        
+        builder.show()
+    }
+    
+    private fun joinChurchByCode(churchCode: String) {
+        binding.progressBar.visibility = View.VISIBLE
+        
+        lifecycleScope.launch {
+            try {
+                // First, search for church by code
+                val response = ApiService.getApiInterface().searchChurches(
+                    query = churchCode,
+                    location = null
+                )
+                
+                if (response.isSuccessful) {
+                    val searchResponse = response.body()
+                    if (searchResponse?.success == true) {
+                        val churches = searchResponse.churches
+                        val church = churches.find { it.church_code.equals(churchCode, ignoreCase = true) }
+                        
+                        if (church != null) {
+                            // Found church by code, now join it
+                            joinChurch(church.id.toInt(), church.name)
+                        } else {
+                            // Try to find by name if code not found
+                            val churchByName = churches.find { it.name.contains(churchCode, ignoreCase = true) }
+                            if (churchByName != null) {
+                                joinChurch(churchByName.id.toInt(), churchByName.name)
+                            } else {
+                                binding.progressBar.visibility = View.GONE
+                                Toast.makeText(this@ChurchSearchActivity, "Church not found with code: $churchCode", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        binding.progressBar.visibility = View.GONE
+                        Toast.makeText(this@ChurchSearchActivity, searchResponse?.message ?: "Failed to search for church", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(this@ChurchSearchActivity, "Failed to search for church", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                binding.progressBar.visibility = View.GONE
+                Toast.makeText(this@ChurchSearchActivity, "Error joining church: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    
+    private fun joinChurch(churchId: Int, churchName: String) {
+        lifecycleScope.launch {
+            try {
+                val response = ApiService.getApiInterface().joinChurchBackend(churchId)
+                
+                if (response.isSuccessful) {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(this@ChurchSearchActivity, "Successfully joined $churchName!", Toast.LENGTH_LONG).show()
+                    
+                    // Update user profile to reflect church membership
+                    updateProfileWithChurch(churchId, churchName)
+                    
+                    // Navigate to main dashboard
+                    val intent = Intent(this@ChurchSearchActivity, MemberDashboardModernActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                } else {
+                    binding.progressBar.visibility = View.GONE
+                    val errorMessage = response.body()?.message ?: "Failed to join church"
+                    Toast.makeText(this@ChurchSearchActivity, errorMessage, Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                binding.progressBar.visibility = View.GONE
+                Toast.makeText(this@ChurchSearchActivity, "Error joining church: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    
+    private fun updateProfileWithChurch(churchId: Int, churchName: String) {
+        lifecycleScope.launch {
+            try {
+                // The backend should automatically update the user's church membership
+                // We can refresh the user profile to ensure the UI is updated
+                ApiService.getUserProfile()
+            } catch (e: Exception) {
+                // Silently fail - the main join operation was successful
+            }
+        }
     }
 
     private fun updateChurchList(churchList: List<ChurchSearchResult>) {

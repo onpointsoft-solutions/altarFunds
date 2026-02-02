@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Enhanced Text Appearances -->
+    <style name="TextAppearance.AltarFunds.Headline1" parent="TextAppearance.Material3.HeadlineLarge">
+        <item name="android:textSize">32sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsbold</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <style name="TextAppearance.AltarFunds.Headline2" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textSize">28sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsbold</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <style name="TextAppearance.AltarFunds.Headline3" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsbold</item>
+        <item name="android:textColor">@color/mdtp_circle_background_dark_theme</item>
+    </style>
+
+    <style name="TextAppearance.AltarFunds.Headline4" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsbold</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <style name="TextAppearance.AltarFunds.Headline5" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsmedium</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <style name="TextAppearance.AltarFunds.Headline6" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsmedium</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <style name="TextAppearance.AltarFunds.Body1" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/poppinsmedium</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <style name="TextAppearance.AltarFunds.Body2" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/poppinsmedium</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <style name="TextAppearance.AltarFunds.Caption" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/poppinsmedium</item>
+        <item name="android:textColor">@color/md_theme_light_onSurfaceVariant</item>
+    </style>
+
+    <!-- Enhanced Card Styles -->
+    <style name="Widget.AltarFunds.CardView.Elevated" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">4dp</item>
+        <item name="cardBackgroundColor">@color/md_theme_light_surface</item>
+        <item name="strokeColor">@color/md_theme_light_outline</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.AltarFunds.CardView.Outlined" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardBackgroundColor">@color/md_theme_light_surface</item>
+        <item name="strokeColor">@color/md_theme_light_outline</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.AltarFunds.CardView.Filled" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardBackgroundColor">@color/md_theme_light_surfaceVariant</item>
+        <item name="strokeColor">@color/md_theme_light_outline</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <!-- Enhanced Button Styles (unique names to avoid conflicts) -->
+    <style name="Widget.AltarFunds.Button.Enhanced" parent="Widget.Material3.Button">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsmedium</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="android:textColor">@color/md_theme_light_onPrimary</item>
+        <item name="backgroundTint">@color/md_theme_light_primary</item>
+        <item name="android:elevation">4dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <style name="Widget.AltarFunds.Button.OutlinedButton.Enhanced" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsmedium</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="android:textColor">@color/md_theme_light_primary</item>
+        <item name="backgroundTint">@color/md_theme_light_surface</item>
+        <item name="strokeColor">@color/md_theme_light_outline</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="android:elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <style name="Widget.AltarFunds.Button.TextButton.Enhanced" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppinsmedium</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="android:textColor">@color/md_theme_light_primary</item>
+        <item name="android:elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <!-- Enhanced TextInputLayout Styles (unique names to avoid conflicts) -->
+    <style name="Widget.AltarFunds.TextInputLayout.Enhanced" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/md_theme_light_primary</item>
+        <item name="boxStrokeWidth">2dp</item>
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+        <item name="hintTextColor">@color/md_theme_light_primary</item>
+        <item name="android:textColorHint">@color/md_theme_light_onSurfaceVariant</item>
+        <item name="startIconTint">@color/md_theme_light_primary</item>
+        <item name="endIconTint">@color/md_theme_light_onSurfaceVariant</item>
+        <item name="errorTextColor">@color/md_theme_light_error</item>
+        <item name="helperTextTextColor">@color/md_theme_light_onSurfaceVariant</item>
+    </style>
+
+    <style name="Widget.AltarFunds.TextInputLayout.Filled" parent="Widget.Material3.TextInputLayout.FilledBox">
+        <item name="boxStrokeColor">@color/md_theme_light_primary</item>
+        <item name="boxStrokeWidth">2dp</item>
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+        <item name="hintTextColor">@color/md_theme_light_primary</item>
+        <item name="android:textColorHint">@color/md_theme_light_onSurfaceVariant</item>
+        <item name="startIconTint">@color/md_theme_light_primary</item>
+        <item name="endIconTint">@color/md_theme_light_onSurfaceVariant</item>
+        <item name="errorTextColor">@color/md_theme_light_error</item>
+        <item name="helperTextTextColor">@color/md_theme_light_onSurfaceVariant</item>
+    </style>
+
+    <!-- Enhanced Chip Styles -->
+    <style name="Widget.AltarFunds.Chip" parent="Widget.Material3.Chip.Filter">
+        <item name="android:textAppearance">@style/TextAppearance.AltarFunds.Caption</item>
+        <item name="chipBackgroundColor">@color/md_theme_light_primaryContainer</item>
+        <item name="android:textColor">@color/md_theme_light_onPrimaryContainer</item>
+        <item name="chipCornerRadius">16dp</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipStrokeColor">@color/md_theme_light_primary</item>
+    </style>
+
+    <!-- Enhanced Bottom Navigation -->
+    <style name="Widget.AltarFunds.BottomNavigationView" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">@color/md_theme_light_surface</item>
+        <item name="itemIconTint">@color/bottom_nav_selector</item>
+        <item name="itemTextColor">@color/bottom_nav_selector</item>
+        <item name="itemTextAppearanceActive">@style/TextAppearance.AltarFunds.Caption</item>
+        <item name="itemTextAppearanceInactive">@style/TextAppearance.AltarFunds.Caption</item>
+        <item name="itemRippleColor">@color/md_theme_light_primary</item>
+        <item name="elevation">8dp</item>
+    </style>
+
+    <!-- Enhanced Toolbar -->
+    <style name="Widget.AltarFunds.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/md_theme_light_surface</item>
+        <item name="titleTextColor">@color/md_theme_light_onSurface</item>
+        <item name="subtitleTextColor">@color/md_theme_light_onSurfaceVariant</item>
+        <item name="android:textAppearance">@style/TextAppearance.AltarFunds.Headline6</item>
+        <item name="navigationIconTint">@color/md_theme_light_onSurface</item>
+        <item name="popupTheme">@style/ThemeOverlay.AltarFunds.Popup</item>
+        <item name="elevation">4dp</item>
+    </style>
+
+    <!-- Enhanced FloatingActionButton (unique name to avoid conflicts) -->
+    <style name="Widget.AltarFunds.FloatingActionButton.Enhanced" parent="Widget.Material3.FloatingActionButton.Primary">
+        <item name="backgroundTint">@color/md_theme_light_primary</item>
+        <item name="tint">@color/md_theme_light_onPrimary</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.AltarFunds.SmallComponent</item>
+        <item name="elevation">6dp</item>
+    </style>
+
+    <!-- Enhanced ProgressBar -->
+    <style name="Widget.AltarFunds.ProgressBar" parent="Widget.AppCompat.ProgressBar">
+        <item name="android:indeterminateTint">@color/md_theme_light_primary</item>
+        <item name="android:progressTint">@color/md_theme_light_primary</item>
+    </style>
+
+    <!-- Enhanced Switch -->
+    <style name="Widget.AltarFunds.Switch" parent="Widget.Material3.CompoundButton.Switch">
+        <item name="trackTint">@color/switch_track_selector</item>
+        <item name="thumbTint">@color/switch_thumb_selector</item>
+    </style>
+
+    <!-- Enhanced CheckBox -->
+    <style name="Widget.AltarFunds.CheckBox" parent="Widget.Material3.CompoundButton.CheckBox">
+        <item name="buttonTint">@color/checkbox_selector</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <!-- Enhanced RadioButton -->
+    <style name="Widget.AltarFunds.RadioButton" parent="Widget.Material3.CompoundButton.RadioButton">
+        <item name="buttonTint">@color/radio_button_selector</item>
+        <item name="android:textColor">@color/md_theme_light_onSurface</item>
+    </style>
+
+    <!-- Enhanced SeekBar -->
+    <style name="Widget.AltarFunds.SeekBar" parent="Widget.AppCompat.SeekBar">
+        <item name="android:progressTint">@color/md_theme_light_primary</item>
+        <item name="android:thumbTint">@color/md_theme_light_primary</item>
+        <item name="android:progressBackgroundTint">@color/md_theme_light_surfaceVariant</item>
+    </style>
+
+    <!-- Enhanced RatingBar -->
+    <style name="Widget.AltarFunds.RatingBar" parent="Widget.AppCompat.RatingBar">
+        <item name="android:progressTint">@color/md_theme_light_primary</item>
+        <item name="android:secondaryProgressTint">@color/md_theme_light_surfaceVariant</item>
+    </style>
+
+    <!-- Enhanced TabLayout -->
+    <style name="Widget.AltarFunds.TabLayout" parent="Widget.Material3.TabLayout">
+        <item name="android:background">@color/md_theme_light_surface</item>
+        <item name="tabIndicatorColor">@color/md_theme_light_primary</item>
+        <item name="tabTextColor">@color/tab_text_selector</item>
+        <item name="tabSelectedTextColor">@color/md_theme_light_primary</item>
+        <item name="tabTextAppearance">@style/TextAppearance.AltarFunds.Body2</item>
+        <item name="tabRippleColor">@color/md_theme_light_primary</item>
+    </style>
+
+    <!-- Enhanced CollapsingToolbarLayout -->
+    <style name="Widget.AltarFunds.CollapsingToolbar" parent="Widget.Design.CollapsingToolbar">
+        <item name="expandedTitleTextAppearance">@style/TextAppearance.AltarFunds.Headline4</item>
+        <item name="collapsedTitleTextAppearance">@style/TextAppearance.AltarFunds.Headline6</item>
+        <item name="expandedTitleTextColor">@color/md_theme_light_onSurface</item>
+        <item name="collapsedTitleTextColor">@color/md_theme_light_onSurface</item>
+        <item name="contentScrim">@color/md_theme_light_primary</item>
+        <item name="statusBarScrim">@color/md_theme_light_primary</item>
+    </style>
+
+    <!-- Theme Overlay Styles -->
+    <style name="ThemeOverlay.AltarFunds.Popup" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/md_theme_light_primary</item>
+        <item name="colorSurface">@color/md_theme_light_surface</item>
+        <item name="colorOnSurface">@color/md_theme_light_onSurface</item>
+    </style>
+
+</resources>

@@ -27,9 +27,13 @@ data class MemberListResponse(
 data class ChurchSearchResult(
     val id: String,
     val name: String,
+    val church_code: String,
     val location: String,
+    val city: String? = null,
     val memberCount: Int,
-    val distance: Double? = null
+    val distance: Double? = null,
+    val is_verified: Boolean = false,
+    val church_type: String? = null
 )
 
 data class RejectReasonRequest(

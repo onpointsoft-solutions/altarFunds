@@ -205,25 +205,16 @@ object ApiService {
         }
     }
 
-    suspend fun getUserProfile(): User {
+    suspend fun getUserProfile(): UserProfileResponse {
         return try {
-            val response = getApiInterface().getCurrentUser()
+            val response = getApiInterface().getProfile()
             if (response.isSuccessful) {
-                val userResponse = response.body()
-                User(
-                    id = userResponse?.id ?: "",
-                    email = userResponse?.email ?: "",
-                    first_name = userResponse?.first_name ?: "User",
-                    last_name = userResponse?.last_name ?: "",
-                    phone_number = userResponse?.phone_number,
-                    role = userResponse?.role ?: "member",
-                    is_active = true
-                )
+                response.body() ?: throw Exception("No profile data available")
             } else {
-                User("", "user@example.com", "User", "", null, "member", true)
+                throw Exception("Failed to load profile: ${response.code()}")
             }
         } catch (e: Exception) {
-            User("", "user@example.com", "User", "", null, "member", true)
+            throw e
         }
     }
 

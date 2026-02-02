@@ -42,14 +42,11 @@ class ProfileFragment : Fragment() {
         
         lifecycleScope.launch {
             try {
-                val profileResponse = com.altarfunds.mobile.api.ApiService.getApiInterface().getUserProfile()
-                
-                if (profileResponse.isSuccessful && profileResponse.body() != null) {
-                    val profile = profileResponse.body()!!
-                    updateUIWithProfile(profile)
-                }
+                val profile = com.altarfunds.mobile.api.ApiService.getUserProfile()
+                updateUIWithProfile(profile)
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Failed to load profile", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Failed to load profile: ${e.message}", Toast.LENGTH_LONG).show()
+                e.printStackTrace()
             } finally {
                 binding.progressBar.visibility = View.GONE
             }
@@ -58,40 +55,40 @@ class ProfileFragment : Fragment() {
 
     private fun updateUIWithProfile(profile: com.altarfunds.mobile.models.UserProfileResponse) {
         // User information
-        binding.tvUserName.text = "${profile.user.first_name} ${profile.user.last_name}"
-        binding.tvUserEmail.text = profile.user.email
-        binding.tvUserRole.text = profile.user.role.replace("_", " ").capitalize()
+        binding.tvUserName.text = "${profile.first_name} ${profile.last_name}"
+        binding.tvUserEmail.text = profile.email
+        binding.tvUserRole.text = profile.role_display ?: profile.role.replace("_", " ").capitalize()
         
         // Member information
-        profile.member?.let { member ->
-            binding.tvMembershipNumber.text = member.membership_number
-            binding.tvMemberType.text = member.member_type.replace("_", " ").capitalize()
-            binding.tvJoinDate.text = formatDate(member.join_date)
+        profile.member_profile?.let { member ->
+            binding.tvMembershipNumber.text = member.membership_number ?: "N/A"
+            binding.tvMemberType.text = member.membership_status?.replace("_", " ")?.capitalize() ?: "N/A"
+            binding.tvJoinDate.text = formatDate(member.membership_date ?: member.join_date ?: "")
             
             if (member.is_active) {
                 binding.tvMemberStatus.text = "Active"
-                binding.tvMemberStatus.setTextColor(com.altarfunds.mobile.R.color.green)
+                binding.tvMemberStatus.setTextColor(resources.getColor(com.altarfunds.mobile.R.color.green, null))
             } else {
                 binding.tvMemberStatus.text = "Inactive"
-                binding.tvMemberStatus.setTextColor(com.altarfunds.mobile.R.color.red)
+                binding.tvMemberStatus.setTextColor(resources.getColor(com.altarfunds.mobile.R.color.red, null))
             }
             
             binding.llMemberInfo.visibility = View.VISIBLE
         } ?: run {
             binding.llMemberInfo.visibility = View.GONE
         }
-        /*
+        
         // Church information
         profile.church_info?.let { church ->
             binding.tvChurchName.text = church.name
-            binding.tvChurchCode.text = church.code
+            binding.tvChurchCode.text = church.church_code ?: church.code ?: "N/A"
             
             if (church.is_verified) {
                 binding.tvChurchVerified.text = "Verified"
-                binding.tvChurchVerified.setTextColor(com.altarfunds.mobile.R.color.green)
+                binding.tvChurchVerified.setTextColor(resources.getColor(com.altarfunds.mobile.R.color.green, null))
             } else {
                 binding.tvChurchVerified.text = "Not Verified"
-                binding.tvChurchVerified.setTextColor(com.altarfunds.mobile.R.color.orange)
+                binding.tvChurchVerified.setTextColor(resources.getColor(com.altarfunds.mobile.R.color.red, null))
             }
             
             binding.llChurchInfo.visibility = View.VISIBLE
@@ -99,6 +96,8 @@ class ProfileFragment : Fragment() {
             binding.llChurchInfo.visibility = View.GONE
         }
         
+        // Device information and permissions sections commented out until UI elements are added to layout
+        /*
         // Device information
         if (profile.devices.isNotEmpty()) {
             val device = profile.devices.first()
@@ -116,7 +115,8 @@ class ProfileFragment : Fragment() {
             binding.llPermissions.visibility = View.VISIBLE
         } else {
             binding.llPermissions.visibility = View.GONE
-        }*/
+        }
+        */
     }
 
     private fun setupClickListeners() {

@@ -27,7 +27,7 @@ class IsChurchAdmin(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
 
 
 class IsDenominationAdmin(permissions.BasePermission):
@@ -80,7 +80,7 @@ class CanViewChurchFinances(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
 
 
 class CanManageChurchFinances(permissions.BasePermission):
@@ -90,7 +90,7 @@ class CanManageChurchFinances(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['treasurer', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'treasurer', 'denomination_admin', 'system_admin']
 
 
 class CanApproveExpenses(permissions.BasePermission):
@@ -100,7 +100,7 @@ class CanApproveExpenses(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['pastor', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'pastor', 'denomination_admin', 'system_admin']
 
 
 class IsMember(permissions.BasePermission):
@@ -127,7 +127,7 @@ class CanManageChurch(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
     
     def has_object_permission(self, request, view, obj):
         # System admins can manage any church
@@ -160,7 +160,7 @@ class CanViewPayments(permissions.BasePermission):
             return True
         
         # Church admins can view their church's payments
-        if request.user.role in ['pastor', 'treasurer', 'auditor']:
+        if request.user.role in ['admin', 'pastor', 'treasurer', 'auditor']:
             if hasattr(obj, 'church'):
                 return obj.church == request.user.church
             elif hasattr(obj, 'giving') and hasattr(obj.giving, 'church'):
@@ -182,7 +182,7 @@ class CanManageMembers(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
     
     def has_object_permission(self, request, view, obj):
         # System admins can manage all members
@@ -207,7 +207,7 @@ class IsOwnerOrChurchAdmin(permissions.BasePermission):
             return True
         
         # Church admins can access church data
-        if request.user.role in ['pastor', 'treasurer', 'auditor']:
+        if request.user.role in ['admin', 'pastor', 'treasurer', 'auditor']:
             if hasattr(obj, 'church'):
                 return obj.church == request.user.church
             elif hasattr(obj, 'member') and hasattr(obj.member, 'church'):

@@ -1,0 +1,571 @@
+{% load i18n static %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
+<html lang="{{ LANGUAGE_CODE|default:'en-us' }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
+<head>
+<title>{% block title %}{% endblock %} | {{ site_header|default:_('AltarFunds Admin') }}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="AltarFunds - Professional Church Management System">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- Styles -->
+<link rel="stylesheet" href="{% block stylesheet %}{% static "admin/css/base.css" %}{% endblock %}">
+<link rel="stylesheet" href="{% static "admin/css/enhanced_admin.css" %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+{% block extrastyle %}{% endblock %}
+
+{% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}">{% endif %}
+{% block extrahead %}{% endblock %}
+{% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
+</head>
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{% endblock %}"
+  data-admin-utc-offset="{% now "Z" %}">
+
+<!-- Container -->
+<div id="container">
+
+{% if not is_popup %}
+<!-- Header -->
+<div id="header">
+    <div id="branding">
+        <h1 id="site-name">
+            <a href="{% url 'admin:index' %}">
+                <span class="admin-logo">⛪</span>
+                {{ site_header|default:_('AltarFunds Admin') }}
+            </a>
+        </h1>
+    </div>
+    {% block usertools %}
+    {% if has_permission %}
+    <div id="user-tools">
+        {% block welcome-msg %}
+            <span class="user-welcome">
+                <i class="fas fa-user-circle"></i>
+                {% translate 'Welcome,' %}
+                <strong>{% firstof user.get_short_name user.get_username %}</strong>.
+            </span>
+        {% endblock %}
+        {% block userlinks %}
+            {% if site_url %}
+                <a href="{{ site_url }}">{% translate 'View site' %}</a> /
+            {% endif %}
+            {% if user.is_active and user.is_staff %}
+                {% url 'django-admindocs-docroot' as docsroot %}
+                {% if docsroot %}
+                    <a href="{{ docsroot }}">{% translate 'Documentation' %}</a> /
+                {% endif %}
+            {% endif %}
+            {% if user.has_usable_password %}
+                <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a> /
+            {% endif %}
+            <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    {% translate 'Log out' %}
+                </button>
+            </form>
+        {% endblock %}
+    </div>
+    {% endif %}
+    {% endblock %}
+    {% block nav-global %}{% endblock %}
+</div>
+
+<!-- Navigation -->
+<div id="nav-sidebar">
+    {% if has_permission %}
+    <div class="nav-section">
+        <h3>Management</h3>
+        {% if has_module_permission 'churches' %}
+        <a href="{% url 'admin:app_list' app_label='churches' %}">
+            <i class="fas fa-church"></i>
+            Churches
+        </a>
+        {% endif %}
+        {% if has_module_permission 'accounts' %}
+        <a href="{% url 'admin:app_list' app_label='accounts' %}">
+            <i class="fas fa-users"></i>
+            Users & Members
+        </a>
+        {% endif %}
+        {% if has_module_permission 'giving' %}
+        <a href="{% url 'admin:app_list' app_label='giving' %}">
+            <i class="fas fa-hand-holding-usd"></i>
+            Giving & Donations
+        </a>
+        {% endif %}
+        {% if has_module_permission 'payments' %}
+        <a href="{% url 'admin:app_list' app_label='payments' %}">
+            <i class="fas fa-credit-card"></i>
+            Payments
+        </a>
+        {% endif %}
+        {% if has_module_permission 'expenses' %}
+        <a href="{% url 'admin:app_list' app_label='expenses' %}">
+            <i class="fas fa-receipt"></i>
+            Expenses
+        </a>
+        {% endif %}
+        {% if has_module_permission 'budgets' %}
+        <a href="{% url 'admin:app_list' app_label='budgets' %}">
+            <i class="fas fa-chart-pie"></i>
+            Budgets
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="nav-section">
+        <h3>Reports</h3>
+        {% if has_module_permission 'reports' %}
+        <a href="{% url 'admin:app_list' app_label='reports' %}">
+            <i class="fas fa-chart-bar"></i>
+            Financial Reports
+        </a>
+        {% endif %}
+        {% if has_module_permission 'audit' %}
+        <a href="{% url 'admin:app_list' app_label='audit' %}">
+            <i class="fas fa-history"></i>
+            Audit Logs
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="nav-section">
+        <h3>System</h3>
+        {% if has_module_permission 'notifications' %}
+        <a href="{% url 'admin:app_list' app_label='notifications' %}">
+            <i class="fas fa-bell"></i>
+            Notifications
+        </a>
+        {% endif %}
+        {% if has_module_permission 'mobile' %}
+        <a href="{% url 'admin:app_list' app_label='mobile' %}">
+            <i class="fas fa-mobile-alt"></i>
+            Mobile App
+        </a>
+        {% endif %}
+        <a href="{% url 'admin:index' %}">
+            <i class="fas fa-cog"></i>
+            Settings
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- MAIN CONTENT -->
+<div id="main">
+    {% if not is_popup %}
+    <!-- Breadcrumb -->
+    {% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+    </div>
+    {% endblock %}
+    {% endif %}
+
+    {% block messages %}
+    {% if messages %}
+    <ul class="messagelist">
+    {% for message in messages %}
+      <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+        {% if 'html' in message.tags %}
+            {{ message|safe }}
+        {% else %}
+            {{ message }}
+        {% endif %}
+        {% if 'error' in message.tags or 'warning' in message.tags %}
+            <button type="button" class="message-close" onclick="this.parentElement.style.display='none'">
+                <i class="fas fa-times"></i>
+            </button>
+        {% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+    {% endblock messages %}
+
+    <!-- Content -->
+    <div id="content" class="{% block coltype %}colM{% endblock %}">
+        {% block pretitle %}{% endblock %}
+        {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
+        {% block content %}
+        {% block object-tools %}{% endblock %}
+        {{ content }}
+        {% endblock %}
+        {% block sidebar %}{% endblock %}
+        <br class="clear">
+    </div>
+    <!-- END Content -->
+    {% block footer %}<div id="footer"></div>{% endblock %}
+</div>
+<!-- END MAIN CONTENT -->
+
+</div>
+<!-- END CONTAINER -->
+
+{% if 'popup' not in request.path %}
+<!-- Quick Actions Floating Button -->
+<div class="quick-actions-fab">
+    <button class="fab-main" onclick="toggleQuickActions()">
+        <i class="fas fa-plus"></i>
+    </button>
+    <div class="fab-menu">
+        <a href="{% url 'admin:churches_church_add' %}" class="fab-item" title="Add Church">
+            <i class="fas fa-church"></i>
+        </a>
+        <a href="{% url 'admin:accounts_user_add' %}" class="fab-item" title="Add User">
+            <i class="fas fa-user-plus"></i>
+        </a>
+        <a href="{% url 'admin:giving_givingtransaction_add' %}" class="fab-item" title="Record Giving">
+            <i class="fas fa-donate"></i>
+        </a>
+        <a href="{% url 'admin:expenses_expense_add' %}" class="fab-item" title="Add Expense">
+            <i class="fas fa-receipt"></i>
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- JavaScript -->
+<script>
+{% block js %}
+// Django admin JavaScript
+django.jQuery(function($) {
+    // Add enhanced interactions
+    $('.module').addClass('enhanced-module');
+    
+    // Add hover effects to table rows
+    $('tbody tr').hover(
+        function() { $(this).addClass('row-hover'); },
+        function() { $(this).removeClass('row-hover'); }
+    );
+    
+    // Enhanced form validation
+    $('form').submit(function(e) {
+        var form = $(this);
+        var isValid = true;
+        
+        form.find('input[required], select[required], textarea[required]').each(function() {
+            if (!$(this).val()) {
+                $(this).addClass('error');
+                isValid = false;
+            } else {
+                $(this).removeClass('error');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Please fill in all required fields.');
+        }
+    });
+});
+
+// Quick Actions FAB
+function toggleQuickActions() {
+    var fab = document.querySelector('.quick-actions-fab');
+    var menu = document.querySelector('.fab-menu');
+    var mainBtn = document.querySelector('.fab-main');
+    
+    fab.classList.toggle('open');
+    mainBtn.classList.toggle('active');
+}
+
+// Close FAB when clicking outside
+document.addEventListener('click', function(e) {
+    var fab = document.querySelector('.quick-actions-fab');
+    if (!fab.contains(e.target) && fab.classList.contains('open')) {
+        toggleQuickActions();
+    }
+});
+
+// Enhanced search functionality
+function enhanceSearch() {
+    var searchInputs = document.querySelectorAll('input[name="q"]');
+    searchInputs.forEach(function(input) {
+        input.placeholder = 'Search...';
+        input.addEventListener('input', function(e) {
+            if (e.target.value.length > 2) {
+                // Implement live search if needed
+                console.log('Searching for:', e.target.value);
+            }
+        });
+    });
+}
+
+// Initialize enhancements
+document.addEventListener('DOMContentLoaded', function() {
+    enhanceSearch();
+    
+    // Add smooth scrolling
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            var target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth'
+                });
+            }
+        });
+    });
+    
+    // Add loading states to forms
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            var submitBtn = form.querySelector('input[type="submit"], button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.value = 'Processing...';
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            }
+        });
+    });
+});
+
+// Enhanced date/time picker
+function enhanceDateTimePickers() {
+    var dateInputs = document.querySelectorAll('input[type="date"], input[type="datetime"]');
+    dateInputs.forEach(function(input) {
+        input.classList.add('enhanced-date-input');
+    });
+}
+
+// Call enhancements
+enhanceDateTimePickers();
+{% endblock %}
+</script>
+
+{% block extrajs %}{% endblock %}
+
+<!-- Enhanced Admin Styles -->
+<style>
+/* Enhanced navigation icons */
+.nav-section a i {
+    width: 16px;
+    margin-right: 8px;
+    text-align: center;
+}
+
+/* Enhanced user tools */
+#user-tools {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-welcome {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logout-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--altar-radius-md);
+    transition: background-color 0.2s ease;
+}
+
+.logout-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Admin logo */
+.admin-logo {
+    font-size: 1.5em;
+    margin-right: 0.5rem;
+}
+
+/* Enhanced messages */
+.messagelist li {
+    position: relative;
+    padding-right: 3rem;
+}
+
+.message-close {
+    position: absolute;
+    top: 50%;
+    right: 1rem;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.message-close:hover {
+    opacity: 1;
+}
+
+/* Quick Actions FAB */
+.quick-actions-fab {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1000;
+}
+
+.fab-main {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--altar-primary) 0%, var(--altar-primary-dark) 100%);
+    border: none;
+    color: white;
+    font-size: 1.25rem;
+    cursor: pointer;
+    box-shadow: var(--altar-shadow-lg);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fab-main:hover {
+    transform: scale(1.1);
+    box-shadow: var(--altar-shadow-xl);
+}
+
+.fab-main.active {
+    transform: rotate(45deg);
+}
+
+.fab-menu {
+    position: absolute;
+    bottom: 4rem;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+.quick-actions-fab.open .fab-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.fab-item {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid var(--altar-gray-200);
+    color: var(--altar-gray-700);
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: var(--altar-shadow);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transform: scale(0);
+}
+
+.quick-actions-fab.open .fab-item {
+    transform: scale(1);
+}
+
+.quick-actions-fab.open .fab-item:nth-child(1) { transition-delay: 0.1s; }
+.quick-actions-fab.open .fab-item:nth-child(2) { transition-delay: 0.2s; }
+.quick-actions-fab.open .fab-item:nth-child(3) { transition-delay: 0.3s; }
+.quick-actions-fab.open .fab-item:nth-child(4) { transition-delay: 0.4s; }
+
+.fab-item:hover {
+    background: var(--altar-primary);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Enhanced table rows */
+.row-hover {
+    background-color: var(--altar-primary-bg) !important;
+}
+
+/* Enhanced form inputs */
+.enhanced-date-input {
+    border: 1px solid var(--altar-gray-300);
+    border-radius: var(--altar-radius-md);
+    padding: var(--altar-space-2) var(--altar-space-3);
+    font-size: var(--altar-font-size-sm);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.enhanced-date-input:focus {
+    outline: none;
+    border-color: var(--altar-primary);
+    box-shadow: 0 0 0 3px var(--altar-primary-bg);
+}
+
+/* Loading states */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--altar-gray-300);
+    border-top: 4px solid var(--altar-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .quick-actions-fab {
+        bottom: 1rem;
+        right: 1rem;
+    }
+    
+    #user-tools {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-end;
+    }
+    
+    .fab-menu {
+        bottom: 3rem;
+    }
+}
+</style>
+
+</body>
+</html>

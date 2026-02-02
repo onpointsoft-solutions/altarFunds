@@ -34,15 +34,26 @@ class EditProfileActivity : AppCompatActivity() {
     }
 
     private fun loadUserProfile() {
-        // TODO: Load user profile from API or local storage
-        // For now, set placeholder data
-        binding.etFirstName.setText("John")
-        binding.etLastName.setText("Doe")
-        binding.etEmail.setText("john.doe@example.com")
-        binding.etPhone.setText("+254712345678")
-        binding.etAddress.setText("123 Main Street")
-        binding.etCity.setText("Nairobi")
-        binding.etCountry.setText("Kenya")
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val profile = com.altarfunds.mobile.api.ApiService.getUserProfile()
+                
+                withContext(Dispatchers.Main) {
+                    binding.etFirstName.setText(profile.first_name)
+                    binding.etLastName.setText(profile.last_name)
+                    binding.etEmail.setText(profile.email)
+                    binding.etPhone.setText(profile.phone_number ?: "")
+                    binding.etAddress.setText(profile.address_line1 ?: "")
+                    binding.etCity.setText(profile.city ?: "")
+                    binding.etCountry.setText(profile.county ?: "")
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@EditProfileActivity, "Failed to load profile: ${e.message}", Toast.LENGTH_LONG).show()
+                    finish()
+                }
+            }
+        }
     }
 
     private fun setupClickListeners() {
@@ -96,20 +107,30 @@ class EditProfileActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // TODO: Implement API call to save profile
-                kotlinx.coroutines.delay(2000) // Simulate API call
+                val profileUpdate = com.altarfunds.mobile.models.ProfileUpdate(
+                    first_name = firstName,
+                    last_name = lastName,
+                    phone_number = phone.ifEmpty { null }
+                )
+                
+                val response = com.altarfunds.mobile.api.ApiService.getApiInterface().updateProfile(profileUpdate)
                 
                 withContext(Dispatchers.Main) {
                     binding.btnSave.isEnabled = true
                     binding.btnSave.text = "Save"
-                    Toast.makeText(this@EditProfileActivity, "Profile updated successfully", Toast.LENGTH_SHORT).show()
-                    finish()
+                    
+                    if (response.isSuccessful) {
+                        Toast.makeText(this@EditProfileActivity, "Profile updated successfully", Toast.LENGTH_SHORT).show()
+                        finish()
+                    } else {
+                        Toast.makeText(this@EditProfileActivity, "Failed to update profile: ${response.code()}", Toast.LENGTH_LONG).show()
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     binding.btnSave.isEnabled = true
                     binding.btnSave.text = "Save"
-                    Toast.makeText(this@EditProfileActivity, "Failed to update profile", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@EditProfileActivity, "Failed to update profile: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }

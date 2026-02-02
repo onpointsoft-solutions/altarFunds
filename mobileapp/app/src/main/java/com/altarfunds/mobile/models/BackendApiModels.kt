@@ -37,6 +37,71 @@ data class UserProfile(
     val church: ChurchBasic?
 )
 
+data class UserProfileResponse(
+    val id: Int,
+    val email: String,
+    val first_name: String,
+    val last_name: String,
+    val phone_number: String?,
+    val role: String,
+    val role_display: String?,
+    val date_of_birth: String?,
+    val gender: String?,
+    val address_line1: String?,
+    val address_line2: String?,
+    val city: String?,
+    val county: String?,
+    val postal_code: String?,
+    val profile_picture: String?,
+    val church_name: String?,
+    val church_info: ChurchInfo?,
+    val member_profile: MemberProfile?,
+    val permissions: List<String>,
+    val email_notifications: Boolean,
+    val sms_notifications: Boolean,
+    val push_notifications: Boolean,
+    val is_phone_verified: Boolean,
+    val is_email_verified: Boolean,
+    val devices: List<DeviceInfo> = emptyList()
+)
+
+data class ChurchInfo(
+    val id: Int,
+    val name: String,
+    val code: String?,
+    val church_code: String?,
+    val is_verified: Boolean,
+    val status: String?,
+    val contact_email: String?,
+    val contact_phone: String?
+)
+
+data class MemberProfile(
+    val membership_number: String?,
+    val membership_status: String?,
+    val membership_date: String?,
+    val member_type: String?,
+    val join_date: String?,
+    val is_active: Boolean,
+    val id_number: String?,
+    val occupation: String?,
+    val employer: String?,
+    val marital_status: String?,
+    val spouse_name: String?,
+    val emergency_contact_name: String?,
+    val emergency_contact_phone: String?,
+    val is_tithe_payer: Boolean,
+    val preferred_giving_method: String?,
+    val monthly_giving_goal: Double?
+)
+
+data class DeviceInfo(
+    val device_type: String,
+    val device_id: String?,
+    val app_version: String?,
+    val last_seen: String?
+)
+
 data class ProfileUpdate(
     val first_name: String,
     val last_name: String,

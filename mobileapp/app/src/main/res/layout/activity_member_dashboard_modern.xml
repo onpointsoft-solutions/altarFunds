@@ -407,15 +407,5 @@
         app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior" />
 
     <!-- FAB positioned above bottom navigation -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_add_transaction"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:src="@drawable/ic_add"
-        android:contentDescription="Add Transaction"
-        app:layout_anchor="@id/bottom_navigation"
-        app:layout_anchorGravity="top|end" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

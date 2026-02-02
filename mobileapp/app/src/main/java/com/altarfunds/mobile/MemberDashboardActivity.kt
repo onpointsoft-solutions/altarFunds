@@ -195,17 +195,17 @@ class MemberDashboardActivity : AppCompatActivity() {
     private fun updateProfileInfo(profile: UserProfileResponse?) {
         currentProfile = profile  // Store profile for later use
         profile?.let {
-            binding.tvMemberName.text = it.user?.first_name?.let { firstName ->
-                it.user?.last_name?.let { lastName ->
+            binding.tvMemberName.text = it?.first_name?.let { firstName ->
+                it?.last_name?.let { lastName ->
                     "$firstName $lastName"
                 } ?: firstName
-            } ?: it.user?.email ?: "User"
+            } ?: it?.email ?: "User"
             
-            binding.tvMemberEmail.text = it.user?.email ?: "No email"
+            binding.tvMemberEmail.text = it?.email ?: "No email"
             
             // Update church info
-            it.member?.church?.let { church ->
-                binding.tvMemberChurch.text = church.name
+            it?.let { church ->
+                binding.tvMemberChurch.text = church.church_name
                 binding.tvChurchVerified.visibility = View.VISIBLE
                 binding.tvChurchUnverified.visibility = View.GONE
             } ?: run {
@@ -248,8 +248,8 @@ class MemberDashboardActivity : AppCompatActivity() {
         
         // Update User Profile
         profile?.let { userProfile ->
-            binding.tvMemberName.text = userProfile.user.first_name + " " + userProfile.user.last_name
-            binding.tvMemberEmail.text = userProfile.user.email
+            binding.tvMemberName.text = userProfile.first_name + " " + userProfile.last_name
+            binding.tvMemberEmail.text = userProfile.email
             binding.tvMemberChurch.text = userProfile.church_info?.name ?: "No Church"
             
             // Update church verification status
@@ -307,7 +307,7 @@ class MemberDashboardActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val transferRequest = ChurchTransferRequest(
-                    currentChurchId = currentProfile?.member?.church?.id ?: "",
+                    currentChurchId = currentProfile?.church_info?.id ?: "",
                     newChurchId = church.id,
                     reason = "User requested transfer",
                     transferDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),

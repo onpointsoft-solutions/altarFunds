@@ -34,12 +34,19 @@ class TransactionAdapter : ListAdapter<GivingTransaction, TransactionAdapter.Tra
         private val tvAmount: TextView = itemView.findViewById(R.id.tvAmount)
         private val tvDate: TextView = itemView.findViewById(R.id.tvDate)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
+        private val tvPaymentMethod: TextView? = itemView.findViewById(R.id.tv_payment_method)
+        // Note: tvReference view not in current layout
+        private val tvNotes: TextView? = itemView.findViewById(R.id.tv_note)
+        private val tvTime: TextView? = itemView.findViewById(R.id.tv_time)
         
         fun bind(transaction: GivingTransaction) {
-            tvCategory.text = transaction.category_name
+            // Display category with icon
+            tvCategory.text = "💰 ${transaction.category_name ?: "General Giving"}"
+            
+            // Display amount with proper formatting
             tvAmount.text = currencyFormat.format(transaction.amount)
             
-            // Parse and format date
+            // Parse and format date and time
             try {
                 val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
                 val date = inputFormat.parse(transaction.date)
@@ -48,8 +55,17 @@ class TransactionAdapter : ListAdapter<GivingTransaction, TransactionAdapter.Tra
                 tvDate.text = transaction.date
             }
             
-            // Set status with color
-            tvStatus.text = transaction.status.capitalize()
+            // Set status with color and icon
+            val statusText = transaction.status.replaceFirstChar { 
+                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() 
+            }
+            tvStatus.text = when (transaction.status.lowercase()) {
+                "completed", "success" -> "✓ $statusText"
+                "pending" -> "⏳ $statusText"
+                "failed" -> "✗ $statusText"
+                else -> statusText
+            }
+            
             when (transaction.status.lowercase()) {
                 "completed", "success" -> {
                     tvStatus.setTextColor(itemView.context.getColor(android.R.color.holo_green_dark))
@@ -60,6 +76,26 @@ class TransactionAdapter : ListAdapter<GivingTransaction, TransactionAdapter.Tra
                 "failed" -> {
                     tvStatus.setTextColor(itemView.context.getColor(android.R.color.holo_red_dark))
                 }
+            }
+            
+            
+            // Display notes if available
+            tvNotes?.let { view ->
+                transaction.notes?.let { notes ->
+                    if (notes.isNotEmpty()) {
+                        view.text = "📝 $notes"
+                        view.visibility = View.VISIBLE
+                    } else {
+                        view.visibility = View.GONE
+                    }
+                } ?: run {
+                    view.visibility = View.GONE
+                }
+            }
+            
+            // Add click listener for detailed view
+            itemView.setOnClickListener {
+                // TODO: Navigate to transaction details
             }
         }
     }

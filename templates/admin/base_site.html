@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/custom_admin.css' %}">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">
+        <i class="fas fa-church"></i>
+        AltarFunds Admin
+    </a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}
+{{ block.super }}
+<li class="nav-item">
+    <a href="{% url 'altar_admin:dashboard' %}" class="nav-link">
+        <i class="fas fa-tachometer-alt"></i>
+        Dashboard
+    </a>
+</li>
+{% endblock %}
+
+{% block footer %}
+<div id="footer">
+    <div class="footer-content">
+        <div class="footer-section">
+            <h4>AltarFunds Admin</h4>
+            <p>Church Giving Made Simple</p>
+            <p>Version {{ app_version }}</p>
+        </div>
+        <div class="footer-section">
+            <h4>System Status</h4>
+            <p>Server Time: {{ system_time|date:"Y-m-d H:i:s" }}</p>
+            <p>Environment: {% if debug %}Development{% else %}Production{% endif %}</p>
+        </div>
+        <div class="footer-section">
+            <h4>Quick Links</h4>
+            <p><a href="{% url 'altar_admin:dashboard' %}">Dashboard</a></p>
+            <p><a href="/api/docs/" target="_blank">API Docs</a></p>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>&copy; 2024 AltarFunds. All rights reserved.</p>
+    </div>
+</div>
+{% endblock %}

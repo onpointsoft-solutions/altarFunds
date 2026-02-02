@@ -42,7 +42,7 @@ class ChurchInfoAdapter(
             binding.apply {
                 tvChurchName.text = church.name
                 tvChurchCode.text = church.code
-                tvChurchDescription.text = church.description
+                tvChurchDescription.text = church.name
                 
                 // Set verification status
                 if (church.is_verified) {
@@ -54,7 +54,7 @@ class ChurchInfoAdapter(
                 }
                 
                 // Set active status
-                if (church.is_active) {
+                if (church.is_verified) {
                     tvActiveStatus.text = "Active"
                     tvActiveStatus.setTextColor(android.graphics.Color.GREEN)
                 } else {

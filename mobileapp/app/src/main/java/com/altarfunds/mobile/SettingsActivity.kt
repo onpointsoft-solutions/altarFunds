@@ -2,7 +2,10 @@ package com.altarfunds.mobile
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.view.View
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -70,52 +73,24 @@ class SettingsActivity : AppCompatActivity() {
         }
         
         // Test method call to verify PreferencesManager is working
-        android.util.Log.d("SettingsActivity", "PreferencesManager test: ${preferencesManager.testMethod()}")
+        Log.d("SettingsActivity", "PreferencesManager test: ${preferencesManager.testMethod()}")
     }
 
     private fun loadAvailableChurches() {
-        binding.progressBar.visibility = android.view.View.VISIBLE
+        binding.progressBar.visibility = View.VISIBLE
         
         lifecycleScope.launch {
             try {
                 // For demo, we'll create some sample churches
                 // In real app, this would come from API
-                availableChurches = listOf(
-                    ChurchInfo(
-                        id = "1",
-                        name = "Grace Community Church",
-                        code = "GCC001",
-                        description = "A vibrant community of believers",
-                        logo = null,
-                        is_verified = true,
-                        is_active = true
-                    ),
-                    ChurchInfo(
-                        id = "2", 
-                        name = "Victory Chapel",
-                        code = "VCH002",
-                        description = "Where faith meets action",
-                        logo = null,
-                        is_verified = true,
-                        is_active = true
-                    ),
-                    ChurchInfo(
-                        id = "3",
-                        name = "Living Waters Church",
-                        code = "LWC003", 
-                        description = "Flowing in the spirit",
-                        logo = null,
-                        is_verified = true,
-                        is_active = true
-                    )
-                )
+                availableChurches = listOf()
                 
                 churchAdapter.submitList(availableChurches)
                 
             } catch (e: Exception) {
                 Toast.makeText(this@SettingsActivity, "Failed to load churches", Toast.LENGTH_SHORT).show()
             } finally {
-                binding.progressBar.visibility = android.view.View.GONE
+                binding.progressBar.visibility = View.GONE
             }
         }
     }
@@ -140,7 +115,7 @@ class SettingsActivity : AppCompatActivity() {
         // Notification settings
         binding.switchNotifications.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setNotificationsEnabled(isChecked)
-            binding.llNotificationOptions.visibility = if (isChecked) android.view.View.VISIBLE else android.view.View.GONE
+            binding.llNotificationOptions.visibility = if (isChecked) View.VISIBLE else View.GONE
         }
 
         binding.switchEmailNotifications.setOnCheckedChangeListener { _, isChecked ->
@@ -194,11 +169,11 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun toggleChurchSelection() {
-        if (binding.rvChurches.visibility == android.view.View.GONE) {
-            binding.rvChurches.visibility = android.view.View.VISIBLE
+        if (binding.rvChurches.visibility == View.GONE) {
+            binding.rvChurches.visibility = View.VISIBLE
             binding.btnSwitchChurch.text = "Hide Churches"
         } else {
-            binding.rvChurches.visibility = android.view.View.GONE
+            binding.rvChurches.visibility = View.GONE
             binding.btnSwitchChurch.text = "Switch Church"
         }
     }
@@ -210,7 +185,7 @@ class SettingsActivity : AppCompatActivity() {
         Toast.makeText(this, "Switched to ${church.name}", Toast.LENGTH_SHORT).show()
         
         // Hide church selection after selection
-        binding.rvChurches.visibility = android.view.View.GONE
+        binding.rvChurches.visibility = View.GONE
         binding.btnSwitchChurch.text = "Switch Church"
         
         // Optionally restart app to refresh data
@@ -227,7 +202,7 @@ class SettingsActivity : AppCompatActivity() {
         val currentLanguage = preferencesManager.getLanguage()
         val currentIndex = languages.indexOf(currentLanguage).takeIf { it >= 0 } ?: 0
         
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle("Select Language")
             .setSingleChoiceItems(languages, currentIndex) { dialog, which ->
                 preferencesManager.setLanguage(languages[which])
@@ -243,7 +218,7 @@ class SettingsActivity : AppCompatActivity() {
         val currentCurrency = preferencesManager.getCurrency()
         val currentIndex = currencies.indexOf(currentCurrency).takeIf { it >= 0 } ?: 0
         
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle("Select Currency")
             .setSingleChoiceItems(currencies, currentIndex) { dialog, which ->
                 preferencesManager.setCurrency(currencies[which])
@@ -281,7 +256,7 @@ class SettingsActivity : AppCompatActivity() {
             All rights reserved
         """.trimIndent()
         
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle("About AltarFunds")
             .setMessage(aboutText)
             .setPositiveButton("OK", null)
@@ -289,7 +264,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun clearCache() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle("Clear Cache")
             .setMessage("This will clear all cached data. Are you sure?")
             .setPositiveButton("Clear") { _, _ ->
@@ -305,7 +280,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun exportData() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle("Export Data")
             .setMessage("Export your giving history and personal data?")
             .setPositiveButton("Export") { _, _ ->

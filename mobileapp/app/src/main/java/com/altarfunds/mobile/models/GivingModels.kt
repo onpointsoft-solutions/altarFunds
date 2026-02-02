@@ -78,14 +78,6 @@ data class UpdateInfo(
     val update_message: String?
 )
 
-data class UserProfileResponse(
-    val user: User,
-    val member: Member?,
-    val devices: List<Device>,
-    val church_info: ChurchInfo?,
-    val permissions: List<String>
-)
-
 data class GivingSummaryResponse(
     val total_giving: Double,
     val this_month: Double,
@@ -305,16 +297,6 @@ data class Device(
     val os_version: String?,
     val status: String,
     val last_seen: String?
-)
-
-data class ChurchInfo(
-    val id: String,
-    val name: String,
-    val code: String,
-    val logo: String?,
-    val is_verified: Boolean,
-    val is_active: Boolean,
-    val description: String
 )
 
 data class GivingCategory(

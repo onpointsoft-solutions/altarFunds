@@ -89,23 +89,23 @@
     <color name="redExpense">#D11818</color>
     <color name="neutral_gray">#6b7280</color>
     <color name="warning_orange">#f59e0b</color>
-    
+
     <!-- Alpha colors -->
     <color name="white_alpha_80">#CCFFFFFF</color>
     <color name="white_alpha_60">#99FFFFFF</color>
-    
+
     <!-- Status colors (needed for drawables) -->
     <color name="success_color">@color/income_green</color>
     <color name="error_color">@color/expense_red</color>
     <color name="warning_color">@color/warning_orange</color>
-    
+
     <!-- Basic colors for drawables -->
     <color name="gray">#787878</color>
     <color name="light_gray">#F5F5F5</color>
     <color name="red">@color/expense_red</color>
     <color name="blue">#2196F3</color>
     <color name="green">@color/income_green</color>
-    
+
     <!-- Holo colors for charts -->
     <color name="holo_orange_dark">#FF6600</color>
     <color name="holo_green_dark">#FF669900</color>
@@ -116,7 +116,7 @@
     <!-- Text colors for layouts -->
     <color name="text_primary">@color/black</color>
     <color name="text_secondary">#787878</color>
-    
+
     <!-- Theme color references for layouts -->
     <color name="primary_color">@color/toscaSecondary</color>
     <color name="accent_color">@color/orangePrimary</color>

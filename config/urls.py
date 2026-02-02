@@ -7,9 +7,14 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from admin_management.custom_admin import altar_admin_site
 
 urlpatterns = [
+    # Standard Django Admin (for development)
     path('admin/', admin.site.urls),
+    
+    # Custom AltarFunds Admin
+    path('altar-admin/', altar_admin_site.urls),
     
     # API Authentication
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

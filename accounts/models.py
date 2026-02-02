@@ -35,6 +35,7 @@ class CustomUserManager(BaseUserManager):
 class User(AbstractUser):
     ROLE_CHOICES = [
         ('member', _('Member')),
+        ('admin', _('Admin')),
         ('pastor', _('Pastor')),
         ('treasurer', _('Treasurer')),
         ('auditor', _('Auditor')),
