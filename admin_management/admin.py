@@ -268,18 +268,18 @@ class UserAdmin(admin.ModelAdmin):
     """Custom User admin"""
     list_display = (
         'email', 'full_name', 'role_badge', 'church',
-        'status_indicator', 'verification_status', 'created_at'
+        'status_indicator', 'verification_status', 'date_joined'
     )
     list_filter = (
-        'role', 'is_active', 'is_verified',
-        'created_at', 'church'
+        'role', 'is_active', 'is_email_verified',
+        'date_joined', 'church'
     )
     search_fields = (
         'email', 'first_name', 'last_name', 'phone_number'
     )
-    ordering = ('-created_at',)
+    ordering = ('-date_joined',)
     list_per_page = 50
-    date_hierarchy = 'created_at'
+    date_hierarchy = 'date_joined'
     
     fieldsets = (
         ('User Information', {
@@ -298,12 +298,12 @@ class UserAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at', 'last_login'),
+            'fields': ('date_joined', 'last_login'),
             'classes': ('collapse',)
         }),
     )
     
-    readonly_fields = ('created_at', 'updated_at', 'last_login')
+    readonly_fields = ('date_joined', 'last_login')
     
     actions = ['verify_users', 'activate_users', 'deactivate_users']
     
@@ -339,7 +339,7 @@ class UserAdmin(admin.ModelAdmin):
     status_indicator.short_description = 'Status'
     
     def verification_status(self, obj):
-        if obj.is_verified:
+        if obj.is_email_verified:
             return format_html(
                 '<span style="color: #10b981;">✓ Verified</span>'
             )
@@ -349,7 +349,7 @@ class UserAdmin(admin.ModelAdmin):
     verification_status.short_description = 'Verification'
     
     def verify_users(self, request, queryset):
-        updated = queryset.update(is_verified=True)
+        updated = queryset.update(is_email_verified=True)
         self.message_user(request, f'{updated} users verified.')
     verify_users.short_description = 'Verify selected users'
     
