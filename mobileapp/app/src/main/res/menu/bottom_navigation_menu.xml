@@ -15,18 +15,6 @@
         app:showAsAction="ifRoom" />
 
     <item
-        android:id="@+id/nav_churches"
-        android:icon="@drawable/ic_church"
-        android:title="Churches"
-        app:showAsAction="ifRoom" />
-
-    <item
-        android:id="@+id/nav_devotionals"
-        android:icon="@drawable/ic_book"
-        android:title="Devotionals"
-        app:showAsAction="ifRoom" />
-
-    <item
         android:id="@+id/nav_profile"
         android:icon="@drawable/ic_person"
         android:title="Profile"

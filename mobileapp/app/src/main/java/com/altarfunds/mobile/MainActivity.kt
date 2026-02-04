@@ -4,12 +4,10 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-// import com.ismaeldivita.chipnavigation.ChipNavigationBar
 import com.altarfunds.mobile.databinding.ActivityMainBinding
+import com.altarfunds.mobile.ui.fragments.DashboardFragment
 import com.altarfunds.mobile.ui.fragments.GivingFragmentModern
-import com.altarfunds.mobile.ui.fragments.ProfileFragment
-import com.altarfunds.mobile.ui.fragments.HistoryFragment
-import com.altarfunds.mobile.ui.fragments.ChurchFragment
+import com.altarfunds.mobile.ui.fragments.ProfileSettingsFragment
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,41 +18,48 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Check if user is logged in and redirect to dashboard
-        if (isUserLoggedIn()) {
-            startActivity(Intent(this, MemberDashboardModernActivity::class.java))
+        // Check if user is logged in
+        if (!isUserLoggedIn()) {
+            startActivity(Intent(this, LoginActivity::class.java))
             finish()
             return
         }
 
-        // Simple app bar setup
+        // Setup app bar
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "AltarFunds"
 
         // Initialize fragments
+        val dashboardFragment = DashboardFragment()
         val givingFragment = GivingFragmentModern()
-        val historyFragment = HistoryFragment()
-        val churchFragment = ChurchFragment()
-        val profileFragment = ProfileFragment()
+        val profileFragment = ProfileSettingsFragment()
 
-        // Set default fragment
-        // binding.chipAppBar.setItemSelected(R.id.ic_transaction, true)
-        makeCurrentFragment(givingFragment)
+        // Set default fragment (Dashboard)
+        makeCurrentFragment(dashboardFragment)
 
-        // Set up bottom navigation
-        /*
-        binding.chipAppBar.setOnItemSelectedListener { itemId ->
-            when (itemId) {
-                R.id.ic_transaction -> makeCurrentFragment(givingFragment)
-                R.id.ic_settings -> startActivity(Intent(this, SettingsActivity::class.java))
-                R.id.ic_account -> makeCurrentFragment(profileFragment)
+        // Setup bottom navigation
+        binding.bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_dashboard -> {
+                    makeCurrentFragment(dashboardFragment)
+                    supportActionBar?.title = "Dashboard"
+                    true
+                }
+                R.id.nav_giving -> {
+                    makeCurrentFragment(givingFragment)
+                    supportActionBar?.title = "Giving"
+                    true
+                }
+                R.id.nav_profile -> {
+                    makeCurrentFragment(profileFragment)
+                    supportActionBar?.title = "Profile"
+                    true
+                }
+                else -> false
             }
-            true
         }
-        */
         
         // Ensure bottom navigation is visible
-        // binding.chipAppBar.visibility = android.view.View.VISIBLE
         binding.bottomNavigation.visibility = android.view.View.VISIBLE
     }
 

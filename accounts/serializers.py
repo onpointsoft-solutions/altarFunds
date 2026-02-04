@@ -17,16 +17,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validators=[validate_password]
     )
     password_confirm = serializers.CharField(write_only=True)
+    church_data = serializers.JSONField(write_only=True, required=False)
     
     class Meta:
         model = User
         fields = [
             'email', 'first_name', 'last_name', 'phone_number',
-            'password', 'password_confirm', 'role', 'church'
+            'password', 'password_confirm', 'role', 'church', 'church_data'
         ]
         extra_kwargs = {
             'password': {'write_only': True},
-            'church': {'required': False}
+            'church': {'required': False},
+            'church_data': {'required': False}
         }
     
     def validate_email(self, value):
@@ -47,13 +49,19 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return attrs
     
     def create(self, validated_data):
-        """Create user with encrypted password"""
+        """Create user with encrypted password and optional church"""
         validated_data.pop('password_confirm')
         church = validated_data.pop('church', None)
+        church_data = validated_data.pop('church_data', None)
 
         password = validated_data.pop('password')
 
-        user = User.objects.create_user(password=password, **validated_data)
+        # Create church if church_data is provided
+        if church_data:
+            from churches.models import Church
+            church = Church.objects.create(**church_data)
+        
+        user = User.objects.create_user(password=password, church=church, **validated_data)
         user.save()
 
         # Create member profile
@@ -330,3 +338,99 @@ class UserListSerializer(serializers.ModelSerializer):
             return {'status': 'suspended', 'color': 'orange'}
         else:
             return {'status': 'inactive', 'color': 'red'}
+
+
+class StaffRegistrationSerializer(serializers.ModelSerializer):
+    """Serializer for denomination admin to register pastor/treasurer"""
+    
+    password = serializers.CharField(
+        write_only=True,
+        min_length=12,
+        validators=[validate_password]
+    )
+    password_confirm = serializers.CharField(write_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'email', 'first_name', 'last_name', 'phone_number',
+            'password', 'password_confirm', 'role', 'church'
+        ]
+        extra_kwargs = {
+            'password': {'write_only': True},
+        }
+    
+    def get_fields(self):
+        """Override to set church queryset dynamically"""
+        fields = super().get_fields()
+        request = self.context.get('request')
+        
+        from churches.models import Church
+        
+        if request and hasattr(request, 'user'):
+            user = request.user
+            if user.role == 'denomination_admin' and user.church:
+                # Only allow churches in the same denomination
+                fields['church'].queryset = Church.objects.filter(
+                    denomination=user.church.denomination
+                )
+            elif user.role == 'system_admin':
+                fields['church'].queryset = Church.objects.all()
+            else:
+                fields['church'].queryset = Church.objects.none()
+        else:
+            fields['church'].queryset = Church.objects.none()
+        
+        return fields
+    
+    def validate_email(self, value):
+        """Validate email is not already registered"""
+        if User.objects.filter(email=value.lower()).exists():
+            raise serializers.ValidationError("Email already registered")
+        return value.lower()
+    
+    def validate_phone_number(self, value):
+        """Validate and format phone number"""
+        if value:
+            return validate_phone_number(value)
+        return value
+    
+    def validate_role(self, value):
+        """Validate role is pastor or treasurer"""
+        request = self.context.get('request')
+        if request and request.user.role == 'denomination_admin':
+            if value not in ['pastor', 'treasurer']:
+                raise serializers.ValidationError(
+                    "Denomination admins can only register pastors and treasurers"
+                )
+        return value
+    
+    def validate(self, attrs):
+        """Validate password confirmation and permissions"""
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError("Passwords don't match")
+        
+        # Validate church access
+        request = self.context.get('request')
+        if request and request.user.role == 'denomination_admin':
+            church = attrs.get('church')
+            if church and church.denomination != request.user.church.denomination:
+                raise serializers.ValidationError(
+                    "You can only register staff for churches in your denomination"
+                )
+        
+        return attrs
+    
+    def create(self, validated_data):
+        """Create staff user"""
+        validated_data.pop('password_confirm')
+        password = validated_data.pop('password')
+        church = validated_data.get('church')
+        
+        user = User.objects.create_user(password=password, **validated_data)
+        user.save()
+        
+        # Create member profile
+        Member.objects.create(user=user, church=church)
+        
+        return user

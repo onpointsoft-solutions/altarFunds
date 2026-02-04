@@ -11,7 +11,8 @@ from .views import (
     UserSessionListView, 
     revoke_session, 
     UserListView, 
-    UserDetailView
+    UserDetailView,
+    StaffRegistrationView
 )
 
 app_name = 'accounts'
@@ -21,6 +22,7 @@ router = DefaultRouter()
 urlpatterns = [
     path('', include(router.urls)),
     path('register/', UserRegistrationView.as_view(), name='register'),
+    path('register/staff/', StaffRegistrationView.as_view(), name='staff_register'),
     path('login/', UserLoginView.as_view(), name='login'),
     path('logout/', logout_view, name='logout'),
     path('profile/', UserProfileView.as_view(), name='profile'),

@@ -7,6 +7,8 @@ from django.shortcuts import render, redirect
 from django.views import View
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from .forms import LoginForm, RegisterForm
 from django.utils import timezone
 from django.db import transaction
@@ -16,7 +18,7 @@ from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer,
     MemberUpdateSerializer, UserUpdateSerializer, PasswordChangeSerializer,
     PasswordResetRequestSerializer, PasswordResetConfirmSerializer,
-    UserSessionSerializer, UserListSerializer
+    UserSessionSerializer, UserListSerializer, StaffRegistrationSerializer
 )
 from common.permissions import IsOwnerOrReadOnly, IsChurchAdmin, IsSystemAdmin
 from common.services import AuditService
@@ -25,11 +27,29 @@ import uuid
 import secrets
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserRegistrationView(generics.CreateAPIView):
     """User registration endpoint"""
     
     serializer_class = UserRegistrationSerializer
     permission_classes = [permissions.AllowAny]
+    
+    def get(self, request, *args, **kwargs):
+        """Handle GET requests - return API info"""
+        return Response({
+            'message': 'User Registration Endpoint',
+            'method': 'POST',
+            'description': 'Register a new user with optional church creation',
+            'required_fields': {
+                'user': ['email', 'first_name', 'last_name', 'password', 'password_confirm'],
+                'optional': ['phone_number', 'role', 'church_data']
+            },
+            'church_data_fields': [
+                'name', 'church_type', 'phone_number', 'email', 'address_line1', 
+                'city', 'county', 'senior_pastor_name', 'senior_pastor_phone', 
+                'senior_pastor_email', 'membership_count', 'average_attendance'
+            ]
+        }, status=status.HTTP_200_OK)
     
     def post(self, request, *args, **kwargs):
         """Register new user"""
@@ -71,6 +91,7 @@ class UserRegistrationView(generics.CreateAPIView):
         return ip
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserLoginView(generics.GenericAPIView):
     """User login endpoint"""
     
@@ -505,6 +526,59 @@ def can_manage_user(admin_user, target_user):
             target_user.church == admin_user.church and
             target_user.role not in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
         )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class StaffRegistrationView(generics.CreateAPIView):
+    """View for denomination admins to register pastors and treasurers"""
+    
+    serializer_class = StaffRegistrationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        """Only denomination admins and system admins can register staff"""
+        if self.request.user.is_authenticated:
+            if self.request.user.role not in ['denomination_admin', 'system_admin']:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Only denomination admins can register staff")
+        return super().get_permissions()
+    
+    def post(self, request, *args, **kwargs):
+        """Register new staff member (pastor/treasurer)"""
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        
+        with transaction.atomic():
+            user = serializer.save()
+            
+            # Log staff registration
+            AuditService.log_user_action(
+                user=request.user,
+                action='STAFF_REGISTRATION',
+                details={
+                    'registered_user': user.email,
+                    'role': user.role,
+                    'church': user.church.name if user.church else None,
+                    'ip_address': self.get_client_ip(request)
+                },
+                ip_address=self.get_client_ip(request)
+            )
+            
+            response_data = {
+                'user': UserProfileSerializer(user).data,
+                'message': f'{user.get_role_display()} registered successfully'
+            }
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
+    
+    def get_client_ip(self, request):
+        """Get client IP address"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 # Template-based Authentication Views
 
