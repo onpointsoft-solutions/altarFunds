@@ -325,9 +325,9 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'full_name', 'phone_number', 'role', 'role_display',
-            'church_name', 'is_active', 'is_phone_verified', 'is_email_verified',
-            'is_active_colored', 'created_at', 'last_login'
+            'id', 'email', 'first_name', 'last_name', 'full_name', 'phone_number', 
+            'role', 'role_display', 'church_name', 'is_active', 'is_phone_verified', 
+            'is_email_verified', 'is_active_colored', 'date_joined', 'last_login'
         ]
     
     def get_is_active_colored(self, obj):

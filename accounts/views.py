@@ -403,10 +403,19 @@ class UserListView(generics.ListAPIView):
             return User.objects.all()
         elif user.role == 'denomination_admin':
             # Users from all churches in denomination
-            return User.objects.filter(church__denomination=user.church.denomination)
+            if user.church and user.church.denomination:
+                return User.objects.filter(church__denomination=user.church.denomination)
+            elif user.church:
+                # If no denomination, return users from same church
+                return User.objects.filter(church=user.church)
+            else:
+                return User.objects.none()
         else:
             # Users from same church
-            return User.objects.filter(church=user.church)
+            if user.church:
+                return User.objects.filter(church=user.church)
+            else:
+                return User.objects.none()
 
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
@@ -422,9 +431,17 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         if user.role == 'system_admin':
             return User.objects.all()
         elif user.role == 'denomination_admin':
-            return User.objects.filter(church__denomination=user.church.denomination)
+            if user.church and user.church.denomination:
+                return User.objects.filter(church__denomination=user.church.denomination)
+            elif user.church:
+                return User.objects.filter(church=user.church)
+            else:
+                return User.objects.none()
         else:
-            return User.objects.filter(church=user.church)
+            if user.church:
+                return User.objects.filter(church=user.church)
+            else:
+                return User.objects.none()
 
 
 @api_view(['POST'])

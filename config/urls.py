@@ -71,6 +71,7 @@ urlpatterns = [
     path('api/notifications/', include('notifications.urls')),
     path('api/', include('devotionals.urls')),
     path('api/', include('notices.urls')),
+    path('api/announcements/', include('announcements.urls')),
     
     # Health check
     path('api/health/', include('common.urls')),
