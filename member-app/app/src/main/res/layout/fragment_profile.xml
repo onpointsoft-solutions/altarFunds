@@ -15,19 +15,30 @@
             android:layout_height="wrap_content"
             android:text="@string/profile"
             android:textColor="@color/text_primary"
-            android:textSize="24sp"
+            android:textSize="28sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Manage your account"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvTitle" />
 
         <androidx.cardview.widget.CardView
             android:id="@+id/cardProfile"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            app:layout_constraintTop_toBottomOf="@id/tvTitle">
+            android:layout_marginTop="20dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="6dp"
+            app:layout_constraintTop_toBottomOf="@id/tvSubtitle">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
@@ -145,31 +156,43 @@
             android:id="@+id/btnEditProfile"
             style="@style/ButtonPrimary"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="24dp"
             android:text="@string/edit_profile"
+            android:textSize="16sp"
+            app:cornerRadius="12dp"
             app:icon="@android:drawable/ic_menu_edit"
+            app:iconGravity="textStart"
+            app:iconPadding="12dp"
             app:layout_constraintTop_toBottomOf="@id/cardProfile" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnChangePassword"
             style="@style/ButtonOutlined"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="12dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="16dp"
             android:text="@string/change_password"
+            android:textSize="16sp"
+            app:cornerRadius="12dp"
             app:icon="@android:drawable/ic_lock_lock"
+            app:iconGravity="textStart"
+            app:iconPadding="12dp"
             app:layout_constraintTop_toBottomOf="@id/btnEditProfile" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLogout"
             style="@style/ButtonOutlined"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="12dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="16dp"
             android:text="@string/logout"
             android:textColor="@color/error"
+            android:textSize="16sp"
+            app:cornerRadius="12dp"
             app:icon="@android:drawable/ic_menu_close_clear_cancel"
+            app:iconGravity="textStart"
+            app:iconPadding="12dp"
             app:iconTint="@color/error"
             app:layout_constraintTop_toBottomOf="@id/btnChangePassword"
             app:strokeColor="@color/error" />

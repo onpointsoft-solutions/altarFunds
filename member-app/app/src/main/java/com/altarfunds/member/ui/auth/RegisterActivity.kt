@@ -42,6 +42,26 @@ class RegisterActivity : AppCompatActivity() {
         binding.tvLogin.setOnClickListener {
             finish()
         }
+        
+        binding.tvSearchChurch.setOnClickListener {
+            val intent = Intent(this, com.altarfunds.member.ui.church.ChurchSearchActivity::class.java)
+            intent.putExtra("SELECT_MODE", true)
+            startActivityForResult(intent, CHURCH_SEARCH_REQUEST)
+        }
+    }
+    
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CHURCH_SEARCH_REQUEST && resultCode == RESULT_OK) {
+            val churchCode = data?.getStringExtra("CHURCH_CODE")
+            churchCode?.let {
+                binding.etChurchCode.setText(it)
+            }
+        }
+    }
+    
+    companion object {
+        private const val CHURCH_SEARCH_REQUEST = 1001
     }
     
     private fun validateInput(): Boolean {

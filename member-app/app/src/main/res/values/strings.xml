@@ -22,6 +22,7 @@
     <string name="new_password">New Password</string>
     
     <!-- Church -->
+    <string name="church">Church</string>
     <string name="church_code">Church Code</string>
     <string name="main_church_code">Main Church Code</string>
     <string name="other_church_code">Other Church Code (Optional)</string>

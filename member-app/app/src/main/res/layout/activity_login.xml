@@ -13,7 +13,7 @@
         android:layout_height="100dp"
         android:layout_marginTop="60dp"
         android:contentDescription="@string/app_name"
-        android:src="@mipmap/ic_launcher"
+        android:src="@drawable/bg_button_rounded"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -66,14 +66,15 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:hint="@string/email"
-                app:layout_constraintTop_toTopOf="parent"
-                app:startIconDrawable="@android:drawable/ic_dialog_email">
+                app:layout_constraintTop_toTopOf="parent">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etEmail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="textEmailAddress" />
+                    android:inputType="textEmailAddress"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -84,14 +85,15 @@
                 android:layout_marginTop="16dp"
                 android:hint="@string/password"
                 app:endIconMode="password_toggle"
-                app:layout_constraintTop_toBottomOf="@id/tilEmail"
-                app:startIconDrawable="@android:drawable/ic_lock_lock">
+                app:layout_constraintTop_toBottomOf="@id/tilEmail">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etPassword"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="textPassword" />
+                    android:inputType="textPassword"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView

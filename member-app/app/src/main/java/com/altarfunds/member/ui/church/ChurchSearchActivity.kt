@@ -37,9 +37,16 @@ class ChurchSearchActivity : AppCompatActivity() {
     
     private fun setupRecyclerView() {
         churchAdapter = ChurchAdapter { church ->
-            val intent = Intent(this, ChurchDetailsActivity::class.java)
-            intent.putExtra("CHURCH_ID", church.id)
-            startActivity(intent)
+            if (intent.getBooleanExtra("SELECT_MODE", false)) {
+                val resultIntent = Intent()
+                resultIntent.putExtra("CHURCH_CODE", church.code)
+                setResult(RESULT_OK, resultIntent)
+                finish()
+            } else {
+                val intent = Intent(this, ChurchDetailsActivity::class.java)
+                intent.putExtra("CHURCH_ID", church.id)
+                startActivity(intent)
+            }
         }
         
         binding.rvChurches.apply {
