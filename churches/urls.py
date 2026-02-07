@@ -8,7 +8,7 @@ from .views import (
     ChurchBankAccountListCreateView, ChurchBankAccountDetailView,
     MpesaAccountListCreateView, MpesaAccountDetailView,
     church_summary, church_options, department_options, small_group_options,
-    ChurchRegistrationView, join_church, transfer_church, pending_churches,
+    ChurchRegistrationView, join_church, join_church_by_id, transfer_church, pending_churches,
     approve_church, reject_church, church_members
 )
 from .search_views import search_churches
@@ -20,6 +20,7 @@ urlpatterns = [
     path('denominations/<int:pk>/', DenominationDetailView.as_view(), name='denomination_detail'),
     path('', ChurchListCreateView.as_view(), name='church_list_create'),
     path('<int:pk>/', ChurchDetailView.as_view(), name='church_detail'),
+    path('<int:pk>/join/', join_church_by_id, name='join_church_by_id'),
     path('<int:pk>/verify/', ChurchVerificationView.as_view(), name='church_verify'),
     path('<int:pk>/status/', ChurchStatusUpdateView.as_view(), name='church_status_update'),
     path('<int:pk>/approve/', approve_church, name='approve_church'),

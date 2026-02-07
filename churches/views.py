@@ -76,6 +76,42 @@ def join_church(request):
         )
 
 
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def join_church_by_id(request, pk):
+    """Join a church using church ID from URL path."""
+    try:
+        # Find church by ID
+        church = Church.objects.get(pk=pk, is_active=True, status='verified')
+        
+        # Get current user
+        user = request.user
+        
+        # Assign church to user
+        user.church = church
+        user.save()
+        
+        return Response({
+            'message': f'Successfully joined {church.name}',
+            'church': {
+                'id': church.id,
+                'name': church.name,
+                'code': church.code
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Church.DoesNotExist:
+        return Response(
+            {'error': 'Church not found or not available for joining.'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to join church: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 class DenominationListCreateView(generics.ListCreateAPIView):
     """Denomination list and create view"""
     
