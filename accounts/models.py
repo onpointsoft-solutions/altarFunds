@@ -150,3 +150,71 @@ class PasswordResetToken(models.Model):
     is_used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+
+class ChurchJoinRequest(models.Model):
+    """Model for tracking church join requests that require pastor approval"""
+    
+    STATUS_CHOICES = [
+        ('pending', _('Pending')),
+        ('approved', _('Approved')),
+        ('rejected', _('Rejected')),
+    ]
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='church_join_requests',
+        verbose_name=_('User')
+    )
+    church = models.ForeignKey(
+        'churches.Church',
+        on_delete=models.CASCADE,
+        related_name='join_requests',
+        verbose_name=_('Church')
+    )
+    church_code = models.CharField(
+        max_length=50,
+        verbose_name=_('Church Code Used')
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name=_('Status')
+    )
+    message = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Message from Applicant')
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_join_requests',
+        verbose_name=_('Reviewed By')
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Reviewed At')
+    )
+    rejection_reason = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Rejection Reason')
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'church_join_requests'
+        ordering = ['-created_at']
+        unique_together = ['user', 'church', 'status']
+        verbose_name = _('Church Join Request')
+        verbose_name_plural = _('Church Join Requests')
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.church.name} ({self.status})"
