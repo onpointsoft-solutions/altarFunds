@@ -70,7 +70,7 @@ urlpatterns = [
     path('api/audit/', include('audit.urls')),
     path('api/notifications/', include('notifications.urls')),
     path('api/', include('devotionals.urls')),
-    path('api/', include('notices.urls')),
+    path('api/notices/', include('notices.urls')),
     path('api/announcements/', include('announcements.urls')),
     
     # Health check

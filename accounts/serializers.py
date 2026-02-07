@@ -60,15 +60,27 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if church_data:
             from churches.models import Church
             
-            # Set default status for new churches
-            church_data['status'] = 'pending'
-            church_data['is_verified'] = False
-            
-            # Create the church
-            church = Church.objects.create(**church_data)
-            
-            # Generate church code
-            church.generate_church_code()
+            try:
+                # Set default status for new churches
+                church_data['status'] = 'pending'
+                church_data['is_verified'] = False
+                
+                # Create the church
+                church = Church.objects.create(**church_data)
+                
+                # Generate church code
+                church.generate_church_code()
+                
+                # Verify church was saved
+                if not church.pk:
+                    raise serializers.ValidationError("Failed to create church. Please try again.")
+                    
+            except Exception as e:
+                raise serializers.ValidationError(f"Church creation failed: {str(e)}")
+        
+        # Only create user if church was created successfully (or no church required)
+        if church_data and not church:
+            raise serializers.ValidationError("Cannot register admin without a valid church.")
         
         user = User.objects.create_user(password=password, church=church, **validated_data)
         user.save()
