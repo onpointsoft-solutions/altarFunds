@@ -18,10 +18,10 @@ def search_churches(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        # Search churches by name or code - only show active and approved churches
+        # Search churches by name or code - only show active and verified churches
         churches = Church.objects.filter(
             Q(name__icontains=query) | Q(code__icontains=query)
-        ).filter(is_active=True, status='approved')[:10]  # Limit to 10 results
+        ).filter(is_active=True, status='verified')[:10]  # Limit to 10 results
         
         results = []
         for church in churches:

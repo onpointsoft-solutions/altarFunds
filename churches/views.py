@@ -153,7 +153,7 @@ class ChurchListCreateView(generics.ListCreateAPIView):
         
         # Allow unauthenticated users to search churches (for registration)
         if not user.is_authenticated:
-            return Church.objects.filter(is_active=True, status='approved')
+            return Church.objects.filter(is_active=True, status='verified')
         
         if user.role == 'system_admin':
             return Church.objects.all()
