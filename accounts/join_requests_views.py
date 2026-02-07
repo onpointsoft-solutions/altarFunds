@@ -2,8 +2,11 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
+import logging
 from .models import ChurchJoinRequest
 from .serializers import ChurchJoinRequestSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class ChurchJoinRequestViewSet(viewsets.ModelViewSet):
@@ -18,14 +21,31 @@ class ChurchJoinRequestViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         
-        # Pastors and admins can see all requests for their church
-        if user.role in ['pastor', 'denomination_admin']:
-            if user.church:
-                return ChurchJoinRequest.objects.filter(church=user.church)
+        try:
+            # Pastors and admins can see all requests for their church
+            if user.role in ['pastor', 'denomination_admin']:
+                if user.church:
+                    return ChurchJoinRequest.objects.filter(church=user.church).select_related('user', 'church', 'reviewed_by')
+                return ChurchJoinRequest.objects.none()
+            
+            # Members can only see their own requests
+            return ChurchJoinRequest.objects.filter(user=user).select_related('user', 'church', 'reviewed_by')
+        except Exception as e:
+            logger.error(f"Error in get_queryset: {str(e)}")
             return ChurchJoinRequest.objects.none()
-        
-        # Members can only see their own requests
-        return ChurchJoinRequest.objects.filter(user=user)
+    
+    def list(self, request, *args, **kwargs):
+        """List all join requests with error handling"""
+        try:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({'results': serializer.data})
+        except Exception as e:
+            logger.error(f"Error listing join requests: {str(e)}")
+            return Response(
+                {'error': f'Failed to load join requests: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['post'], url_path='approve')
     def approve(self, request, pk=None):
