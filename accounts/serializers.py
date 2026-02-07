@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from .models import User, Member, UserSession, PasswordResetToken
+from .models import User, Member, UserSession, PasswordResetToken, ChurchJoinRequest
 from common.serializers import BaseSerializer, UserSerializer
 from common.validators import validate_phone_number, validate_id_number
 from common.exceptions import AltarFundsException
@@ -456,3 +456,27 @@ class StaffRegistrationSerializer(serializers.ModelSerializer):
         Member.objects.create(user=user, church=church)
         
         return user
+
+
+class ChurchJoinRequestSerializer(serializers.ModelSerializer):
+    """Serializer for church join requests"""
+    
+    user = UserSerializer(read_only=True)
+    reviewed_by = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ChurchJoinRequest
+        fields = [
+            'id', 'user', 'church', 'church_code', 'status', 'message',
+            'reviewed_by', 'reviewed_at', 'rejection_reason', 'created_at'
+        ]
+        read_only_fields = ['id', 'user', 'reviewed_by', 'reviewed_at', 'created_at']
+    
+    def get_reviewed_by(self, obj):
+        """Get reviewer name"""
+        if obj.reviewed_by:
+            return {
+                'first_name': obj.reviewed_by.first_name,
+                'last_name': obj.reviewed_by.last_name
+            }
+        return None

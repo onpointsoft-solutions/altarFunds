@@ -81,16 +81,22 @@ class UserRegistrationView(generics.CreateAPIView):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         
-        with transaction.atomic():
-            user = serializer.save()
-            
-            # Handle logo upload if present
-            if logo_file and user.church:
-                user.church.logo = logo_file
-                user.church.save()
-            
-            # Generate JWT tokens
-            refresh = RefreshToken.for_user(user)
+        try:
+            with transaction.atomic():
+                # Save user and church in atomic transaction
+                user = serializer.save()
+                
+                # Verify church was created if church_data was provided
+                if church_data and not user.church:
+                    raise Exception("Church creation failed. User registration aborted.")
+                
+                # Handle logo upload if present
+                if logo_file and user.church:
+                    user.church.logo = logo_file
+                    user.church.save()
+                
+                # Generate JWT tokens
+                refresh = RefreshToken.for_user(user)
             
             # Log registration
             AuditService.log_user_action(
@@ -110,6 +116,13 @@ class UserRegistrationView(generics.CreateAPIView):
             }
             
             return Response(response_data, status=status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            # If anything fails, return error without creating user
+            return Response(
+                {'error': f'Registration failed: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     def get_client_ip(self, request):
         """Get client IP address"""
