@@ -46,7 +46,7 @@ def join_church(request):
     
     try:
         # Find church by code
-        church = Church.objects.get(code=church_code.upper())
+        church = Church.objects.get(church_code=church_code.upper())
         
         # Get current user
         user = request.user
@@ -60,7 +60,7 @@ def join_church(request):
             'church': {
                 'id': church.id,
                 'name': church.name,
-                'code': church.code
+                'code': church.church_code
             }
         }, status=status.HTTP_200_OK)
         
@@ -96,7 +96,7 @@ def join_church_by_id(request, pk):
             'church': {
                 'id': church.id,
                 'name': church.name,
-                'code': church.code
+                'code': church.church_code
             }
         }, status=status.HTTP_200_OK)
         
