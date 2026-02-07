@@ -135,7 +135,7 @@ class DenominationDetailView(generics.RetrieveUpdateDestroyAPIView):
 class ChurchListCreateView(generics.ListCreateAPIView):
     """Church list and create view"""
     
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['church_type', 'status', 'denomination', 'is_active']
     search_fields = ['name', 'church_code', 'city', 'county', 'senior_pastor_name']
@@ -150,6 +150,10 @@ class ChurchListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         """Get churches based on user role"""
         user = self.request.user
+        
+        # Allow unauthenticated users to search churches (for registration)
+        if not user.is_authenticated:
+            return Church.objects.filter(is_active=True, status='approved')
         
         if user.role == 'system_admin':
             return Church.objects.all()

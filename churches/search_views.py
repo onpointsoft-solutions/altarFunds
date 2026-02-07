@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
@@ -7,9 +7,9 @@ from churches.models import Church
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def search_churches(request):
-    """Search for churches by name or code."""
+    """Search for churches by name or code. Open for unauthenticated users during registration."""
     query = request.GET.get('q', '').strip()
     
     if not query or len(query) < 2:
@@ -18,10 +18,10 @@ def search_churches(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        # Search churches by name or code
+        # Search churches by name or code - only show active and approved churches
         churches = Church.objects.filter(
             Q(name__icontains=query) | Q(code__icontains=query)
-        ).filter(is_active=True)[:10]  # Limit to 10 results
+        ).filter(is_active=True, status='approved')[:10]  # Limit to 10 results
         
         results = []
         for church in churches:
