@@ -155,12 +155,18 @@ class ChurchListCreateView(generics.ListCreateAPIView):
         if not user.is_authenticated:
             return Church.objects.filter(is_active=True, status='verified')
         
-        if user.role == 'system_admin':
+        # If user doesn't have a church yet, show all verified churches (for joining)
+        if not hasattr(user, 'church') or user.church is None:
+            return Church.objects.filter(is_active=True, status='verified')
+        
+        if hasattr(user, 'role') and user.role == 'system_admin':
             return Church.objects.all()
-        elif user.role == 'denomination_admin':
+        elif hasattr(user, 'role') and user.role == 'denomination_admin' and user.church:
             return Church.objects.filter(denomination=user.church.denomination)
-        else:
+        elif user.church:
             return Church.objects.filter(id=user.church.id)
+        else:
+            return Church.objects.filter(is_active=True, status='verified')
     
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
