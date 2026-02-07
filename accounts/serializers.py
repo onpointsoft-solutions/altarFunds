@@ -59,13 +59,23 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Create church if church_data is provided
         if church_data:
             from churches.models import Church
+            
+            # Set default status for new churches
+            church_data['status'] = 'pending'
+            church_data['is_verified'] = False
+            
+            # Create the church
             church = Church.objects.create(**church_data)
+            
+            # Generate church code
+            church.generate_church_code()
         
         user = User.objects.create_user(password=password, church=church, **validated_data)
         user.save()
 
         # Create member profile
-        Member.objects.create(user=user, church=church)
+        if church:
+            Member.objects.create(user=user, church=church)
 
         return user
 

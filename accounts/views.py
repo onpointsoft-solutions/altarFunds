@@ -53,11 +53,41 @@ class UserRegistrationView(generics.CreateAPIView):
     
     def post(self, request, *args, **kwargs):
         """Register new user"""
-        serializer = self.get_serializer(data=request.data)
+        # Parse FormData if present (for file uploads)
+        data = request.data.copy()
+        
+        # Extract church_data from FormData format (church_data[field])
+        church_data = {}
+        logo_file = None
+        keys_to_remove = []
+        
+        for key in data.keys():
+            if key.startswith('church_data[') and key.endswith(']'):
+                field_name = key[12:-1]  # Extract field name from church_data[field]
+                if field_name == 'logo':
+                    logo_file = data.get(key)
+                else:
+                    church_data[field_name] = data.get(key)
+                keys_to_remove.append(key)
+        
+        # Remove the parsed church_data fields from data
+        for key in keys_to_remove:
+            data.pop(key, None)
+        
+        # Add parsed church_data as a dictionary
+        if church_data:
+            data['church_data'] = church_data
+        
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         
         with transaction.atomic():
             user = serializer.save()
+            
+            # Handle logo upload if present
+            if logo_file and user.church:
+                user.church.logo = logo_file
+                user.church.save()
             
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)

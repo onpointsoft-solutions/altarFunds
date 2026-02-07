@@ -62,9 +62,10 @@ class ChurchSerializer(BaseSerializer):
             'senior_pastor_email', 'established_date', 'membership_count',
             'average_attendance', 'registration_number', 'registration_date',
             'status', 'status_display', 'is_verified', 'verification_date',
-            'verified_by', 'is_active', 'allow_online_giving',
-            'require_membership_approval', 'member_count', 'active_member_count',
-            'total_giving_this_month', 'created_at', 'updated_at'
+            'verified_by', 'logo', 'primary_color', 'secondary_color', 'accent_color',
+            'is_active', 'allow_online_giving', 'require_membership_approval',
+            'member_count', 'active_member_count', 'total_giving_this_month',
+            'created_at', 'updated_at'
         ]
         read_only_fields = [
             'church_code', 'is_verified', 'verification_date', 'verified_by'
@@ -101,7 +102,8 @@ class ChurchRegistrationSerializer(serializers.ModelSerializer):
             'address_line1', 'address_line2', 'city', 'county', 'postal_code',
             'senior_pastor_name', 'senior_pastor_phone', 'senior_pastor_email',
             'established_date', 'membership_count', 'average_attendance',
-            'registration_number', 'registration_date', 'description'
+            'registration_number', 'registration_date', 'description',
+            'logo', 'primary_color', 'secondary_color', 'accent_color'
         ]
     
     def validate_phone_number(self, value):
