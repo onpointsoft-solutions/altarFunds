@@ -461,7 +461,7 @@ class StaffRegistrationSerializer(serializers.ModelSerializer):
 class ChurchJoinRequestSerializer(serializers.ModelSerializer):
     """Serializer for church join requests"""
     
-    user = UserSerializer(read_only=True)
+    user = serializers.SerializerMethodField()
     reviewed_by = serializers.SerializerMethodField()
     
     class Meta:
@@ -471,6 +471,18 @@ class ChurchJoinRequestSerializer(serializers.ModelSerializer):
             'reviewed_by', 'reviewed_at', 'rejection_reason', 'created_at'
         ]
         read_only_fields = ['id', 'user', 'reviewed_by', 'reviewed_at', 'created_at']
+    
+    def get_user(self, obj):
+        """Get user details"""
+        if obj.user:
+            return {
+                'id': obj.user.id,
+                'email': obj.user.email,
+                'first_name': obj.user.first_name,
+                'last_name': obj.user.last_name,
+                'phone_number': obj.user.phone_number if hasattr(obj.user, 'phone_number') else None
+            }
+        return None
     
     def get_reviewed_by(self, obj):
         """Get reviewer name"""
