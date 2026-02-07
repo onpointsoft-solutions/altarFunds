@@ -17,7 +17,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validators=[validate_password]
     )
     password_confirm = serializers.CharField(write_only=True)
-    church_data = serializers.JSONField(write_only=True, required=False)
+    church_data = serializers.DictField(write_only=True, required=False, allow_null=True)
     
     class Meta:
         model = User
