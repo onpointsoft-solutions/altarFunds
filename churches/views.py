@@ -197,18 +197,28 @@ class ChurchDetailView(generics.RetrieveUpdateAPIView):
     """Church detail view"""
     
     serializer_class = ChurchSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
         """Get churches based on user role"""
         user = self.request.user
         
-        if user.role == 'system_admin':
+        # Allow unauthenticated users to view church details (for registration)
+        if not user.is_authenticated:
+            return Church.objects.filter(is_active=True, status='verified')
+        
+        # If user doesn't have a church yet, show all verified churches
+        if not hasattr(user, 'church') or user.church is None:
+            return Church.objects.filter(is_active=True, status='verified')
+        
+        if hasattr(user, 'role') and user.role == 'system_admin':
             return Church.objects.all()
-        elif user.role == 'denomination_admin':
+        elif hasattr(user, 'role') and user.role == 'denomination_admin' and user.church:
             return Church.objects.filter(denomination=user.church.denomination)
-        else:
+        elif user.church:
             return Church.objects.filter(id=user.church.id)
+        else:
+            return Church.objects.filter(is_active=True, status='verified')
     
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
