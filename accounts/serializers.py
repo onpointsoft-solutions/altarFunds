@@ -35,11 +35,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Extract church_data before validation
         church_data = data.pop('church_data', None)
         
+        # If church_data is a list with one item, extract the dict
+        if isinstance(church_data, list) and len(church_data) > 0:
+            church_data = church_data[0]
+        
         # Call parent to validate other fields
         validated = super().to_internal_value(data)
         
         # Add church_data back without validation
-        if church_data:
+        if church_data and isinstance(church_data, dict):
             validated['church_data'] = church_data
         
         return validated
