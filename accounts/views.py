@@ -116,7 +116,7 @@ class UserRegistrationView(generics.CreateAPIView):
             logger.info("\n--- Starting User Creation ---")
             with transaction.atomic():
                 # Save user and church in atomic transaction
-                #user = serializer.save()
+                user = serializer.save()
                 logger.info("User created successfully: %s (ID: %s)", user.email, user.id)
                 
                 # Verify church was created if church_data was provided
