@@ -12,6 +12,7 @@ from django.utils.decorators import method_decorator
 from .forms import LoginForm, RegisterForm
 from django.utils import timezone
 from django.db import transaction
+import logging
 
 from .models import User, Member, UserSession, PasswordResetToken
 from .serializers import (
@@ -25,6 +26,8 @@ from common.services import AuditService
 from common.exceptions import AltarFundsException
 import uuid
 import secrets
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -53,22 +56,41 @@ class UserRegistrationView(generics.CreateAPIView):
     
     def post(self, request, *args, **kwargs):
         """Register new user"""
+        logger.info("=" * 80)
+        logger.info("REGISTRATION REQUEST RECEIVED")
+        logger.info("=" * 80)
+        
         # Parse FormData if present (for file uploads)
         data = request.data.copy()
+        
+        # Log raw request data
+        logger.info("Raw request data keys: %s", list(data.keys()))
         
         # Extract church_data from FormData format (church_data[field])
         church_data = {}
         logo_file = None
         keys_to_remove = []
         
+        logger.info("\n--- Parsing FormData ---")
         for key in data.keys():
             if key.startswith('church_data[') and key.endswith(']'):
                 field_name = key[12:-1]  # Extract field name from church_data[field]
                 if field_name == 'logo':
                     logo_file = data.get(key)
+                    logger.info("Logo file found: %s (Size: %s bytes, Type: %s)", 
+                               getattr(logo_file, 'name', 'unknown'),
+                               getattr(logo_file, 'size', 'unknown'),
+                               getattr(logo_file, 'content_type', 'unknown'))
                 else:
                     church_data[field_name] = data.get(key)
+                    logger.info("church_data[%s] = %s", field_name, data.get(key))
                 keys_to_remove.append(key)
+            else:
+                # Log user fields
+                if key not in ['password', 'password_confirm']:
+                    logger.info("User field - %s: %s", key, data.get(key))
+                else:
+                    logger.info("User field - %s: [HIDDEN]", key)
         
         # Remove the parsed church_data fields from data
         for key in keys_to_remove:
@@ -77,26 +99,44 @@ class UserRegistrationView(generics.CreateAPIView):
         # Add parsed church_data as a dictionary
         if church_data:
             data['church_data'] = church_data
+            logger.info("\n--- Parsed Church Data ---")
+            logger.info("Church data fields: %s", list(church_data.keys()))
+            logger.info("Church name: %s", church_data.get('name', 'N/A'))
+            logger.info("Church type: %s", church_data.get('church_type', 'N/A'))
+            logger.info("Church email: %s", church_data.get('email', 'N/A'))
+            logger.info("Primary color: %s", church_data.get('primary_color', 'N/A'))
+            logger.info("Secondary color: %s", church_data.get('secondary_color', 'N/A'))
+            logger.info("Accent color: %s", church_data.get('accent_color', 'N/A'))
+            logger.info("Logo file present: %s", 'Yes' if logo_file else 'No')
         
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         
         try:
+            logger.info("\n--- Starting User Creation ---")
             with transaction.atomic():
                 # Save user and church in atomic transaction
-                user = serializer.save()
+                #user = serializer.save()
+                logger.info("User created successfully: %s (ID: %s)", user.email, user.id)
                 
                 # Verify church was created if church_data was provided
                 if church_data and not user.church:
+                    logger.error("Church creation failed - user.church is None")
                     raise Exception("Church creation failed. User registration aborted.")
+                
+                if user.church:
+                    logger.info("Church created successfully: %s (ID: %s, Code: %s)", 
+                               user.church.name, user.church.id, user.church.church_code)
                 
                 # Handle logo upload if present
                 if logo_file and user.church:
                     user.church.logo = logo_file
                     user.church.save()
+                    logger.info("Church logo uploaded successfully: %s", logo_file.name)
                 
                 # Generate JWT tokens
                 refresh = RefreshToken.for_user(user)
+                logger.info("JWT tokens generated successfully")
             
             # Log registration
             AuditService.log_user_action(
@@ -115,10 +155,19 @@ class UserRegistrationView(generics.CreateAPIView):
                 'message': 'Registration successful'
             }
             
+            logger.info("\n--- Registration Completed Successfully ---")
+            logger.info("User: %s", user.email)
+            if user.church:
+                logger.info("Church: %s", user.church.name)
+            logger.info("=" * 80)
+            
             return Response(response_data, status=status.HTTP_201_CREATED)
         
         except Exception as e:
             # If anything fails, return error without creating user
+            logger.error("\n--- Registration Failed ---")
+            logger.error("Error: %s", str(e))
+            logger.error("=" * 80)
             return Response(
                 {'error': f'Registration failed: {str(e)}'}, 
                 status=status.HTTP_400_BAD_REQUEST
