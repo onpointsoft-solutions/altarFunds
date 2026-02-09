@@ -64,9 +64,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         church_data = validated_data.pop('church_data', None)
         
         logger.info("church_data present: %s", church_data is not None)
+        logger.info("church_data type: %s", type(church_data))
+        logger.info("church_data value: %s", church_data)
+        logger.info("church_data bool evaluation: %s", bool(church_data))
+        
         if church_data:
             logger.info("church_data keys: %s", list(church_data.keys()))
             logger.info("church_data values: %s", {k: v for k, v in church_data.items() if k not in ['logo']})
+        else:
+            logger.warning("church_data is falsy - not creating church")
 
         password = validated_data.pop('password')
 
