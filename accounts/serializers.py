@@ -1,12 +1,13 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from .models import User, Member, UserSession, PasswordResetToken, ChurchJoinRequest
 from common.serializers import BaseSerializer, UserSerializer
 from common.validators import validate_phone_number, validate_id_number
 from common.exceptions import AltarFundsException
+import logging
 
+logger = logging.getLogger(__name__)
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """User registration serializer"""
@@ -50,9 +51,17 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create user with encrypted password and optional church"""
+        logger.info("\n--- SERIALIZER: Starting create method ---")
+        logger.info("validated_data keys: %s", list(validated_data.keys()))
+        
         validated_data.pop('password_confirm')
         church = validated_data.pop('church', None)
         church_data = validated_data.pop('church_data', None)
+        
+        logger.info("church_data present: %s", church_data is not None)
+        if church_data:
+            logger.info("church_data keys: %s", list(church_data.keys()))
+            logger.info("church_data values: %s", {k: v for k, v in church_data.items() if k not in ['logo']})
 
         password = validated_data.pop('password')
 
@@ -61,21 +70,29 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             from churches.models import Church
             
             try:
+                logger.info("SERIALIZER: Attempting to create church...")
                 # Set default status for new churches
                 church_data['status'] = 'pending'
                 church_data['is_verified'] = False
                 
                 # Create the church
+                logger.info("SERIALIZER: Creating church with data: %s", {k: v for k, v in church_data.items() if k not in ['logo']})
                 church = Church.objects.create(**church_data)
+                logger.info("SERIALIZER: Church created with ID: %s", church.pk)
                 
                 # Generate church code
                 church.generate_church_code()
+                logger.info("SERIALIZER: Church code generated: %s", church.church_code)
                 
                 # Verify church was saved
                 if not church.pk:
+                    logger.error("SERIALIZER: Church pk is None after creation!")
                     raise serializers.ValidationError("Failed to create church. Please try again.")
+                
+                logger.info("SERIALIZER: Church created successfully: %s (ID: %s)", church.name, church.pk)
                     
             except Exception as e:
+                logger.error("SERIALIZER: Church creation exception: %s", str(e))
                 raise serializers.ValidationError(f"Church creation failed: {str(e)}")
         
         # Only create user if church was created successfully (or no church required)
