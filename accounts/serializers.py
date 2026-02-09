@@ -18,24 +18,31 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validators=[validate_password]
     )
     password_confirm = serializers.CharField(write_only=True)
-    church_data = serializers.DictField(
-        child=serializers.CharField(allow_blank=True, required=False),
-        write_only=True, 
-        required=False, 
-        allow_null=True
-    )
     
     class Meta:
         model = User
         fields = [
             'email', 'first_name', 'last_name', 'phone_number',
-            'password', 'password_confirm', 'role', 'church', 'church_data'
+            'password', 'password_confirm', 'role', 'church'
         ]
         extra_kwargs = {
             'password': {'write_only': True},
-            'church': {'required': False},
-            'church_data': {'required': False}
+            'church': {'required': False}
         }
+    
+    def to_internal_value(self, data):
+        """Override to handle church_data without validation"""
+        # Extract church_data before validation
+        church_data = data.pop('church_data', None)
+        
+        # Call parent to validate other fields
+        validated = super().to_internal_value(data)
+        
+        # Add church_data back without validation
+        if church_data:
+            validated['church_data'] = church_data
+        
+        return validated
     
     def validate_email(self, value):
         """Validate email is not already registered"""
