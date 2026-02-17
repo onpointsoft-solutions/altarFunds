@@ -207,6 +207,19 @@ class GivingTransaction(FinancialModel):
     refund_reason = models.TextField(_('Refund Reason'), blank=True)
     refund_date = models.DateTimeField(_('Refund Date'), null=True, blank=True)
     
+    # Disbursement Information
+    disbursement_status = models.CharField(
+        _('Disbursement Status'),
+        max_length=20,
+        choices=[
+            ('pending', _('Pending')),
+            ('processing', _('Processing')),
+            ('completed', _('Completed')),
+            ('failed', _('Failed')),
+        ],
+        default='pending'
+    )
+    
     class Meta:
         db_table = 'giving_transactions'
         verbose_name = _('Giving Transaction')
@@ -783,3 +796,170 @@ class GivingTransactionCampaign(models.Model):
             models.Index(fields=['transaction']),
             models.Index(fields=['campaign']),
         ]
+
+
+class ChurchDisbursement(TimeStampedModel):
+    """Model for tracking disbursements to churches"""
+    
+    STATUS_CHOICES = [
+        ('pending', _('Pending')),
+        ('processing', _('Processing')),
+        ('completed', _('Completed')),
+        ('failed', _('Failed')),
+        ('pending_retry', _('Pending Retry')),
+    ]
+    
+    DISBURSEMENT_METHOD_CHOICES = [
+        ('paystack', _('Paystack')),
+        ('bank_transfer', _('Bank Transfer')),
+        ('cash', _('Cash')),
+    ]
+    
+    # Basic Information
+    giving_transaction = models.OneToOneField(
+        GivingTransaction,
+        on_delete=models.CASCADE,
+        related_name='disbursement'
+    )
+    church = models.ForeignKey(
+        'churches.Church',
+        on_delete=models.CASCADE,
+        related_name='disbursements'
+    )
+    
+    # Financial Details
+    amount = models.DecimalField(
+        _('Disbursement Amount'),
+        max_digits=15,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    platform_fee = models.DecimalField(
+        _('Platform Fee'),
+        max_digits=15,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    net_amount = models.DecimalField(
+        _('Net Amount'),
+        max_digits=15,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    
+    # Disbursement Details
+    disbursement_method = models.CharField(
+        _('Disbursement Method'),
+        max_length=20,
+        choices=DISBURSEMENT_METHOD_CHOICES,
+        default='paystack'
+    )
+    
+    # Paystack Transfer Details
+    conversation_id = models.CharField(
+        _('Transfer ID'),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_('Paystack transfer ID')
+    )
+    transfer_code = models.CharField(
+        _('Transfer Code'),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_('Paystack transfer code')
+    )
+    paystack_receipt = models.CharField(
+        _('Paystack Receipt'),
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text=_('Paystack transfer reference')
+    )
+    
+    # Status and Tracking
+    status = models.CharField(
+        _('Status'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    error_message = models.TextField(_('Error Message'), blank=True)
+    
+    # Retry Logic
+    retry_count = models.PositiveIntegerField(_('Retry Count'), default=0)
+    max_retries = models.PositiveIntegerField(_('Max Retries'), default=3)
+    next_retry_at = models.DateTimeField(_('Next Retry At'), null=True, blank=True)
+    
+    # Timestamps
+    processed_at = models.DateTimeField(_('Processed At'), null=True, blank=True)
+    completed_at = models.DateTimeField(_('Completed At'), null=True, blank=True)
+    
+    class Meta:
+        db_table = 'church_disbursements'
+        verbose_name = _('Church Disbursement')
+        verbose_name_plural = _('Church Disbursements')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['giving_transaction']),
+            models.Index(fields=['church']),
+            models.Index(fields=['status']),
+            models.Index(fields=['disbursement_method']),
+            models.Index(fields=['conversation_id']),
+            models.Index(fields=['transfer_code']),
+            models.Index(fields=['next_retry_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.church.name} - KES {self.amount} ({self.get_status_display()})"
+    
+    def save(self, *args, **kwargs):
+        # Calculate net amount
+        self.net_amount = self.amount - self.platform_fee
+        super().save(*args, **kwargs)
+    
+    @property
+    def can_retry(self):
+        """Check if disbursement can be retried"""
+        return (
+            self.status == 'failed' and 
+            self.retry_count < self.max_retries and
+            self.next_retry_at and
+            self.next_retry_at <= timezone.now()
+        )
+    
+    def mark_completed(self, receipt=None):
+        """Mark disbursement as completed"""
+        from django.utils import timezone
+        
+        self.status = 'completed'
+        self.completed_at = timezone.now()
+        if receipt:
+            self.paystack_receipt = receipt
+        self.save()
+        
+        # Update transaction status
+        self.giving_transaction.disbursement_status = 'completed'
+        self.giving_transaction.save()
+    
+    def mark_failed(self, error_message):
+        """Mark disbursement as failed and schedule retry if needed"""
+        from django.utils import timezone
+        
+        self.status = 'failed'
+        self.error_message = error_message
+        self.retry_count += 1
+        
+        if self.retry_count < self.max_retries:
+            self.status = 'pending_retry'
+            # Exponential backoff: 1hr, 2hr, 4hr, etc.
+            retry_delay_hours = 2 ** (self.retry_count - 1)
+            self.next_retry_at = timezone.now() + timezone.timedelta(hours=retry_delay_hours)
+        
+        self.save()
+        
+        # Mark transaction as failed if max retries reached
+        if self.retry_count >= self.max_retries:
+            self.giving_transaction.disbursement_status = 'failed'
+            self.giving_transaction.save()

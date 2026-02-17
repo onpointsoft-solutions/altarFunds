@@ -12,6 +12,7 @@ from .views import (
     approve_church, reject_church, church_members
 )
 from .search_views import search_churches
+from .mobile_views import church_payment_details, church_theme_colors
 
 app_name = 'churches'
 
@@ -45,4 +46,8 @@ urlpatterns = [
     path('options/churches/', church_options, name='church_options'),
     path('options/departments/', department_options, name='department_options'),
     path('options/small-groups/', small_group_options, name='small_group_options'),
+    
+    # Mobile API endpoints
+    path('mobile/payment-details/', church_payment_details, name='church_payment_details'),
+    path('mobile/theme-colors/', church_theme_colors, name='church_theme_colors'),
 ]

@@ -181,6 +181,68 @@ class Church(TimeStampedModel, SoftDeleteModel):
     secondary_color = models.CharField(_('Secondary Theme Color'), max_length=7, default='#10B981', help_text=_('Hex color code (e.g., #10B981)'))
     accent_color = models.CharField(_('Accent Color'), max_length=7, default='#F59E0B', help_text=_('Hex color code (e.g., #F59E0B)'))
     
+    # Payment Details
+    mpesa_paybill_number = models.CharField(
+        _('M-Pesa Paybill Number'),
+        max_length=10,
+        validators=[validate_paybill_number],
+        blank=True,
+        help_text=_('M-Pesa Paybill number for donations')
+    )
+    mpesa_account_number = models.CharField(
+        _('M-Pesa Account Number'),
+        max_length=50,
+        blank=True,
+        help_text=_('M-Pesa account number (usually church code or name)')
+    )
+    mpesa_till_number = models.CharField(
+        _('M-Pesa Till Number'),
+        max_length=10,
+        validators=[validate_till_number],
+        blank=True,
+        help_text=_('M-Pesa Till number for donations (alternative to Paybill)')
+    )
+    bank_account_name = models.CharField(
+        _('Bank Account Name'),
+        max_length=200,
+        blank=True,
+        help_text=_('Bank account name for donations')
+    )
+    bank_account_number = models.CharField(
+        _('Bank Account Number'),
+        max_length=50,
+        validators=[validate_bank_account_number],
+        blank=True,
+        help_text=_('Bank account number for donations')
+    )
+    bank_name = models.CharField(
+        _('Bank Name'),
+        max_length=100,
+        blank=True,
+        help_text=_('Bank name for donations')
+    )
+    bank_branch = models.CharField(
+        _('Bank Branch'),
+        max_length=100,
+        blank=True,
+        help_text=_('Bank branch for donations')
+    )
+    
+    # Payment Gateway Settings
+    paystack_public_key = models.CharField(
+        _('Paystack Public Key'),
+        max_length=200,
+        blank=True,
+        help_text=_('Paystack public key for online payments')
+    )
+    paystack_secret_key = models.CharField(
+        _('Paystack Secret Key'),
+        max_length=200,
+        blank=True,
+        help_text=_('Paystack secret key for online payments')
+    )
+    enable_paystack = models.BooleanField(_('Enable Paystack'), default=False)
+    
     # Settings
     is_active = models.BooleanField(_('Active'), default=True)
     allow_online_giving = models.BooleanField(_('Allow Online Giving'), default=True)
