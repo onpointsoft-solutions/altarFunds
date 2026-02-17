@@ -20,7 +20,7 @@ object ThemeManager {
     /**
      * Apply church theme to the entire app
      */
-    fun applyChurchTheme(context: Context, theme: ChurchThemeColors) {
+    fun applyChurchTheme(context: Context, theme: ChurchThemeColors?) {
         currentTheme = theme
         
         try {
@@ -40,11 +40,11 @@ object ThemeManager {
     /**
      * Apply theme to activity components
      */
-    private fun applyActivityTheme(activity: AppCompatActivity, theme: ChurchThemeColors) {
+    private fun applyActivityTheme(activity: AppCompatActivity, theme: ChurchThemeColors?) {
         try {
-            val primaryColor = Color.parseColor(theme.primary_color)
-            val secondaryColor = Color.parseColor(theme.secondary_color)
-            val accentColor = Color.parseColor(theme.accent_color)
+            val primaryColor = Color.parseColor(theme?.primary_color)
+            val secondaryColor = Color.parseColor(theme?.secondary_color)
+            val accentColor = Color.parseColor(theme?.accent_color)
             
             // Update action bar
             activity.supportActionBar?.let { actionBar ->
@@ -69,10 +69,10 @@ object ThemeManager {
     /**
      * Apply theme to bottom navigation
      */
-    private fun applyBottomNavigationTheme(context: Context, theme: ChurchThemeColors) {
+    private fun applyBottomNavigationTheme(context: Context, theme: ChurchThemeColors?) {
         try {
-            val primaryColor = Color.parseColor(theme.primary_color)
-            val secondaryColor = Color.parseColor(theme.secondary_color)
+            val primaryColor = Color.parseColor(theme?.primary_color)
+            val secondaryColor = Color.parseColor(theme?.secondary_color)
             
             // Find bottom navigation in the current activity
             val bottomNav = (context as? AppCompatActivity)?.findViewById<BottomNavigationView>(

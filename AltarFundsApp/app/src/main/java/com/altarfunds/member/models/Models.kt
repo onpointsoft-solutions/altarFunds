@@ -166,7 +166,7 @@ data class Church(
 
 // Donation Models
 data class DonationRequest(
-    val amount: String,
+    val amount: Double,
     @SerializedName("donation_type") val donationType: String,
     val description: String?,
     @SerializedName("payment_method") val paymentMethod: String,

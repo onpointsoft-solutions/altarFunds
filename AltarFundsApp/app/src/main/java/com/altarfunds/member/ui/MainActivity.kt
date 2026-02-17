@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.altarfunds.member.R
+import android.content.res.Resources
 import com.altarfunds.member.databinding.ActivityMainBinding
 import com.altarfunds.member.ui.announcements.AnnouncementsFragment
 import com.altarfunds.member.ui.dashboard.DashboardFragment
@@ -13,6 +14,7 @@ import com.altarfunds.member.ui.giving.GivingFragment
 import com.altarfunds.member.ui.profile.ProfileFragment
 import com.altarfunds.member.utils.ThemeManager
 import com.altarfunds.member.viewmodel.GivingViewModel
+import com.altarfunds.member.viewmodel.Resource
 
 class MainActivity : AppCompatActivity() {
     
@@ -76,11 +78,11 @@ class MainActivity : AppCompatActivity() {
         // Observe theme changes
         viewModel.themeColors.observe(this) { result ->
             when (result) {
-                is com.altarfunds.member.utils.Resource.Success -> {
+                is com.altarfunds.member.utils.ThemeManager-> {
                     // Apply theme to the entire app
-                    ThemeManager.applyChurchTheme(this, result.data)
+                    ThemeManager.applyChurchTheme(this, result.getCurrentTheme())
                 }
-                is com.altarfunds.member.utils.Resource.Error -> {
+                is Resource.Error -> {
                     // Continue with default theme
                 }
                 else -> {}
