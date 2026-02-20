@@ -111,6 +111,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # DATABASE (MYSQL – PRODUCTION)
 # --------------------------------------------------
 
+# Use PyMySQL as MySQL backend
+import pymysql
+pymysql.install_as_MySQLdb()
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
