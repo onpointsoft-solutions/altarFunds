@@ -402,7 +402,7 @@ class UserListSerializer(serializers.ModelSerializer):
 
 
 class StaffRegistrationSerializer(serializers.ModelSerializer):
-    """Serializer for denomination admin to register pastor/treasurer"""
+    """Serializer for denomination admin to register pastor/treasurer/usher"""
     
     password = serializers.CharField(
         write_only=True,
@@ -457,12 +457,12 @@ class StaffRegistrationSerializer(serializers.ModelSerializer):
         return value
     
     def validate_role(self, value):
-        """Validate role is pastor or treasurer"""
+        """Validate role is pastor, treasurer, or usher"""
         request = self.context.get('request')
         if request and request.user.role == 'denomination_admin':
-            if value not in ['pastor', 'treasurer']:
+            if value not in ['pastor', 'treasurer', 'usher']:
                 raise serializers.ValidationError(
-                    "Denomination admins can only register pastors and treasurers"
+                    "Denomination admins can only register pastors, treasurers, and ushers"
                 )
         return value
     

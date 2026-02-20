@@ -27,7 +27,7 @@ class IsChurchAdmin(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'usher', 'denomination_admin', 'system_admin']
 
 
 class IsDenominationAdmin(permissions.BasePermission):
@@ -127,7 +127,7 @@ class CanManageChurch(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'usher', 'denomination_admin', 'system_admin']
     
     def has_object_permission(self, request, view, obj):
         # System admins can manage any church
@@ -182,7 +182,7 @@ class CanManageMembers(permissions.BasePermission):
         if not request.user or isinstance(request.user, AnonymousUser):
             return False
         
-        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+        return request.user.role in ['admin', 'pastor', 'treasurer', 'auditor', 'usher', 'denomination_admin', 'system_admin']
     
     def has_object_permission(self, request, view, obj):
         # System admins can manage all members

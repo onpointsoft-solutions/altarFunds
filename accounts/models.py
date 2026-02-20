@@ -39,6 +39,7 @@ class User(AbstractUser):
         ('pastor', _('Pastor')),
         ('treasurer', _('Treasurer')),
         ('auditor', _('Auditor')),
+        ('usher', _('Usher')),
         ('denomination_admin', _('Denomination Admin')),
         ('system_admin', _('System Admin')),
     ]

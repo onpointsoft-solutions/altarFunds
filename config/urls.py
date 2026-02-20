@@ -29,6 +29,7 @@ def api_root(request):
                 'members': '/api/members/',
                 'reports': '/api/reports/',
                 'dashboard': '/api/dashboard/',
+                'attendance': '/api/attendance/',
                 'health': '/api/health/',
             },
             'auth': {
@@ -73,6 +74,7 @@ urlpatterns = [
     path('api/notices/', include('notices.urls')),
     path('api/announcements/', include('announcements.urls')),
     path('api/suggestions/', include('suggestions.urls')),
+    path('api/attendance/', include('attendance.urls')),
     path('api/church-join-requests/', include('accounts.join_requests_urls')),
     
     # Health check
