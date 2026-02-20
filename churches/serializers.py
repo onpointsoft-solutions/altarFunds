@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Denomination, Church, Campus, Department, SmallGroup,
-    ChurchBankAccount, MpesaAccount
+    ChurchBankAccount, MpesaAccount, ChurchService
 )
 from common.serializers import BaseSerializer, UserSerializer
 from common.validators import (
@@ -372,6 +372,52 @@ class ChurchVerificationSerializer(serializers.ModelSerializer):
         model = Church
         fields = ['id', 'name', 'church_code', 'status', 'is_verified']
         read_only_fields = ['id', 'name', 'church_code', 'status', 'is_verified']
+
+
+class ChurchServiceSerializer(BaseSerializer):
+    """Church service serializer"""
+    
+    church_name = serializers.CharField(source='church.name', read_only=True)
+    campus_name = serializers.CharField(source='campus.name', read_only=True)
+    service_type_display = serializers.CharField(source='get_service_type_display', read_only=True)
+    duration_minutes = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = ChurchService
+        fields = [
+            'id', 'church', 'church_name', 'campus', 'campus_name',
+            'service_type', 'service_type_display', 'name', 'description',
+            'day_of_week', 'start_time', 'end_time', 'is_recurring',
+            'location', 'pastor_name', 'speaker_name', 'is_active',
+            'requires_registration', 'max_attendees', 'duration_minutes',
+            'created_at', 'updated_at'
+        ]
+    
+    def validate(self, attrs):
+        """Validate service times"""
+        start_time = attrs.get('start_time')
+        end_time = attrs.get('end_time')
+        
+        if start_time and end_time and start_time >= end_time:
+            raise serializers.ValidationError(
+                "Start time must be before end time"
+            )
+        
+        return attrs
+
+
+class ChurchServiceListSerializer(serializers.ModelSerializer):
+    """Church service list serializer for dropdowns"""
+    
+    church_name = serializers.CharField(source='church.name', read_only=True)
+    service_type_display = serializers.CharField(source='get_service_type_display', read_only=True)
+    
+    class Meta:
+        model = ChurchService
+        fields = [
+            'id', 'name', 'church', 'church_name', 'service_type',
+            'service_type_display', 'day_of_week', 'start_time', 'is_active'
+        ]
 
 
 class ChurchStatusUpdateSerializer(serializers.ModelSerializer):
