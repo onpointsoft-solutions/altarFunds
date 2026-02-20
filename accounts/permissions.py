@@ -45,3 +45,33 @@ class CanViewUserList(permissions.BasePermission):
             return False
         
         return request.user.role in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+
+
+class IsChurchAdmin(permissions.BasePermission):
+    """Allow access if user is a church admin"""
+    
+    def has_permission(self, request, view):
+        if not request.user or isinstance(request.user, AnonymousUser):
+            return False
+        
+        return request.user.role in ['pastor', 'denomination_admin', 'system_admin']
+
+
+class IsChurchStaff(permissions.BasePermission):
+    """Allow access if user is church staff"""
+    
+    def has_permission(self, request, view):
+        if not request.user or isinstance(request.user, AnonymousUser):
+            return False
+        
+        return request.user.role in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']
+
+
+class IsUsher(permissions.BasePermission):
+    """Allow access if user is an usher"""
+    
+    def has_permission(self, request, view):
+        if not request.user or isinstance(request.user, AnonymousUser):
+            return False
+        
+        return request.user.role in ['usher', 'pastor', 'denomination_admin', 'system_admin']
