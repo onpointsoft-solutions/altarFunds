@@ -1,0 +1,375 @@
+/* ============================================
+   SANCTUM — Professional Modern Theme
+   Matching Web App Design
+   ============================================ */
+
+/* Root Variables - Matching Web App */
+.root {
+    /* Primary Blue Colors */
+    -fx-primary-50: #f0f9ff;
+    -fx-primary-100: #e0f2fe;
+    -fx-primary-200: #bae6fd;
+    -fx-primary-300: #7dd3fc;
+    -fx-primary-400: #38bdf8;
+    -fx-primary-500: #0ea5e9;
+    -fx-primary-600: #0284c7;
+    -fx-primary-700: #0369a1;
+    -fx-primary-800: #075985;
+    -fx-primary-900: #0c4a6e;
+    
+    /* Accent Purple Colors */
+    -fx-accent-50: #faf5ff;
+    -fx-accent-100: #f3e8ff;
+    -fx-accent-200: #e9d5ff;
+    -fx-accent-300: #d8b4fe;
+    -fx-accent-400: #c084fc;
+    -fx-accent-500: #a855f7;
+    -fx-accent-600: #9333ea;
+    -fx-accent-700: #7c3aed;
+    -fx-accent-800: #6b21a8;
+    -fx-accent-900: #581c87;
+    
+    /* Success Colors */
+    -fx-success-50: #f0fdf4;
+    -fx-success-500: #22c55e;
+    -fx-success-600: #16a34a;
+    
+    /* Warning Colors */
+    -fx-warning-50: #fffbeb;
+    -fx-warning-500: #f59e0b;
+    -fx-warning-600: #d97706;
+    
+    /* Neutral Colors */
+    -fx-neutral-50: #fafafa;
+    -fx-neutral-100: #f5f5f5;
+    -fx-neutral-200: #e5e5e5;
+    -fx-neutral-300: #d4d4d4;
+    -fx-neutral-400: #a3a3a3;
+    -fx-neutral-500: #737373;
+    -fx-neutral-600: #525252;
+    -fx-neutral-700: #404040;
+    -fx-neutral-800: #262626;
+    -fx-neutral-900: #171717;
+    
+    /* Fonts */
+    -fx-font-family: "DM Sans", "Segoe UI", "Arial", sans-serif;
+    -fx-font-size: 14px;
+    
+    /* Background */
+    -fx-background-color: -fx-neutral-50;
+}
+
+/* Main Container */
+#rootPane {
+    -fx-background-color: linear-gradient(135deg, 
+        -fx-primary-50 0%, 
+        -fx-accent-50 50%, 
+        -fx-neutral-50 100%);
+    -fx-background-insets: 0;
+    -fx-padding: 20;
+}
+
+/* Login Container */
+.login-container {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 20, 0, 0, 0);
+    -fx-padding: 40;
+    -fx-spacing: 20;
+    -fx-alignment: center;
+}
+
+/* Primary Buttons */
+.primary-button {
+    -fx-background-color: -fx-primary-600;
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+    -fx-padding: 12 24;
+    -fx-cursor: hand;
+}
+
+.primary-button:hover {
+    -fx-background-color: -fx-primary-700;
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
+.primary-button:pressed {
+    -fx-background-color: -fx-primary-800;
+}
+
+/* Accent Buttons */
+.accent-button {
+    -fx-background-color: -fx-accent-600;
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+    -fx-padding: 12 24;
+    -fx-cursor: hand;
+}
+
+.accent-button:hover {
+    -fx-background-color: -fx-accent-700;
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
+/* Success Buttons */
+.success-button {
+    -fx-background-color: -fx-success-600;
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+    -fx-padding: 8 16;
+    -fx-cursor: hand;
+}
+
+.success-button:hover {
+    -fx-background-color: -fx-success-700;
+}
+
+/* Warning Buttons */
+.warning-button {
+    -fx-background-color: -fx-warning-600;
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+    -fx-padding: 8 16;
+    -fx-cursor: hand;
+}
+
+.warning-button:hover {
+    -fx-background-color: -fx-warning-700;
+}
+
+/* Text Fields */
+.text-field {
+    -fx-background-color: white;
+    -fx-border-color: -fx-neutral-300;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 12 16;
+    -fx-font-size: 14px;
+}
+
+.text-field:focused {
+    -fx-border-color: -fx-primary-500;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(14, 165, 233, 0.2), 4, 0, 0, 0);
+}
+
+/* Password Fields */
+.password-field {
+    -fx-background-color: white;
+    -fx-border-color: -fx-neutral-300;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 12 16;
+    -fx-font-size: 14px;
+}
+
+.password-field:focused {
+    -fx-border-color: -fx-primary-500;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(14, 165, 233, 0.2), 4, 0, 0, 0);
+}
+
+/* Labels */
+.title-label {
+    -fx-font-size: 32px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -fx-neutral-900;
+    -fx-font-family: "Playfair Display", "DM Sans", serif;
+}
+
+.subtitle-label {
+    -fx-font-size: 18px;
+    -fx-font-weight: 400;
+    -fx-text-fill: -fx-neutral-600;
+}
+
+.body-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: 400;
+    -fx-text-fill: -fx-neutral-700;
+}
+
+.caption-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 400;
+    -fx-text-fill: -fx-neutral-500;
+}
+
+/* Cards */
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.05), 10, 0, 0, 0);
+    -fx-padding: 24;
+}
+
+.card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 15, 0, 0, 0);
+}
+
+/* Sidebar */
+.sidebar {
+    -fx-background-color: white;
+    -fx-background-radius: 0 16 16 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 0);
+    -fx-padding: 20;
+    -fx-spacing: 8;
+}
+
+.sidebar-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-padding: 12 16;
+    -fx-cursor: hand;
+}
+
+.sidebar-item:hover {
+    -fx-background-color: -fx-neutral-100;
+}
+
+.sidebar-item:selected {
+    -fx-background-color: -fx-primary-100;
+    -fx-text-fill: -fx-primary-700;
+}
+
+/* Header */
+.header {
+    -fx-background-color: white;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.05), 5, 0, 0, 0);
+    -fx-padding: 16 24;
+}
+
+/* Tables */
+.table-view {
+    -fx-background-color: white;
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.05), 10, 0, 0, 0);
+}
+
+.table-view .column-header {
+    -fx-background-color: -fx-neutral-50;
+    -fx-font-weight: 600;
+    -fx-text-fill: -fx-neutral-700;
+}
+
+.table-view .table-cell {
+    -fx-border-color: -fx-neutral-200;
+    -fx-border-width: 0 0 1 0;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: -fx-primary-100;
+    -fx-text-fill: -fx-primary-700;
+}
+
+/* Progress Bar */
+.progress-bar {
+    -fx-accent: -fx-primary-500;
+}
+
+/* Tabs */
+.tab-pane {
+    -fx-background-color: white;
+    -fx-background-radius: 12;
+}
+
+.tab-pane .tab-header-area {
+    -fx-background-color: -fx-neutral-50;
+    -fx-background-radius: 12 12 0 0;
+}
+
+.tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8 8 0 0;
+    -fx-text-fill: -fx-neutral-600;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: white;
+    -fx-text-fill: -fx-primary-700;
+    -fx-border-color: transparent transparent -fx-primary-200 transparent;
+    -fx-border-width: 0 0 3 0;
+}
+
+/* Dialogs */
+.dialog-pane {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 20, 0, 0, 0);
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: -fx-primary-600;
+    -fx-background-radius: 16 16 0 0;
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: 600;
+    -fx-padding: 20 24;
+}
+
+/* Hyperlinks */
+.hyperlink {
+    -fx-text-fill: -fx-primary-600;
+    -fx-font-weight: 500;
+}
+
+.hyperlink:hover {
+    -fx-text-fill: -fx-primary-700;
+    -fx-underline: true;
+}
+
+/* Icons */
+.icon-primary {
+    -fx-text-fill: -fx-primary-600;
+}
+
+.icon-accent {
+    -fx-text-fill: -fx-accent-600;
+}
+
+.icon-success {
+    -fx-text-fill: -fx-success-600;
+}
+
+.icon-warning {
+    -fx-text-fill: -fx-warning-600;
+}
+
+/* Responsive Design */
+.small-container {
+    -fx-max-width: 400px;
+    -fx-min-width: 320px;
+}
+
+.medium-container {
+    -fx-max-width: 800px;
+    -fx-min-width: 600px;
+}
+
+.large-container {
+    -fx-max-width: 1200px;
+    -fx-min-width: 800px;
+}
+
+/* Animations */
+.animated {
+    -fx-transition: all 0.3s ease;
+}
+
+/* Glass Morphism Effect */
+.glass {
+    -fx-background-color: rgba(255, 255, 255, 0.8);
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 20, 0, 0, 0);
+    -fx-backdrop-filter: blur(10);
+}
