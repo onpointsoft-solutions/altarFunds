@@ -118,7 +118,7 @@ pymysql.install_as_MySQLdb()
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'altarfunds_db',
+        'NAME': 'oamsmxjt_sanctum',
         'USER': 'oamsmxjt_admin',
         'PASSWORD': '@Admin@2026',
         'HOST': 'localhost',
