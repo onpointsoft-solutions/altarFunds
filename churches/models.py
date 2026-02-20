@@ -673,6 +673,85 @@ class MpesaAccount(FinancialModel):
             validate_till_number(self.business_number)
 
 
+class ChurchService(TimeStampedModel, SoftDeleteModel):
+    """Church service model for different service types and schedules"""
+    
+    SERVICE_TYPE_CHOICES = [
+        ('sunday_morning', _('Sunday Morning Service')),
+        ('sunday_evening', _('Sunday Evening Service')),
+        ('midweek', _('Midweek Service')),
+        ('prayer', _('Prayer Meeting')),
+        ('youth', _('Youth Service')),
+        ('children', _('Children Service')),
+        ('special', _('Special Service')),
+        ('other', _('Other')),
+    ]
+    
+    church = models.ForeignKey(
+        Church,
+        on_delete=models.CASCADE,
+        related_name='services'
+    )
+    campus = models.ForeignKey(
+        Campus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='services'
+    )
+    service_type = models.CharField(
+        _('Service Type'),
+        max_length=20,
+        choices=SERVICE_TYPE_CHOICES,
+        default='sunday_morning'
+    )
+    name = models.CharField(_('Service Name'), max_length=200)
+    description = models.TextField(_('Description'), blank=True)
+    
+    # Schedule Information
+    day_of_week = models.CharField(_('Day of Week'), max_length=20, blank=True)
+    start_time = models.TimeField(_('Start Time'))
+    end_time = models.TimeField(_('End Time'))
+    is_recurring = models.BooleanField(_('Recurring Service'), default=True)
+    
+    # Location
+    location = models.CharField(_('Location'), max_length=255, blank=True)
+    
+    # Leadership
+    pastor_name = models.CharField(_('Pastor Name'), max_length=200, blank=True)
+    speaker_name = models.CharField(_('Speaker Name'), max_length=200, blank=True)
+    
+    # Settings
+    is_active = models.BooleanField(_('Active'), default=True)
+    requires_registration = models.BooleanField(_('Requires Registration'), default=False)
+    max_attendees = models.PositiveIntegerField(_('Maximum Attendees'), null=True, blank=True)
+    
+    class Meta:
+        db_table = 'churches_services'
+        verbose_name = _('Church Service')
+        verbose_name_plural = _('Church Services')
+        ordering = ['church', 'day_of_week', 'start_time']
+        indexes = [
+            models.Index(fields=['church']),
+            models.Index(fields=['campus']),
+            models.Index(fields=['service_type']),
+            models.Index(fields=['day_of_week']),
+            models.Index(fields=['is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.church.name} - {self.name}"
+    
+    @property
+    def duration_minutes(self):
+        """Calculate service duration in minutes"""
+        if self.start_time and self.end_time:
+            start = self.start_time.hour * 60 + self.start_time.minute
+            end = self.end_time.hour * 60 + self.end_time.minute
+            return end - start
+        return 0
+
+
 class ChurchDocument(TimeStampedModel):
     """Model for church legal documents"""
     
