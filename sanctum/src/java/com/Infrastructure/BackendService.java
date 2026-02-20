@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -254,6 +255,377 @@ public class BackendService {
             }
         } catch (Exception e) {
             System.out.println("❌ Transactions error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * =========================
+     *  Dashboard endpoints
+     * =========================
+     */
+    public Map<String, Object> getFinancialSummary() {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String responseBody = request("/dashboard/financial-summary/", "GET", null, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ getFinancialSummary error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public String getMonthlyTrend() {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            return request("/dashboard/monthly-trend/", "GET", null, true);
+        } catch (Exception e) {
+            System.out.println("❌ getMonthlyTrend error: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    public String getIncomeBreakdown() {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            return request("/dashboard/income-breakdown/", "GET", null, true);
+        } catch (Exception e) {
+            System.out.println("❌ getIncomeBreakdown error: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    public String getExpenseBreakdown() {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            return request("/dashboard/expense-breakdown/", "GET", null, true);
+        } catch (Exception e) {
+            System.out.println("❌ getExpenseBreakdown error: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Helper to build URL query strings similar to the web client.
+     */
+    private String buildQueryString(Map<String, String> params) {
+        if (params == null || params.isEmpty()) {
+            return "";
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (key == null || value == null) {
+                continue;
+            }
+            if (!first) {
+                sb.append("&");
+            }
+            try {
+                sb.append(URLEncoder.encode(key, StandardCharsets.UTF_8.name()))
+                  .append("=")
+                  .append(URLEncoder.encode(value, StandardCharsets.UTF_8.name()));
+            } catch (Exception e) {
+                // Fallback to raw value if encoding fails
+                sb.append(key).append("=").append(value);
+            }
+            first = false;
+        }
+        return sb.toString();
+    }
+    
+    /**
+     * =========================
+     *  Donations endpoints
+     * =========================
+     */
+    public Map<String, Object> getDonations(Map<String, String> params) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String query = buildQueryString(params);
+            String endpoint = query.isEmpty() ? "/donations/" : "/donations/?" + query;
+            String responseBody = request(endpoint, "GET", null, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ getDonations error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> createDonation(Map<String, Object> donation) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String jsonBody = gson.toJson(donation);
+            String responseBody = request("/donations/", "POST", jsonBody, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ createDonation error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> updateDonation(String id, Map<String, Object> donation) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String jsonBody = gson.toJson(donation);
+            String responseBody = request("/donations/" + id + "/", "PUT", jsonBody, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ updateDonation error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public boolean deleteDonation(String id) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return false;
+        }
+        
+        try {
+            String responseBody = request("/donations/" + id + "/", "DELETE", null, true);
+            // Successful delete typically returns 204 No Content
+            return responseBody != null || true;
+        } catch (Exception e) {
+            System.out.println("❌ deleteDonation error: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * =========================
+     *  Expenses endpoints
+     * =========================
+     */
+    public Map<String, Object> getExpenses(Map<String, String> params) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String query = buildQueryString(params);
+            String endpoint = query.isEmpty() ? "/expenses/" : "/expenses/?" + query;
+            String responseBody = request(endpoint, "GET", null, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ getExpenses error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> createExpense(Map<String, Object> expense) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String jsonBody = gson.toJson(expense);
+            String responseBody = request("/expenses/", "POST", jsonBody, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ createExpense error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> updateExpense(String id, Map<String, Object> expense) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String jsonBody = gson.toJson(expense);
+            String responseBody = request("/expenses/" + id + "/", "PUT", jsonBody, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ updateExpense error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> approveExpense(String id) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String responseBody = request("/expenses/" + id + "/approve/", "POST", "{}", true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ approveExpense error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> rejectExpense(String id, String reason) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("reason", reason);
+            String jsonBody = gson.toJson(body);
+            String responseBody = request("/expenses/" + id + "/reject/", "POST", jsonBody, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ rejectExpense error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * =========================
+     *  Budgets endpoints
+     * =========================
+     */
+    public Map<String, Object> getBudgets(Map<String, String> params) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String query = buildQueryString(params);
+            String endpoint = query.isEmpty() ? "/budgets/" : "/budgets/?" + query;
+            String responseBody = request(endpoint, "GET", null, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ getBudgets error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> createBudget(Map<String, Object> budget) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String jsonBody = gson.toJson(budget);
+            String responseBody = request("/budgets/", "POST", jsonBody, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ createBudget error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> updateBudget(String id, Map<String, Object> budget) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String jsonBody = gson.toJson(budget);
+            String responseBody = request("/budgets/" + id + "/", "PUT", jsonBody, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ updateBudget error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * =========================
+     *  Members endpoints
+     * =========================
+     */
+    public Map<String, Object> getMembersPaged(Map<String, String> params) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String query = buildQueryString(params);
+            String endpoint = query.isEmpty() ? "/members/" : "/members/?" + query;
+            String responseBody = request(endpoint, "GET", null, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ getMembersPaged error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public Map<String, Object> createMember(Map<String, Object> member) {
+        if (!isAuthenticated()) {
+            System.out.println("❌ Not authenticated");
+            return null;
+        }
+        
+        try {
+            String jsonBody = gson.toJson(member);
+            String responseBody = request("/members/", "POST", jsonBody, true);
+            if (responseBody != null) {
+                return gson.fromJson(responseBody, Map.class);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ createMember error: " + e.getMessage());
         }
         return null;
     }

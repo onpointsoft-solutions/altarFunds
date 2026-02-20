@@ -35,6 +35,7 @@ import java.util.Map;
 public class SanctumAuthPresenter extends BaseViewPresenter implements Initializable {
     private StringProperty changeMainScene;
     private BackendService backendService;
+    private String currentUserRole;
     
     @FXML
     private JFXTextField emailTextField;
@@ -208,7 +209,16 @@ public class SanctumAuthPresenter extends BaseViewPresenter implements Initializ
         Service<Boolean> loginService = new Service<Boolean>() {
             @Override
             protected Boolean call() throws Exception {
-                return backendService.login(email, password);
+                boolean success = backendService.login(email, password);
+                if (success) {
+                    // Load current user profile and key dashboard data in the background
+                    Map<String, Object> profile = backendService.getUserProfile();
+                    if (profile != null && profile.get("role") != null) {
+                        currentUserRole = profile.get("role").toString();
+                    }
+                    backendService.getFinancialSummary();
+                }
+                return success;
             }
         };
         
@@ -216,8 +226,13 @@ public class SanctumAuthPresenter extends BaseViewPresenter implements Initializ
             showLoading(false);
             if (loginService.getValue()) {
                 showSuccess("Login successful! Loading dashboard...");
+                // Determine dashboard key based on role (e.g., dashboard:treasurer)
+                String dashboardKey = "dashboard";
+                if (currentUserRole != null && !currentUserRole.isEmpty()) {
+                    dashboardKey = "dashboard:" + currentUserRole.toLowerCase();
+                }
                 // Load main scene after successful login
-                changeMainScene.set("dashboard");
+                changeMainScene.set(dashboardKey);
             } else {
                 showError("Invalid email or password");
             }
