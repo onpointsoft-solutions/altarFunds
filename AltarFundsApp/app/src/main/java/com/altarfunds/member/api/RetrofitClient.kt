@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
     
-    private const val BASE_URL = "http://altarfunds.pythonanywhere.com/api/"
+    private const val BASE_URL = "https://sanctum.co.ke/backend/api/"
     
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY

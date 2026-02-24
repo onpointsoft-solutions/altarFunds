@@ -1,7 +1,7 @@
 # AltarFunds API Documentation
 
 ## Base URL
-- **Production**: `https://altarfunds.pythonanywhere.com/api/`
+- **Production**: `https://backend.sanctum.co.ke/api/`
 - **Development**: `http://127.0.0.1:8000/api/`
 
 ## Authentication
@@ -24,7 +24,7 @@ Authorization: Bearer <access_token>
   "password": "SecurePass123!",
   "first_name": "John",
   "last_name": "Doe",
-  "phone_number": "+2348012345678"
+  "phone_number": "+254724740854"
 }
 ```
 
@@ -49,7 +49,10 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 2. Login
+### 2. Register Staff
+**POST** `/api/accounts/register/staff/`
+
+### 3. Login
 **POST** `/api/auth/token/`
 
 **Request Body:**
@@ -68,7 +71,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 3. Refresh Token
+### 4. Refresh Token
 **POST** `/api/auth/token/refresh/`
 
 **Request Body:**
@@ -85,7 +88,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 4. Get User Profile
+### 5. Get User Profile
 **GET** `/api/accounts/profile/`
 
 **Headers:** `Authorization: Bearer <token>`
@@ -104,33 +107,44 @@ Authorization: Bearer <access_token>
       "id": 5,
       "name": "Grace Chapel"
     },
-    "phone_number": "+2348012345678",
+    "phone_number": "+254724740854",
     "profile_picture": "https://...",
     "date_joined": "2024-01-15T10:30:00Z"
   }
 }
 ```
 
-### 5. Update Profile
+### 6. Update Profile
 **PUT** `/api/accounts/profile/`
 
 **Headers:** `Authorization: Bearer <token>`
 
-**Request Body:**
-```json
-{
-  "first_name": "John",
-  "last_name": "Doe",
-  "phone_number": "+2348012345678",
-  "address_line1": "123 Main St"
-}
-```
+### 7. Change Password
+**POST** `/api/accounts/password/change/`
+
+### 8. Reset Password Request
+**POST** `/api/accounts/password/reset/`
+
+### 9. Reset Password Confirm
+**POST** `/api/accounts/password/reset/confirm/`
+
+### 10. User Sessions
+**GET** `/api/accounts/sessions/`
+
+### 11. Revoke Session
+**DELETE** `/api/accounts/sessions/<id>/revoke/`
+
+### 12. User List
+**GET** `/api/accounts/users/`
+
+### 13. User Detail
+**GET** `/api/accounts/users/<id>/`
 
 ---
 
-## ⛪ Church Endpoints
+## ⛪ Churches Management
 
-### 1. List Churches
+### 1. Church List
 **GET** `/api/churches/`
 
 **Query Parameters:**
@@ -151,7 +165,7 @@ Authorization: Bearer <access_token>
       {
         "id": 1,
         "name": "Grace Chapel",
-        "location": "Lagos, Nigeria",
+        "location": "Nakuru, Kenya",
         "status": "verified",
         "member_count": 250,
         "pastor_name": "Rev. John Smith"
@@ -161,499 +175,278 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 2. Get Church Details
-**GET** `/api/churches/{id}/`
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "Grace Chapel",
-    "church_type": "main",
-    "status": "verified",
-    "location": "Lagos, Nigeria",
-    "address": "123 Church Street",
-    "phone": "+2348012345678",
-    "email": "info@gracechapel.org",
-    "website": "https://gracechapel.org",
-    "pastor_name": "Rev. John Smith",
-    "member_count": 250,
-    "founded_date": "2010-01-15",
-    "description": "A vibrant community church..."
-  }
-}
-```
+### 2. Church Detail
+**GET** `/api/churches/<id>/`
 
 ### 3. Create Church
-**POST** `/api/churches/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Request Body:**
-```json
-{
-  "name": "New Life Church",
-  "church_type": "main",
-  "location": "Abuja, Nigeria",
-  "address": "456 Faith Avenue",
-  "phone": "+2348098765432",
-  "email": "info@newlife.org",
-  "pastor_name": "Rev. Jane Doe",
-  "description": "A growing community..."
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 10,
-    "name": "New Life Church",
-    "status": "pending",
-    "message": "Church registration submitted for approval"
-  }
-}
-```
+**POST** `/api/churches/register/`
 
 ### 4. Join Church
-**POST** `/api/churches/{id}/join/`
+**POST** `/api/churches/join/`
 
-**Headers:** `Authorization: Bearer <token>`
+### 5. Join Church by ID
+**POST** `/api/churches/<id>/join/`
 
-**Request Body:**
-```json
-{
-  "membership_type": "member",
-  "reason": "Moving to this area"
-}
-```
+### 6. Verify Church
+**POST** `/api/churches/<id>/verify/`
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Successfully joined Grace Chapel"
-}
-```
+### 7. Update Church Status
+**PUT** `/api/churches/<id>/status/`
 
-### 5. Transfer Church
-**POST** `/api/churches/transfer/`
+### 8. Approve Church
+**POST** `/api/churches/<id>/approve/`
 
-**Headers:** `Authorization: Bearer <token>`
+### 9. Reject Church
+**POST** `/api/churches/<id>/reject/`
 
-**Request Body:**
-```json
-{
-  "from_church_id": 1,
-  "to_church_id": 5,
-  "reason": "Relocation",
-  "request_transfer_letter": true
-}
-```
+### 10. Church Members
+**GET** `/api/churches/<id>/members/`
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "transfer_id": 123,
-    "status": "pending",
-    "message": "Transfer request submitted"
-  }
-}
-```
-
-### 6. List Pending Churches (Super Admin)
+### 11. Pending Churches
 **GET** `/api/churches/pending-approval/`
 
-**Headers:** `Authorization: Bearer <token>`
+### 12. Transfer Church
+**POST** `/api/churches/transfer/`
 
-**Permissions:** System Admin only
+### 13. Search Churches
+**GET** `/api/churches/search/`
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 10,
-      "name": "New Life Church",
-      "pastor_name": "Rev. Jane Doe",
-      "submitted_date": "2024-01-20T10:00:00Z",
-      "status": "pending"
-    }
-  ]
-}
+### 14. Church Summary
+**GET** `/api/churches/<id>/summary/`
+
+### 15. Church Options
+**GET** `/api/churches/options/churches/`
+
+### 16. Department Options
+**GET** `/api/churches/options/departments/`
+
+### 17. Small Group Options
+**GET** `/api/churches/options/small-groups/`
+
+### 18. Mobile Payment Details
+**GET** `/api/churches/mobile/payment-details/`
+
+### 19. Mobile Theme Colors
+**GET** `/api/churches/mobile/theme-colors/`
+
+---
+
+## Church Sub-Resources
+
+### Denominations
+```
+GET  /api/churches/denominations/             # Denomination List
+POST /api/churches/denominations/             # Create Denomination
+GET  /api/churches/denominations/<id>/        # Denomination Detail
 ```
 
-### 7. Approve Church (Super Admin)
-**POST** `/api/churches/{id}/approve/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Permissions:** System Admin only
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Church approved successfully"
-}
+### Campuses
+```
+GET  /api/churches/campuses/                  # Campus List
+POST /api/churches/campuses/                  # Create Campus
+GET  /api/churches/campuses/<id>/             # Campus Detail
 ```
 
-### 8. Reject Church (Super Admin)
-**POST** `/api/churches/{id}/reject/`
+### Departments
+```
+GET  /api/churches/departments/               # Department List
+POST /api/churches/departments/               # Create Department
+GET  /api/churches/departments/<id>/          # Department Detail
+```
 
-**Headers:** `Authorization: Bearer <token>`
+### Small Groups
+```
+GET  /api/churches/small-groups/              # Small Group List
+POST /api/churches/small-groups/              # Create Small Group
+GET  /api/churches/small-groups/<id>/         # Small Group Detail
+```
 
-**Permissions:** System Admin only
+### Bank Accounts
+```
+GET  /api/churches/bank-accounts/             # Bank Account List
+POST /api/churches/bank-accounts/             # Create Bank Account
+GET  /api/churches/bank-accounts/<id>/        # Bank Account Detail
+```
 
-**Request Body:**
-```json
-{
-  "reason": "Incomplete documentation"
-}
+### M-Pesa Accounts
+```
+GET  /api/churches/mpesa-accounts/            # M-Pesa Account List
+POST /api/churches/mpesa-accounts/            # Create M-Pesa Account
+GET  /api/churches/mpesa-accounts/<id>/       # M-Pesa Account Detail
 ```
 
 ---
 
-## 💰 Giving Endpoints
+## 💰 Giving & Donations
 
-### 1. List Givings
-**GET** `/api/giving/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Query Parameters:**
-- `church_id` - Filter by church
-- `giving_type` - Filter by type (tithe, offering, donation)
-- `start_date` - Filter from date
-- `end_date` - Filter to date
-- `status` - Filter by status (pending, completed, failed)
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "count": 25,
-    "results": [
-      {
-        "id": 100,
-        "amount": 5000.00,
-        "giving_type": "tithe",
-        "church": {
-          "id": 1,
-          "name": "Grace Chapel"
-        },
-        "payment_date": "2024-01-20T14:30:00Z",
-        "status": "completed",
-        "payment_method": "paystack"
-      }
-    ]
-  }
-}
+### Giving Endpoints
+```
+GET  /api/giving/categories/                  # Giving Categories
+POST /api/giving/transactions/                # Create Giving Transaction
+GET  /api/giving/categories-list/             # Category List (ViewSet)
+GET  /api/giving/transactions-list/           # Transaction List (ViewSet)
+GET  /api/giving/recurring/                    # Recurring Giving
+GET  /api/giving/pledges/                      # Pledges
+GET  /api/giving/campaigns/                    # Giving Campaigns
+GET  /api/giving/church/<church_id>/          # Church Givings
 ```
 
-### 2. Create Giving
-**POST** `/api/giving/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Request Body:**
-```json
-{
-  "amount": 5000.00,
-  "giving_type": "tithe",
-  "church_id": 1,
-  "note": "Monthly tithe",
-  "anonymous": false
-}
+### Donation Endpoints
 ```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 100,
-    "amount": 5000.00,
-    "status": "pending",
-    "message": "Giving record created. Proceed to payment."
-  }
-}
-```
-
-### 3. Get Giving History
-**GET** `/api/giving/history/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "total_given": 50000.00,
-    "givings": [
-      {
-        "id": 100,
-        "amount": 5000.00,
-        "giving_type": "tithe",
-        "date": "2024-01-20T14:30:00Z",
-        "status": "completed"
-      }
-    ]
-  }
-}
-```
-
-### 4. Get Church Givings (Church Admin)
-**GET** `/api/giving/church/{church_id}/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Permissions:** Church Admin or System Admin
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "total_received": 500000.00,
-    "givings": [
-      {
-        "id": 100,
-        "amount": 5000.00,
-        "member": "John Doe",
-        "giving_type": "tithe",
-        "date": "2024-01-20T14:30:00Z"
-      }
-    ]
-  }
-}
+GET  /api/donations/                           # Donation List
+POST /api/donations/                          # Create Donation
 ```
 
 ---
 
-## 💳 Payment Endpoints
+## 💸 Expenses Management
 
-### 1. Initialize Paystack Payment
-**POST** `/api/payments/payments/initialize_paystack/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Request Body:**
-```json
-{
-  "amount": 5000.00,
-  "giving_type": "tithe",
-  "church_id": 1,
-  "callback_url": "https://yourapp.com/payment/callback"
-}
 ```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "authorization_url": "https://checkout.paystack.com/...",
-    "access_code": "abc123xyz",
-    "reference": "AF-1234567890AB"
-  }
-}
-```
-
-### 2. Verify Payment
-**GET** `/api/payments/payments/verify_payment/?reference=AF-1234567890AB`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "status": "success",
-    "amount": 5000.00,
-    "reference": "AF-1234567890AB",
-    "paid_at": "2024-01-20T14:35:00Z"
-  }
-}
-```
-
-### 3. Paystack Webhook (Internal)
-**POST** `/api/payments/paystack/webhook/`
-
-**Headers:** `X-Paystack-Signature: <signature>`
-
-**Note:** This endpoint is called by Paystack, not by your frontend.
-
----
-
-## 📊 Reports Endpoints
-
-### 1. Financial Summary
-**GET** `/api/reports/financial-summary/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Query Parameters:**
-- `church_id` - Filter by church (church admin sees only their church)
-- `start_date` - Period start
-- `end_date` - Period end
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "total_income": 500000.00,
-    "total_expenses": 300000.00,
-    "net_income": 200000.00,
-    "total_givings": 450000.00,
-    "budget_utilization": 75.5,
-    "period": "January 2024"
-  }
-}
-```
-
-### 2. Giving Trends
-**GET** `/api/reports/giving-trends/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "monthly_trends": [
-      {
-        "month": "2024-01",
-        "total": 50000.00,
-        "count": 25
-      }
-    ],
-    "by_type": {
-      "tithe": 30000.00,
-      "offering": 15000.00,
-      "donation": 5000.00
-    }
-  }
-}
-```
-
-### 3. Member Statistics
-**GET** `/api/reports/member-statistics/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Permissions:** Church Admin or System Admin
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "total_members": 250,
-    "active_members": 200,
-    "new_members_this_month": 5,
-    "tithe_payers": 150
-  }
-}
+GET  /api/expenses/                           # Expense List
+POST /api/expenses/                           # Create Expense
+GET  /api/expenses/<id>/                      # Expense Detail
+PUT  /api/expenses/<id>/                      # Update Expense
+DELETE /api/expenses/<id>/                    # Delete Expense
+POST /api/expenses/<id>/approve/              # Approve Expense
+POST /api/expenses/<id>/reject/               # Reject Expense
 ```
 
 ---
 
-## 👥 Member Endpoints
+## 📊 Budgets Management
 
-### 1. List Members (Church Admin)
-**GET** `/api/members/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Permissions:** Church Admin or System Admin
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "count": 250,
-    "results": [
-      {
-        "id": 1,
-        "name": "John Doe",
-        "email": "john@example.com",
-        "phone": "+2348012345678",
-        "membership_status": "member",
-        "joined_date": "2023-01-15"
-      }
-    ]
-  }
-}
 ```
-
-### 2. Get Member Details
-**GET** `/api/members/{id}/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Permissions:** Church Admin or System Admin
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "john@example.com",
-    "phone": "+2348012345678",
-    "membership_number": "GC-2023-001",
-    "membership_status": "member",
-    "joined_date": "2023-01-15",
-    "total_givings": 50000.00,
-    "departments": ["Choir", "Ushering"]
-  }
-}
+GET  /api/budgets/                            # Budget List
+POST /api/budgets/                            # Create Budget
+GET  /api/budgets/<id>/                       # Budget Detail
+PUT  /api/budgets/<id>/                       # Update Budget
+DELETE /api/budgets/<id>/                     # Delete Budget
 ```
 
 ---
 
-## 🔔 Notification Endpoints
+## 👥 Members Management
 
-### 1. List Notifications
-**GET** `/api/notifications/`
-
-**Headers:** `Authorization: Bearer <token>`
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "title": "Payment Successful",
-      "message": "Your tithe of ₦5,000 was received",
-      "type": "payment",
-      "is_read": false,
-      "created_at": "2024-01-20T14:35:00Z"
-    }
-  ]
-}
+```
+GET  /api/members/                            # Member List
+POST /api/members/                            # Create Member
+GET  /api/members/<id>/                       # Member Detail
+PUT  /api/members/<id>/                       # Update Member
+DELETE /api/members/<id>/                     # Delete Member
 ```
 
-### 2. Mark as Read
-**POST** `/api/notifications/{id}/mark-read/`
+---
 
-**Headers:** `Authorization: Bearer <token>`
+## 📈 Dashboard & Reports
+
+### Dashboard Endpoints
+```
+GET  /api/dashboard/                          # Dashboard View
+GET  /api/dashboard/financial-summary/        # Financial Summary
+GET  /api/dashboard/monthly-trend/             # Monthly Trend
+GET  /api/dashboard/income-breakdown/         # Income Breakdown
+GET  /api/dashboard/expense-breakdown/        # Expense Breakdown
+GET  /api/dashboard/comprehensive/            # Comprehensive Dashboard
+```
+
+### Report Endpoints
+```
+GET  /api/reports/                            # Reports List
+POST /api/reports/                            # Generate Report
+```
+
+---
+
+## 📱 Mobile API
+
+```
+GET  /api/mobile/                             # Mobile Endpoints
+```
+
+---
+
+## 💳 Payments
+
+```
+GET  /api/payments/                           # Payment Methods
+POST /api/payments/                           # Process Payment
+```
+
+---
+
+## 📋 Other Modules
+
+### Accounting
+```
+GET  /api/accounting/                         # Accounting Data
+```
+
+### Admin Management
+```
+GET  /api/admin/                              # Admin Endpoints
+```
+
+### Audit
+```
+GET  /api/audit/                              # Audit Logs
+```
+
+### Notifications
+```
+GET  /api/notifications/                      # Notifications
+```
+
+### Devotionals
+```
+GET  /api/devotionals/                        # Devotionals
+```
+
+### Notices
+```
+GET  /api/notices/                            # Notices
+```
+
+### Announcements
+```
+GET  /api/announcements/                      # Announcements
+```
+
+### Suggestions
+```
+GET  /api/suggestions/                        # Suggestions
+```
+
+### Attendance
+```
+GET  /api/attendance/                         # Attendance Data
+```
+
+---
+
+## 🏥 Health Check
+
+```
+GET  /api/health/                             # Health Check
+```
+
+---
+
+## 🔗 API Root
+
+```
+GET  /                                        # API Root (Returns endpoint list)
+```
+
+---
+
+## 📝 Integration Notes
+
+1. **Authentication**: Most endpoints require JWT token in Authorization header: `Bearer <token>`
+2. **Base URL**: `https://backend.sanctum.co.ke/api`
+3. **Content-Type**: `application/json`
+4. **Pagination**: List endpoints support pagination parameters
+5. **CORS**: Configured for frontend integration
+6. **Rate Limiting**: Applied to prevent abuse
 
 ---
 
@@ -752,4 +545,4 @@ if (response.success) {
 
 ---
 
-*For support, contact: support@altarfunds.com*
+*For support, contact: support@sanctum.co.ke*

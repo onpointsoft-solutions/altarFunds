@@ -6,6 +6,7 @@
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefresh"
+        android:background="@color/secondary"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
@@ -69,8 +70,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
+        android:background="@color/primary"
         android:contentDescription="@string/give_now"
         android:src="@android:drawable/ic_input_add"
-        app:tint="@color/white" />
+        app:tint="@color/primary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
