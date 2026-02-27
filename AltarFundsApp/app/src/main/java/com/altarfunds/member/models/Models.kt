@@ -164,6 +164,43 @@ data class Church(
     @SerializedName("created_at") val createdAt: String
 )
 
+// Giving Models
+data class GivingCategory(
+    val id: Int,
+    val name: String,
+    val description: String?,
+    @SerializedName("is_active") val isActive: Boolean,
+    @SerializedName("display_order") val displayOrder: Int,
+    @SerializedName("monthly_target") val monthlyTarget: String?,
+    @SerializedName("yearly_target") val yearlyTarget: String?
+)
+
+data class GivingTransactionRequest(
+    val category: Int,
+    val amount: Double,
+    @SerializedName("payment_method") val paymentMethod: String = "mpesa",
+    val note: String? = null,
+    @SerializedName("is_anonymous") val isAnonymous: Boolean = false
+)
+
+data class GivingTransaction(
+    val id: Int,
+    @SerializedName("transaction_id") val transactionId: String,
+    val amount: String,
+    @SerializedName("payment_method") val paymentMethod: String,
+    @SerializedName("payment_method_display") val paymentMethodDisplay: String,
+    status: String,
+    @SerializedName("transaction_type") val transactionType: String,
+    @SerializedName("transaction_date") val transactionDate: String,
+    val note: String?,
+    @SerializedName("is_anonymous") val isAnonymous: Boolean,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("updated_at") val updatedAt: String,
+    val category: GivingCategory,
+    val member: String,
+    val church: String
+)
+
 // Donation Models
 data class DonationRequest(
     val amount: Double,

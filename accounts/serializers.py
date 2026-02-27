@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
 from .models import User, Member, UserSession, PasswordResetToken, ChurchJoinRequest
 from common.serializers import BaseSerializer, UserSerializer

@@ -1,7 +1,23 @@
 from django.urls import path
 from . import views
+from giving.views import create_giving_transaction, giving_categories
+from giving.models import GivingTransaction
+from giving.serializers import GivingTransactionSerializer
+from rest_framework import generics
 
 app_name = 'mobile'
+
+# Mobile Giving ViewSet
+class MobileGivingTransactionListView(generics.ListAPIView):
+    """Mobile API to list giving transactions for current user"""
+    serializer_class = GivingTransactionSerializer
+    permission_classes = ['rest_framework.permissions.IsAuthenticated']
+    
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'member_profile'):
+            return GivingTransaction.objects.filter(member=user.member_profile).order_by('-created_at')
+        return GivingTransaction.objects.none()
 
 urlpatterns = [
     # Authentication
@@ -23,6 +39,11 @@ urlpatterns = [
     path('giving-summary/', views.MobileGivingSummaryView.as_view(), name='giving-summary'),
     path('church-info/', views.MobileChurchInfoView.as_view(), name='church-info'),
     path('quick-actions/', views.MobileQuickActionsView.as_view(), name='quick-actions'),
+    
+    # Giving/Donations
+    path('donations/', create_giving_transaction, name='create-donation'),
+    path('giving-transactions/', MobileGivingTransactionListView.as_view(), name='giving-transactions'),
+    path('giving-categories/', giving_categories, name='giving-categories'),
     
     # Notifications
     path('notifications/', views.MobileNotificationListView.as_view(), name='notification-list'),

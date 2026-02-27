@@ -46,6 +46,17 @@ interface ApiService {
     @GET("giving/categories/")
     suspend fun getGivingCategories(): Response<ApiResponse<List<GivingCategory>>>
     
+    // Create Giving Transaction
+    @POST("mobile/donations/")
+    suspend fun createDonation(@Body request: GivingTransactionRequest): Response<ApiResponse<GivingTransaction>>
+    
+    // Get Giving Transactions
+    @GET("mobile/giving-transactions/")
+    suspend fun getGivingTransactions(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 20
+    ): Response<PaginatedResponse<GivingTransaction>>
+    
     // Payment Initialization
     @POST("giving/initialize-payment/")
     suspend fun initializePayment(@Body request: Map<String, Any>): Response<ApiResponse<Map<String, Any>>>
@@ -61,19 +72,6 @@ interface ApiService {
     // Church Theme Colors
     @GET("churches/mobile/theme-colors/")
     suspend fun getChurchThemeColors(): Response<ApiResponse<ChurchThemeColors>>
-    
-    // Donations/Giving
-    @POST("mobile/donations/")
-    suspend fun createDonation(@Body request: DonationRequest): Response<Donation>
-    
-    @GET("mobile/donations/")
-    suspend fun getDonations(
-        @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 20
-    ): Response<PaginatedResponse<Donation>>
-    
-    @GET("mobile/donations/{id}/")
-    suspend fun getDonationDetails(@Path("id") donationId: Int): Response<Donation>
     
     // M-Pesa Payment
     @POST("mobile/mpesa/stk-push/")
