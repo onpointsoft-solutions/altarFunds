@@ -536,6 +536,48 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 return User.objects.none()
 
 
+class StaffListView(generics.ListAPIView):
+    """List all staff members (pastor, treasurer, usher, auditor) for a church or denomination"""
+    
+    serializer_class = UserListSerializer
+    permission_classes = [IsChurchAdmin]
+    filterset_fields = ['role', 'church', 'is_active']
+    search_fields = ['first_name', 'last_name', 'email']
+    ordering_fields = ['created_at', 'last_login', 'first_name']
+    
+    # Staff roles filter
+    STAFF_ROLES = ['pastor', 'treasurer', 'usher', 'auditor']
+    
+    def get_queryset(self):
+        """Get staff members based on user role and filters"""
+        user = self.request.user
+        queryset = User.objects.filter(role__in=self.STAFF_ROLES)
+        
+        # Filter by church if provided
+        church_id = self.request.query_params.get('church')
+        if church_id:
+            queryset = queryset.filter(church_id=church_id)
+        
+        # Apply role-based access control
+        if user.role == 'system_admin':
+            # System admins can see all staff
+            return queryset
+        elif user.role == 'denomination_admin':
+            # Denomination admins can see staff in their denomination
+            if user.church and user.church.denomination:
+                return queryset.filter(church__denomination=user.church.denomination)
+            elif user.church:
+                return queryset.filter(church=user.church)
+            else:
+                return User.objects.none()
+        else:
+            # Pastors, treasurers can see staff in their church
+            if user.church:
+                return queryset.filter(church=user.church)
+            else:
+                return User.objects.none()
+
+
 @api_view(['POST'])
 @permission_classes([IsChurchAdmin])
 def suspend_user(request, user_id):

@@ -12,7 +12,8 @@ from .views import (
     revoke_session, 
     UserListView, 
     UserDetailView,
-    StaffRegistrationView
+    StaffRegistrationView,
+    StaffListView
 )
 
 app_name = 'accounts'
@@ -33,4 +34,5 @@ urlpatterns = [
     path('sessions/<int:session_id>/revoke/', revoke_session, name='revoke_session'),
     path('users/', UserListView.as_view(), name='user_list'),
     path('users/<int:pk>/', UserDetailView.as_view(), name='user_detail'),
+    path('staff/', StaffListView.as_view(), name='staff_list'),
 ]

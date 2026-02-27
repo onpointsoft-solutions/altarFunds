@@ -141,7 +141,7 @@ class DashboardFragment : Fragment() {
                 loadRecentAnnouncements(false)
                 loadRecentDevotionals(false)
             } finally {
-                binding.swipeRefresh.isRefreshing = false
+                _binding?.swipeRefresh?.isRefreshing = false
             }
         }
     }
@@ -152,15 +152,15 @@ class DashboardFragment : Fragment() {
             val cachedAnnouncements = app.database.announcementDao().getRecentAnnouncements(3).firstOrNull()
             if (!cachedAnnouncements.isNullOrEmpty()) {
                 val announcements = cachedAnnouncements.map { it.toModel() }
-                binding.rvRecentAnnouncements.visible()
-                binding.tvEmptyAnnouncements.gone()
+                _binding?.rvRecentAnnouncements?.visible()
+                _binding?.tvEmptyAnnouncements?.gone()
                 announcementAdapter.submitList(announcements)
             }
             
             if (!fetchFromNetwork || !NetworkUtils.isNetworkAvailable(requireContext())) {
                 if (cachedAnnouncements.isNullOrEmpty()) {
-                    binding.rvRecentAnnouncements.gone()
-                    binding.tvEmptyAnnouncements.visible()
+                    _binding?.rvRecentAnnouncements?.gone()
+                    _binding?.tvEmptyAnnouncements?.visible()
                 }
                 return@launch
             }
@@ -179,11 +179,11 @@ class DashboardFragment : Fragment() {
                     }
                     
                     if (announcements.isEmpty()) {
-                        binding.rvRecentAnnouncements.gone()
-                        binding.tvEmptyAnnouncements.visible()
+                        _binding?.rvRecentAnnouncements?.gone()
+                        _binding?.tvEmptyAnnouncements?.visible()
                     } else {
-                        binding.rvRecentAnnouncements.visible()
-                        binding.tvEmptyAnnouncements.gone()
+                        _binding?.rvRecentAnnouncements?.visible()
+                        _binding?.tvEmptyAnnouncements?.gone()
                         announcementAdapter.submitList(announcements)
                     }
                 }
