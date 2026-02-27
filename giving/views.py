@@ -99,8 +99,12 @@ def create_giving_transaction(request):
         # Get request data
         data = request.data
         
+        # Support both 'category' (backend) and 'donationType' (mobile) field names
+        category_id = data.get('category') or data.get('donationType')
+        amount = data.get('amount')
+        
         # Validate required fields
-        if 'category' not in data or 'amount' not in data:
+        if not category_id or not amount:
             return Response({
                 'success': False,
                 'message': 'Category and amount are required',
@@ -110,7 +114,7 @@ def create_giving_transaction(request):
         # Get category
         try:
             category = GivingCategory.objects.get(
-                id=data['category'], 
+                id=category_id, 
                 church=user.church, 
                 is_active=True
             )
@@ -127,14 +131,14 @@ def create_giving_transaction(request):
             church=user.church,
             category=category,
             amount=data['amount'],
-            payment_method=data.get('payment_method', 'mpesa'),
+            payment_method=data.get('payment_method') or data.get('paymentMethod') or 'mpesa',
             transaction_type='one_time',
             status='pending',
             transaction_date=timezone.now().date(),
             created_by=user,
             updated_by=user,
-            note=data.get('note', ''),
-            is_anonymous=data.get('is_anonymous', False)
+            note=data.get('note') or data.get('description') or '',
+            is_anonymous=data.get('is_anonymous') or data.get('isAnonymous') or False
         )
         
         logger.info(f"Created transaction {transaction.transaction_id} for user {user.email}")

@@ -4,6 +4,7 @@ from giving.views import create_giving_transaction, giving_categories
 from giving.models import GivingTransaction
 from giving.serializers import GivingTransactionSerializer
 from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
 
 app_name = 'mobile'
 
@@ -11,7 +12,7 @@ app_name = 'mobile'
 class MobileGivingTransactionListView(generics.ListAPIView):
     """Mobile API to list giving transactions for current user"""
     serializer_class = GivingTransactionSerializer
-    permission_classes = ['rest_framework.permissions.IsAuthenticated']
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         user = self.request.user

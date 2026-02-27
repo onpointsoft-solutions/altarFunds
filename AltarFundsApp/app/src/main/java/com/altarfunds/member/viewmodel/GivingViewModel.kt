@@ -31,8 +31,8 @@ class GivingViewModel : ViewModel() {
     private val _themeColors = MutableLiveData<Resource<ChurchThemeColors>>()
     val themeColors: LiveData<Resource<ChurchThemeColors>> = _themeColors
     
-    private val _donationResult = MutableLiveData<Resource<Donation>>()
-    val donationResult: LiveData<Resource<Donation>> = _donationResult
+    private val _donationResult = MutableLiveData<Resource<GivingTransaction>>()
+    val donationResult: LiveData<Resource<GivingTransaction>> = _donationResult
     
         
     fun loadGivingCategories() {
@@ -108,17 +108,22 @@ class GivingViewModel : ViewModel() {
         _donationResult.value = Resource.Loading
         viewModelScope.launch {
             try {
-                val donationRequest = DonationRequest(
+                val givingRequest = GivingTransactionRequest(
+                    category = categoryId,
                     amount = amount,
-                    donationType = "one_time",
-                    description = "Mobile donation",
                     paymentMethod = paymentMethod,
-                    phoneNumber = ""
+                    note = reference ?: "Mobile donation",
+                    isAnonymous = false
                 )
                 
-                val response = getApiService().createDonation(donationRequest)
+                val response = getApiService().createDonation(givingRequest)
                 if (response.isSuccessful) {
-                    _donationResult.value = Resource.Success(response.body()!!)
+                    val apiResponse = response.body()
+                    if (apiResponse?.success == true && apiResponse.data != null) {
+                        _donationResult.value = Resource.Success(apiResponse.data)
+                    } else {
+                        _donationResult.value = Resource.Error(apiResponse?.message ?: "Failed to create donation")
+                    }
                 } else {
                     _donationResult.value = Resource.Error("Failed to create donation: ${response.code()}")
                 }

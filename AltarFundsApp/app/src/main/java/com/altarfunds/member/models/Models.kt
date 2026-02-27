@@ -164,17 +164,6 @@ data class Church(
     @SerializedName("created_at") val createdAt: String
 )
 
-// Giving Models
-data class GivingCategory(
-    val id: Int,
-    val name: String,
-    val description: String?,
-    @SerializedName("is_active") val isActive: Boolean,
-    @SerializedName("display_order") val displayOrder: Int,
-    @SerializedName("monthly_target") val monthlyTarget: String?,
-    @SerializedName("yearly_target") val yearlyTarget: String?
-)
-
 data class GivingTransactionRequest(
     val category: Int,
     val amount: Double,
@@ -189,7 +178,7 @@ data class GivingTransaction(
     val amount: String,
     @SerializedName("payment_method") val paymentMethod: String,
     @SerializedName("payment_method_display") val paymentMethodDisplay: String,
-    status: String,
+    val status: String,
     @SerializedName("transaction_type") val transactionType: String,
     @SerializedName("transaction_date") val transactionDate: String,
     val note: String?,

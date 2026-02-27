@@ -9,10 +9,11 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.altarfunds.member.MemberApp
-import com.altarfunds.member.adapters.DonationAdapter
+import com.altarfunds.member.adapters.GivingTransactionAdapter
 import com.altarfunds.member.data.mappers.toEntity
 import com.altarfunds.member.data.mappers.toModel
 import com.altarfunds.member.databinding.FragmentGivingBinding
+import com.altarfunds.member.models.*
 import com.altarfunds.member.utils.*
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -22,7 +23,7 @@ class GivingFragment : Fragment() {
     private var _binding: FragmentGivingBinding? = null
     private val binding get() = _binding!!
     private val app by lazy { MemberApp.getInstance() }
-    private lateinit var donationAdapter: DonationAdapter
+    private lateinit var givingAdapter: GivingTransactionAdapter
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -38,14 +39,14 @@ class GivingFragment : Fragment() {
         
         setupRecyclerView()
         setupListeners()
-        loadDonations()
+        loadGivingTransactions()
     }
     
     private fun setupRecyclerView() {
-        donationAdapter = DonationAdapter()
+        givingAdapter = GivingTransactionAdapter()
         binding.rvDonations.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = donationAdapter
+            adapter = givingAdapter
         }
     }
     
@@ -55,52 +56,31 @@ class GivingFragment : Fragment() {
         }
         
         binding.swipeRefresh.setOnRefreshListener {
-            loadDonations()
+            loadGivingTransactions()
         }
     }
     
-    private fun loadDonations() {
+    private fun loadGivingTransactions() {
         binding.swipeRefresh.isRefreshing = true
         
         lifecycleScope.launch {
-            // First, try to load from cache
-            val cachedDonations = app.database.donationDao().getAllDonations().firstOrNull()
-            if (!cachedDonations.isNullOrEmpty()) {
-                val donations = cachedDonations.map { it.toModel() }
-                donationAdapter.submitList(donations)
-                binding.tvEmpty.gone()
-                binding.rvDonations.visible()
-            }
-            
             // Check network availability
             if (!NetworkUtils.isNetworkAvailable(requireContext())) {
                 binding.swipeRefresh.isRefreshing = false
-                if (!cachedDonations.isNullOrEmpty()) {
-                    requireContext().showToast("ℹ Offline mode - Showing cached donations")
-                } else {
-                    requireContext().showToast("✗ No internet connection and no cached donations")
-                    binding.tvEmpty.visible()
-                    binding.rvDonations.gone()
-                }
+            requireContext().showToast("No internet connection")
                 return@launch
             }
             
             // Fetch from network
             try {
-                val response = app.apiService.getDonations()
+                val response = app.apiService.getGivingTransactions()
                 
                 if (response.isSuccessful && response.body() != null) {
-                    val donations = response.body()!!.results
+                    val transactions = response.body()!!.results
                     
-                    // Cache the donations
-                    if (donations.isNotEmpty()) {
-                        app.database.donationDao().deleteAllDonations()
-                        app.database.donationDao().insertDonations(donations.map { it.toEntity() })
-                    }
+                    givingAdapter.submitList(transactions)
                     
-                    donationAdapter.submitList(donations)
-                    
-                    if (donations.isEmpty()) {
+                    if (transactions.isEmpty()) {
                         binding.tvEmpty.visible()
                         binding.rvDonations.gone()
                     } else {
@@ -108,15 +88,11 @@ class GivingFragment : Fragment() {
                         binding.rvDonations.visible()
                     }
                 } else {
-                    if (cachedDonations.isNullOrEmpty()) {
-                        requireContext().showToast("✗ Failed to load donations")
-                    }
+                    requireContext().showToast("Failed to load giving history")
                 }
-            } catch (e: Exception) {
+            } catch (e: java.lang.Exception) {
                 e.printStackTrace()
-                if (cachedDonations.isNullOrEmpty()) {
-                    requireContext().showToast("✗ Network error: ${e.message ?: "Unknown error"}")
-                }
+                requireContext().showToast("Error: ${e.message}")
             } finally {
                 binding.swipeRefresh.isRefreshing = false
             }
@@ -125,7 +101,7 @@ class GivingFragment : Fragment() {
     
     override fun onResume() {
         super.onResume()
-        loadDonations()
+        loadGivingTransactions()
     }
     
     override fun onDestroyView() {

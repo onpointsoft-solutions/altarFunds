@@ -1,12 +1,14 @@
 package com.altarfunds.member.ui.giving
 
 import android.os.Bundle
+import android.view.View
 import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.altarfunds.member.MemberApp
 import com.altarfunds.member.R
 import com.altarfunds.member.databinding.ActivityGivingBinding
+import com.altarfunds.member.models.GivingCategory
 import com.altarfunds.member.models.MpesaRequest
 import com.altarfunds.member.utils.*
 import kotlinx.coroutines.delay
@@ -16,6 +18,8 @@ class GivingActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityGivingBinding
     private val app by lazy { MemberApp.getInstance() }
+    private var categories: List<GivingCategory> = emptyList()
+    private var selectedCategoryId: Int = 0
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,7 +27,7 @@ class GivingActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         setupToolbar()
-        setupDonationTypeSpinner()
+        loadGivingCategories()
         setupListeners()
     }
     
@@ -34,9 +38,43 @@ class GivingActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener { finish() }
     }
     
-    private fun setupDonationTypeSpinner() {
-        val types = arrayOf("Tithe", "Offering", "Special Offering", "Building Fund", "Mission")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, types)
+    private fun loadGivingCategories() {
+        lifecycleScope.launch {
+            try {
+                val response = app.apiService.getGivingCategories()
+                
+                if (response.isSuccessful && response.body() != null) {
+                    categories = response.body()!!.data ?: emptyList()
+                    setupCategorySpinner()
+                } else {
+                    // Fallback to default categories if API fails
+                    setupDefaultCategories()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                setupDefaultCategories()
+            }
+        }
+    }
+    
+    private fun setupCategorySpinner() {
+        val categoryNames = categories.map { it.name }.toTypedArray()
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, categoryNames)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.spinnerType.adapter = adapter
+        
+        binding.spinnerType.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedCategoryId = categories[position].id
+            }
+            
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+    }
+    
+    private fun setupDefaultCategories() {
+        val defaultTypes = arrayOf("Tithe", "Offering", "Building Fund", "Mission", "Special")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, defaultTypes)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.spinnerType.adapter = adapter
     }
@@ -83,7 +121,6 @@ class GivingActivity : AppCompatActivity() {
         
         val amount = binding.etAmount.text.toString()
         val phone = binding.etPhone.text.toString().formatPhoneNumber()
-        val donationType = getDonationType()
         val description = binding.etDescription.text.toString().ifEmpty { "Donation" }
         
         lifecycleScope.launch {
@@ -91,7 +128,7 @@ class GivingActivity : AppCompatActivity() {
                 val request = MpesaRequest(
                     phoneNumber = phone,
                     amount = amount,
-                    donationType = donationType,
+                    donationType = selectedCategoryId.toString(),
                     description = description
                 )
                 
@@ -139,18 +176,6 @@ class GivingActivity : AppCompatActivity() {
             }
         }
     }
-    
-    private fun getDonationType(): String {
-        return when (binding.spinnerType.selectedItemPosition) {
-            0 -> "tithe"
-            1 -> "offering"
-            2 -> "special_offering"
-            3 -> "building_fund"
-            4 -> "mission"
-            else -> "offering"
-        }
-    }
-    
     private fun showLoading(show: Boolean) {
         if (show) {
             binding.btnGive.isEnabled = false
