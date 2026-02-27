@@ -176,7 +176,7 @@ class Church(TimeStampedModel, SoftDeleteModel):
     )
     
     # Branding
-    logo = models.ImageField(_('Church Logo'), upload_to='church_logos/', null=True, blank=True)
+    logo = models.CharField(_('Church Logo'), max_length=500, null=True, blank=True)
     primary_color = models.CharField(_('Primary Theme Color'), max_length=7, default='#3B82F6', help_text=_('Hex color code (e.g., #3B82F6)'))
     secondary_color = models.CharField(_('Secondary Theme Color'), max_length=7, default='#10B981', help_text=_('Hex color code (e.g., #10B981)'))
     accent_color = models.CharField(_('Accent Color'), max_length=7, default='#F59E0B', help_text=_('Hex color code (e.g., #F59E0B)'))

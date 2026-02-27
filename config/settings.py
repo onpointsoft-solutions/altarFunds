@@ -108,27 +108,39 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # --------------------------------------------------
-# DATABASE (MYSQL – PRODUCTION)
+# DATABASE (SQLITE – LOCAL DEVELOPMENT)
 # --------------------------------------------------
 
-# Use PyMySQL as MySQL backend
-import pymysql
-pymysql.install_as_MySQLdb()
-
+# Use SQLite for local development
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'oamsmxjt_sanctum',
-        'USER': 'oamsmxjt_admin',
-        'PASSWORD': '@Admin@2026',
-        'HOST': 'localhost',
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# --------------------------------------------------
+# DATABASE (MYSQL – PRODUCTION)
+# --------------------------------------------------
+# Uncomment below for production MySQL database
+#
+# import pymysql
+# pymysql.install_as_MySQLdb()
+#
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'oamsmxjt_sanctum',
+#         'USER': 'oamsmxjt_admin',
+#         'PASSWORD': '@Admin@2026',
+#         'HOST': 'localhost',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'charset': 'utf8mb4',
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#         },
+#     }
+# }
 
 # --------------------------------------------------
 # AUTHENTICATION
