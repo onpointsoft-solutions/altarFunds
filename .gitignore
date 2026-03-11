@@ -6,7 +6,21 @@ __pycache__/
 # C extensions
 *.so
 
-# Distribution / packaging
+# Build files and directories
+build/
+dist/
+target/
+out/
+bin/
+gen/
+*.build/
+build.log
+
+# Node.js build
+dist-ssr/
+*.local
+
+# Python build
 build/
 develop-eggs/
 dist/
@@ -22,6 +36,33 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# Mobile app build
+mobileapp/app/build/
+mobileapp/app/release/
+mobileapp/app/debug/
+mobileapp/app/*.apk
+mobileapp/app/*.aab
+/android/app/debug
+/android/app/release
+/mobileapp/app/debug
+/mobileapp/app/release
+/mobileapp/build/
+
+# Gradle build
+.gradle/
+gradle/wrapper/
+gradlew
+gradlew.bat
+
+# Android build
+obj/
+.caches/
+.transforms/
+captures/
+
+# Room database migrations
+# (already covered in build section above)
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -291,8 +332,11 @@ env/
 ENV/
 .venv/
 
-# Environment variables 
-.env.example
+# Environment files (keep .env.example as template)
+.env
+.env.local
+.env.production
+.env.staging
 
 # Database dumps
 *.sql
@@ -395,13 +439,10 @@ dist-ssr
 *.class
 
 # Generated files
-bin/
-gen/
-out/
+# (already covered in build section above)
 
 # Gradle files
-.gradle/
-build/
+# (already covered in build section above)
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -455,31 +496,16 @@ lint/tmp/
 *.hprof
 
 # Mobile app specific
-mobileapp/app/build/
-mobileapp/app/release/
-mobileapp/app/debug/
-mobileapp/app/*.apk
-mobileapp/app/*.aab
+# (already covered in build section above)
 
 # Android NDK
 obj/
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/release
+# Android Studio build artifacts
+# (already covered in build section above)
 
-# Android Studio will place build artifacts here
-/mobileapp/app/debug
-/mobileapp/app/release
-
-# Gradle wrapper
-gradle/wrapper/
-gradlew
-gradlew.bat
-
-# Android Studio 3 in .gradle folder
-.caches/
-.transforms/
+# Gradle wrapper and Android Studio files
+# (already covered in build section above)
 
 # Android Studio local changes
 .idea/navEditor.xml
@@ -509,12 +535,11 @@ Thumbs.db
 # External libraries
 /captures
 
-# Android Studio will place build artifacts here
-/mobileapp/build/
+# Mobile app build artifacts
+# (already covered in build section above)
 
 # Firebase
 google-services.json
 
 # Room database migrations
-**/migrations/
-**/migration*
+# (already covered in build section above)

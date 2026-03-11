@@ -1,0 +1,12 @@
+Sanctum Church Management System
+License Agreement
+
+Copyright (c) 2026 Sanctum Church Management System
+
+This software is provided "as-is" for church management purposes.
+You may use this software freely for church and religious organization
+management activities.
+
+For commercial use or redistribution, please contact the development team.
+
+The software includes third-party libraries with their respective licenses.

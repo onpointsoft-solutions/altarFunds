@@ -1,0 +1,14 @@
+Sanctum Church Management System
+Version: 1.0.0
+Build Date: Tue Feb 24 11:00:00 AM EAT 2026
+Platform: Linux
+Java Version Required: 11+
+Installation Type: Installer + Portable
+
+This package includes:
+- Automatic installer (install.sh)
+- Portable executable (sanctum.sh)
+- Uninstaller (uninstall.sh)
+- Self-contained Java application with embedded database
+
+No additional installation required beyond Java Runtime Environment.

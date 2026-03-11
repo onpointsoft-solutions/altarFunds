@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  
+  <!-- Product Definition -->
+  <Product 
+    Id="*" 
+    Name="Sanctum Church Management System" 
+    Language="1033" 
+    Version="1.0.0.0" 
+    Manufacturer="Sanctum Church Software" 
+    UpgradeCode="{B3F1A2C4-9D7E-4F8A-B6E5-D2C1A0F3E8B7}">
+    
+    <!-- Package Information -->
+    <Package 
+      InstallerVersion="200" 
+      Compressed="yes" 
+      InstallScope="perMachine" 
+      Description="Church Management System" 
+      Comments="Professional church administration software" 
+      Manufacturer="Sanctum Church Software" />
+    
+    <!-- Media -->
+    <MediaTemplate EmbedCab="yes" />
+    
+    <!-- Features -->
+    <Feature Id="ProductFeature" Title="Sanctum Church Management" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+    
+    <!-- Directory Structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="Sanctum" />
+      </Directory>
+      
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Sanctum"/>
+      </Directory>
+      
+      <!-- Desktop -->
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+    
+    <!-- Components -->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable">
+        <File Id="SanctumEXE" Source="$(var.SanctumChurchManagement.TargetPath)" />
+        <RegistryValue 
+          Root="HKLM" 
+          Key="Software\Sanctum Church Software\Sanctum" 
+          Name="installed" 
+          Type="integer" 
+          Value="1" 
+          KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+    
+    <!-- Shortcuts -->
+    <Component Id="ApplicationShortcut" Directory="ApplicationProgramsFolder">
+      <Shortcut 
+        Id="ApplicationStartMenuShortcut"
+        Name="Sanctum Church Management"
+        Description="Church administration system"
+        Target="[#SanctumEXE]"
+        WorkingDirectory="INSTALLFOLDER"
+        Icon="SanctumIcon.ico" />
+      <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+      <RegistryValue 
+        Root="HKCU" 
+        Key="Software\Sanctum Church Software\Sanctum" 
+        Name="installed" 
+        Type="integer" 
+        Value="1" 
+        KeyPath="yes" />
+    </Component>
+    
+    <Component Id="DesktopShortcut" Directory="DesktopFolder">
+      <Shortcut 
+        Id="ApplicationDesktopShortcut"
+        Name="Sanctum Church Management"
+        Description="Church administration system"
+        Target="[#SanctumEXE]"
+        WorkingDirectory="INSTALLFOLDER"
+        Icon="SanctumIcon.ico" />
+      <RegistryValue 
+        Root="HKCU" 
+        Key="Software\Sanctum Church Software\Sanctum" 
+        Name="desktop_shortcut" 
+        Type="integer" 
+        Value="1" 
+        KeyPath="yes" />
+    </Component>
+    
+    <!-- Icons -->
+    <Icon Id="SanctumIcon.ico" SourceFile="resources\app.ico"/>
+    
+    <!-- Properties -->
+    <Property Id="ARPPRODUCTICON" Value="SanctumIcon.ico" />
+    <Property Id="ARPHELPLINK" Value="https://support.sanctumchurch.com" />
+    <Property Id="ARPURLINFOABOUT" Value="https://www.sanctumchurch.com" />
+    
+    <!-- UI Configuration -->
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    
+    <!-- License Agreement -->
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    
+  </Product>
+</Wix>

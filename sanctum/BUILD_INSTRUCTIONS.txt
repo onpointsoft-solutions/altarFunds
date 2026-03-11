@@ -1,0 +1,41 @@
+Standard Windows MSI Installer Build Instructions
+===============================================
+
+REQUIREMENTS:
+1. Visual Studio 2019+ with WiX Toolset extension
+2. OR WiX Toolset v3.11+ standalone
+3. .NET Framework 4.7.2+
+
+BUILD STEPS:
+1. Install WiX Toolset:
+   - Visual Studio: Extensions > Manage Extensions > Search "WiX"
+   - Standalone: https://wixtoolset.org/releases/
+
+2. Build MSI:
+   ```
+   msbuild SanctumInstaller.wixproj /p:Configuration=Release
+   ```
+
+3. Output: bin\Release\SanctumInstaller.msi
+
+STANDARD FEATURES:
+✅ Windows Installer service integration
+✅ Add/Remove Programs support  
+✅ Repair/Modify/Uninstall options
+✅ Component-based installation
+✅ Windows Logo compliance
+✅ Code signing support
+✅ Automatic update detection
+✅ Prerequisites checking
+✅ Multi-language support
+✅ Silent installation support
+
+DEPLOYMENT OPTIONS:
+- Group Policy (GPO) deployment
+- System Center Configuration Manager (SCCM)
+- Microsoft Intune
+- Manual installation
+- Web deployment
+
+CODE SIGNING (Recommended):
+signtool sign /f certificate.pfx /p password /t http://timestamp.digicert.com SanctumInstaller.msi
