@@ -1,5 +1,9 @@
 package com.sanctum.view;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.awt.Image;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -29,6 +33,7 @@ public class SecretaryDashboardFrame extends JFrame {
     private int mouseX, mouseY;
     
     public SecretaryDashboardFrame() {
+        setApplicationIcon();
         initializeFrame();
         createComponents();
         layoutComponents();
@@ -607,6 +612,62 @@ public class SecretaryDashboardFrame extends JFrame {
     
     private void setupEventHandlers() {
         // Event handlers setup
+    }
+    
+    /**
+     * Sets the application icon for this window using PNG for better compatibility
+     */
+    private void setApplicationIcon() {
+        try {
+            // Try PNG first (better Java compatibility)
+            Image iconImage = loadIconFromResources("/images/icon.png");
+            
+            if (iconImage != null) {
+                setIconImage(iconImage);
+                System.out.println("SecretaryDashboardFrame PNG icon loaded successfully - Size: " + iconImage.getWidth(null) + "x" + iconImage.getHeight(null));
+            } else {
+                System.out.println("SecretaryDashboardFrame PNG icon failed to load, trying ICO fallback");
+                iconImage = loadIconFromResources("/images/icon.ico");
+                
+                if (iconImage != null) {
+                    setIconImage(iconImage);
+                    System.out.println("SecretaryDashboardFrame ICO icon loaded successfully as fallback - Size: " + iconImage.getWidth(null) + "x" + iconImage.getHeight(null));
+                } else {
+                    System.out.println("SecretaryDashboardFrame Both PNG and ICO fallback failed - using default icon");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to set SecretaryDashboardFrame application icon: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Load icon image from resources using ImageIO for better format support
+     */
+    private Image loadIconFromResources(String path) {
+        try {
+            InputStream inputStream = SecretaryDashboardFrame.class.getResourceAsStream(path);
+            if (inputStream == null) {
+                System.out.println("SecretaryDashboardFrame Resource not found: " + path);
+                return null;
+            }
+            
+            // Use ImageIO to read the image (better for ICO files)
+            BufferedImage bufferedImage = ImageIO.read(inputStream);
+            inputStream.close();
+            
+            if (bufferedImage != null) {
+                System.out.println("SecretaryDashboardFrame Successfully loaded image from " + path + " - Size: " + bufferedImage.getWidth() + "x" + bufferedImage.getHeight());
+                return bufferedImage;
+            } else {
+                System.out.println("SecretaryDashboardFrame Failed to read image from " + path);
+                return null;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("SecretaryDashboardFrame Error loading image from " + path + ": " + e.getMessage());
+            return null;
+        }
     }
     
     public static void main(String[] args) {

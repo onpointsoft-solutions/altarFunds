@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.altarfunds.member.MemberApp
 import com.altarfunds.member.api.ApiService
 import com.altarfunds.member.api.RetrofitClient
 import com.altarfunds.member.models.*
@@ -13,7 +14,7 @@ import kotlinx.coroutines.launch
 class GivingViewModel : ViewModel() {
     
     private var apiService: ApiService? = null
-    
+    private val app by lazy { MemberApp.getInstance() }
     fun initializeApiService(tokenManager: TokenManager) {
         apiService = RetrofitClient.create(tokenManager)
     }
@@ -33,6 +34,9 @@ class GivingViewModel : ViewModel() {
     
     private val _donationResult = MutableLiveData<Resource<GivingTransaction>>()
     val donationResult: LiveData<Resource<GivingTransaction>> = _donationResult
+    
+    private val _paystackPaymentResult = MutableLiveData<Resource<PaystackPaymentResponse>>()
+    val paystackPaymentResult: LiveData<Resource<PaystackPaymentResponse>> = _paystackPaymentResult
     
         
     fun loadGivingCategories() {
@@ -129,6 +133,66 @@ class GivingViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 _donationResult.value = Resource.Error("Network error: ${e.message}")
+            }
+        }
+    }
+    
+    fun initializePaystackPayment(
+        amount: String,
+        givingType: String,
+        churchId: Int,
+        email: String
+    ) {
+        _paystackPaymentResult.value = Resource.Loading
+        viewModelScope.launch {
+            try {
+                val paystackRequest = PaystackPaymentRequest(
+                    email = email,
+                    amount = amount,
+                    givingType = givingType,
+                    churchId = churchId,
+                    metadata = mapOf(
+                        "user_id" to app.tokenManager.getRefreshToken(),
+                        "user_email" to email
+                    ) as Map<String, Any>
+                )
+                
+                val response = getApiService().initializePaystackPayment(paystackRequest)
+                if (response.isSuccessful) {
+                    val apiResponse = response.body()
+                    if (apiResponse?.success == true && apiResponse?.data != null) {
+                        val paymentData = apiResponse.data
+                        val paystackResponse = PaystackPaymentResponse(
+                            authorizationUrl = paymentData["authorization_url"] as String,
+                            reference = paymentData["reference"] as String,
+                            accessCode = paymentData["access_code"] as String
+                        )
+                        _paystackPaymentResult.value = Resource.Success(paystackResponse)
+                    } else {
+                        _paystackPaymentResult.value = Resource.Error(apiResponse?.message ?: "Failed to initialize payment")
+                    }
+                } else {
+                    _paystackPaymentResult.value = Resource.Error("Failed to initialize payment: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                _paystackPaymentResult.value = Resource.Error("Network error: ${e.message}")
+            }
+        }
+    }
+    
+    fun verifyPaystackPayment(reference: String) {
+        viewModelScope.launch {
+            try {
+                val response = getApiService().verifyPaystackPayment(reference)
+                if (response.isSuccessful) {
+                    val apiResponse = response.body()
+                    if (apiResponse?.success == true) {
+                        // Payment verified successfully
+                        // You might want to refresh giving transactions here
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle verification error
             }
         }
     }

@@ -1,1480 +1,899 @@
 package com.sanctum.view;
 
 import com.sanctum.api.SanctumApiClient;
-import com.sanctum.auth.SessionManager;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.MatteBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
-import javax.swing.table.TableCellRenderer;
+import javax.imageio.ImageIO;
 import java.awt.*;
-import java.awt.event.*;
-import java.util.List;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.ArrayList;
 
 /**
- * Enhanced Pastor Dashboard with Devotionals Management and Member Viewing
- * Sanctum Brand UI — glass-morphism cards, sidebar navigation, full backend integration
+ * Pastor Dashboard - Modern Ministry Interface
+ * Emerald green theme matching UsherDashboardFrame
  */
 public class PastorDashboardFrame extends JFrame {
-
-    // ─── Sanctum Brand Color System ─────────────────────────────────────────────
-    private static final Color C_BG          = new Color(14,  46,  42);   // Deep Emerald Green
-    private static final Color C_SURFACE     = new Color(19,  58,  54);   // Dark Green Secondary
-    private static final Color C_CARD        = new Color(28,  47,  44);   // Input Background
-    private static final Color C_CARD_HOVER  = new Color(42,  74,  69);   // Hover State
-
-    private static final Color C_BORDER      = new Color(42,  74,  69);   // Border Color
-    private static final Color C_BORDER_LT   = new Color(66, 115, 107);  // Light Border
-
-    // Accent palette — Gold spectrum
-    private static final Color C_GOLD        = new Color(212, 175,  55);  // Gold Accent
-    private static final Color C_GOLD_DIM    = new Color(212, 175,  55, 25);
+    
+    // ─── Sanctum Brand Color System ───────────────────────────────────
+    private static final Color C_BG          = new Color(14, 46, 42);   // Deep Emerald Green
+    private static final Color C_SURFACE     = new Color(19, 58, 54);   // Dark Green Secondary
+    private static final Color C_CARD        = new Color(28, 47, 44);   // Input Background
+    private static final Color C_GOLD        = new Color(212, 175, 55);   // Gold Accent
     private static final Color C_GOLD_HOVER  = new Color(230, 199, 102);  // Light Gold Hover
-    private static final Color C_GOLD_DIM_HOVER = new Color(230, 199, 102, 25);
-
-    // Text hierarchy
+    private static final Color C_GOLD_DIM    = new Color(212, 175, 55, 25); // Dim Gold
     private static final Color C_TEXT        = new Color(255, 255, 255);  // White Text
     private static final Color C_TEXT_MID    = new Color(207, 207, 207);  // Soft Gray Secondary
     private static final Color C_TEXT_DIM    = new Color(156, 163, 175);  // Dim Text
+    private static final Color C_BORDER      = new Color(42, 74, 69);   // Border Color
+    private static final Color C_SUCCESS      = new Color(52, 199, 89);
+    private static final Color C_DANGER      = new Color(255, 59, 48);
 
-    // Gradient endpoints for header glow
-    private static final Color C_GLOW_TOP    = new Color(212, 175, 55, 60);
-    private static final Color C_GLOW_BTM    = new Color(14,  46,  42,   0);
+    // ─── Typography ───────────────────────────────────────────────────
+    private static final Font F_TITLE   = new Font("Segoe UI",      Font.BOLD, 28);
+    private static final Font F_LABEL   = new Font("Segoe UI",      Font.BOLD, 14);
+    private static final Font F_MONO_SM = new Font("JetBrains Mono",Font.PLAIN, 11);
+    private static final Font F_MONO_LG = new Font("JetBrains Mono",Font.BOLD, 20);
 
-    // ─── Typography ──────────────────────────────────────────────────────────
-    private static final Font F_DISPLAY      = new Font("Palatino Linotype", Font.BOLD, 26);
-    private static final Font F_H1           = new Font("Palatino Linotype", Font.BOLD, 24);
-    private static final Font F_HEADING      = new Font("Verdana",  Font.BOLD, 13);
-    private static final Font F_LABEL        = new Font("Verdana",  Font.BOLD, 11);
-    private static final Font F_MONO_LG      = new Font("Monospaced", Font.BOLD, 22);
-    private static final Font F_MONO_SM      = new Font("Monospaced", Font.PLAIN, 11);
-    private static final Font F_BODY         = new Font("Verdana",  Font.PLAIN, 12);
-    private static final Font F_SMALL        = new Font("Verdana",  Font.PLAIN, 11);
+    // ─── Navigation ───────────────────────────────────────────────────
+    private static final String[][] MENU_ITEMS = {
+        {"🏠", "Overview"},
+        {"📖", "Devotionals"},
+        {"👥", "Members"},
+        {"🙏", "Prayer"},
+        {"💬", "Counseling"},
+        {"📅", "Events"},
+        {"⚙️", "Settings"}
+    };
 
-    // ─── State ───────────────────────────────────────────────────────────────
-    private int dragX, dragY;
-    private JTable devotionalsTable;
-    private JTable membersTable;
+    // ─── UI State ─────────────────────────────────────────────────────
+    private final CardLayout cardLayout = new CardLayout();
     private JPanel contentArea;
-    private CardLayout cardLayout;
-    private List<Map<String, Object>> currentDevotionals = new ArrayList<>();
-    private List<Map<String, Object>> currentMembers = new ArrayList<>();
+    private JPanel sidebar;
+    private String activeMenu = "Overview";
 
-    // KPI value labels
-    private JLabel lblTotalDevotionals;
-    private JLabel lblThisMonth;
+    // KPI value labels (updated from API)
     private JLabel lblTotalMembers;
-    private JLabel lblActiveMembers;
+    private JLabel lblDevotionals;
+    private JLabel lblPrayerRequests;
+    private JLabel lblCounselingSessions;
 
+    // ─── Constructor ──────────────────────────────────────────────────
     public PastorDashboardFrame() {
-        configureWindow();
-        buildUI();
-        loadData();
+        try {
+            configureWindow();
+            setApplicationIcon();
+            buildUI();
+            loadData();
+        } catch (Exception e) {
+            System.err.println("Failed to create PastorDashboardFrame: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to create PastorDashboardFrame: " + e.getMessage(), e);
+        }
     }
 
-    // ─── Window Setup ────────────────────────────────────────────────────────
-
+    // ─── Window Setup ─────────────────────────────────────────────────
     private void configureWindow() {
         setTitle("Sanctum — Pastor Dashboard");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setUndecorated(true);
         GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
-        if (gd.isFullScreenSupported()) {
-            gd.setFullScreenWindow(this);
-        } else {
-            setExtendedState(JFrame.MAXIMIZED_BOTH);
-        }
+        Rectangle bounds = gd.getDefaultConfiguration().getBounds();
+        setSize(bounds.width - 100, bounds.height - 100);
+        setLocationRelativeTo(null);
+        getContentPane().setBackground(C_BG);
     }
 
+    // ─── UI Construction ──────────────────────────────────────────────
     private void buildUI() {
-        JPanel root = new JPanel(new BorderLayout());
-        root.setBackground(C_BG);
-        root.setOpaque(true);
-        setContentPane(root);
+        setLayout(new BorderLayout());
 
-        root.add(buildTopBar(), BorderLayout.NORTH);
-
-        JPanel body = new JPanel(new BorderLayout(0, 0));
-        body.setOpaque(false);
-        body.add(buildSidebar(), BorderLayout.WEST);
-        body.add(buildMainArea(), BorderLayout.CENTER);
-        root.add(body, BorderLayout.CENTER);
-    }
-
-    // ─── Top Bar ─────────────────────────────────────────────────────────────
-
-    private JPanel buildTopBar() {
-        JPanel bar = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
+        JPanel main = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                // Clean deep purple background
-                g2.setColor(C_SURFACE);
+                g2.setPaint(new GradientPaint(0, 0, C_BG, getWidth(), getHeight(), C_SURFACE));
                 g2.fillRect(0, 0, getWidth(), getHeight());
-                // Bottom separator line
-                g2.setColor(C_BORDER);
-                g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
                 g2.dispose();
-                super.paintComponent(g);
             }
         };
-        bar.setOpaque(false);
-        bar.setBorder(new EmptyBorder(16, 28, 16, 24));
-        bar.setPreferredSize(new Dimension(0, 72));
+        main.setOpaque(false);
 
-        // Left — Brand
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        left.setOpaque(false);
+        main.add(buildTopBar(), BorderLayout.NORTH);
 
-        // Logo
-        JLabel icon;
-        try {
-            // Try to load logo from resources
-            java.net.URL logoUrl = getClass().getResource("/com/sanctum/resources/logo.png");
-            if (logoUrl != null) {
-                ImageIcon logoIcon = new ImageIcon(logoUrl);
-                Image scaledImage = logoIcon.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
-                icon = new JLabel(new ImageIcon(scaledImage));
-            } else {
-                // Fallback to text logo
-                icon = new JLabel("✦");
-                icon.setFont(new Font("Arial", Font.PLAIN, 28));
-                icon.setForeground(C_GOLD);
-            }
-        } catch (Exception e) {
-            // Fallback to text logo
-            icon = new JLabel("✦");
-            icon.setFont(new Font("Arial", Font.PLAIN, 28));
-            icon.setForeground(C_GOLD);
-        }
-        left.add(icon);
+        sidebar = buildSidebar();
+        main.add(sidebar, BorderLayout.WEST);
 
-        JLabel title = new JLabel("Sanctum");
-        title.setFont(F_DISPLAY);
-        title.setForeground(C_TEXT);
+        contentArea = new JPanel(cardLayout);
+        contentArea.setOpaque(false);
+        contentArea.add(buildMainDashboard(), "overview");
+        contentArea.add(buildDevotionalsPage(), "devotionals");
+        contentArea.add(buildMembersPage(), "members");
+        contentArea.add(buildPrayerPage(), "prayer");
+        contentArea.add(buildCounselingPage(), "counseling");
+        contentArea.add(buildEventsPage(), "events");
 
-        JLabel divider = new JLabel("  /  ");
-        divider.setFont(F_BODY);
-        divider.setForeground(C_TEXT_DIM);
+        main.add(contentArea, BorderLayout.CENTER);
+        add(main);
+    }
 
-        JLabel sub = new JLabel("Pastor Dashboard");
-        sub.setFont(new Font("Verdana", Font.PLAIN, 14));
-        sub.setForeground(C_TEXT_MID);
-
-        left.add(icon);
-        left.add(title);
-        left.add(divider);
-        left.add(sub);
-
-        // Right — User info and Window controls
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        controls.setOpaque(false);
-
-        // User info and logout
-        JPanel userInfo = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        userInfo.setOpaque(false);
-        
-        JLabel userLabel = new JLabel("👤 Pastor");
-        userLabel.setFont(new Font("Verdana", Font.PLAIN, 12));
-        userLabel.setForeground(C_TEXT_MID);
-        
-        JButton logoutBtn = new JButton("Logout") {
-            @Override
-            protected void paintComponent(Graphics g) {
+    // ─── Top Bar ──────────────────────────────────────────────────────
+    private JPanel buildTopBar() {
+        JPanel bar = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
-                if (getModel().isRollover()) {
-                    g2.setColor(C_GOLD_DIM_HOVER);
-                    g2.fillRect(0, 0, getWidth(), getHeight());
-                }
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(C_SURFACE);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(C_BORDER);
+                g2.fillRect(0, getHeight() - 1, getWidth(), 1);
                 g2.dispose();
             }
         };
-        logoutBtn.setFont(new Font("Verdana", Font.PLAIN, 11));
-        logoutBtn.setForeground(C_TEXT_MID);
-        logoutBtn.setBackground(C_CARD);
-        logoutBtn.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(C_BORDER),
-            BorderFactory.createEmptyBorder(6, 12, 6, 12)
-        ));
-        logoutBtn.setFocusPainted(false);
-        logoutBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        logoutBtn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) { 
-                logoutBtn.setForeground(C_GOLD); 
-                logoutBtn.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(C_GOLD),
-                    BorderFactory.createEmptyBorder(6, 12, 6, 12)
-                ));
-            }
-            public void mouseExited(MouseEvent e) { 
-                logoutBtn.setForeground(C_TEXT_MID);
-                logoutBtn.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(C_BORDER),
-                    BorderFactory.createEmptyBorder(6, 12, 6, 12)
-                ));
-            }
-        });
-        logoutBtn.addActionListener(e -> performLogout());
-        
-        userInfo.add(userLabel);
-        userInfo.add(logoutBtn);
+        bar.setPreferredSize(new Dimension(0, 60));
+        bar.setBorder(new EmptyBorder(10, 20, 10, 20));
 
-        JButton minimize = buildWindowBtn("─");
-        JButton close = buildWindowBtn("✕");
-        close.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) { close.setBackground(C_GOLD_HOVER); }
-            public void mouseExited(MouseEvent e) { close.setBackground(C_CARD); }
-        });
+        // Left — Logo
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        left.setOpaque(false);
+        JLabel icon  = new JLabel("⛪");
+        icon.setFont(new Font("Arial", Font.PLAIN, 15));
+        JLabel title = new JLabel("Sanctum  ·  Pastor Dashboard");
+        title.setFont(F_MONO_SM);
+        title.setForeground(C_TEXT_MID);
+        left.add(icon);
+        left.add(title);
 
+        // Center — User card
+        JPanel center = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        center.setOpaque(false);
+        center.add(buildUserInfoCard());
+
+        // Right — Window controls
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        right.setOpaque(false);
+        JButton minimize = createStyledButton("─", C_GOLD);
         minimize.addActionListener(e -> setState(JFrame.ICONIFIED));
-        close.addActionListener(e -> {
-            dispose();
-            new LoginFrame().setVisible(true);
-        });
+        JButton close = createStyledButton("✕", C_DANGER);
+        close.addActionListener(e -> performLogout());
+        right.add(minimize);
+        right.add(close);
 
-        controls.add(userInfo);
-        controls.add(minimize);
-        controls.add(close);
-
-        bar.add(left, BorderLayout.WEST);
-        bar.add(controls, BorderLayout.EAST);
-
-        // Drag support
-        bar.addMouseListener(new MouseAdapter() {
-            public void mousePressed(MouseEvent e) { dragX = e.getX(); dragY = e.getY(); }
-        });
-        bar.addMouseMotionListener(new MouseMotionAdapter() {
-            public void mouseDragged(MouseEvent e) {
-                setLocation(getX() + e.getX() - dragX, getY() + e.getY() - dragY);
-            }
-        });
-
+        bar.add(left,   BorderLayout.WEST);
+        bar.add(center, BorderLayout.CENTER);
+        bar.add(right,  BorderLayout.EAST);
         return bar;
     }
 
-    private JButton buildWindowBtn(String text) {
-        JButton btn = new JButton(text);
-        btn.setPreferredSize(new Dimension(34, 34));
-        btn.setBackground(C_CARD);
-        btn.setForeground(C_TEXT_MID);
-        btn.setFocusPainted(false);
-        btn.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
-        btn.setFont(F_HEADING);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) { btn.setBackground(C_CARD_HOVER); }
-            public void mouseExited(MouseEvent e) { btn.setBackground(C_CARD); }
-        });
-        return btn;
-    }
-
-    // ─── Sidebar ──────────────────────────────────────────────────────────────
-
-    private JPanel buildSidebar() {
-        JPanel sidebar = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setColor(C_SURFACE);
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                // Right border
-                g2.setColor(C_BORDER);
-                g2.drawLine(getWidth() - 1, 0, getWidth() - 1, getHeight());
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
-        sidebar.setOpaque(false);
-        sidebar.setBorder(new EmptyBorder(32, 14, 28, 14));
-        sidebar.setPreferredSize(new Dimension(264, 0));
-
-        // Logo block
-        JLabel logo = new JLabel("✦");
-        logo.setFont(new Font("Arial", Font.PLAIN, 40));
-        logo.setForeground(C_GOLD);
-        logo.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel brand = new JLabel("SANCTUM");
-        brand.setFont(new Font("Verdana", Font.BOLD, 12));
-        brand.setForeground(C_GOLD_HOVER);
-        brand.setAlignmentX(Component.CENTER_ALIGNMENT);
-        brand.setBorder(new EmptyBorder(6, 0, 2, 0));
-
-        JLabel brandSub = new JLabel("Pastor Portal");
-        brandSub.setFont(F_SMALL);
-        brandSub.setForeground(C_TEXT_DIM);
-        brandSub.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // Divider
-        JPanel divider = new JPanel();
-        divider.setBackground(C_BORDER);
-        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-        divider.setPreferredSize(new Dimension(0, 1));
-
-        // Nav items
-        JPanel nav = new JPanel();
-        nav.setLayout(new BoxLayout(nav, BoxLayout.Y_AXIS));
-        nav.setOpaque(false);
-        nav.setBorder(new EmptyBorder(20, 0, 0, 0));
-
-        nav.add(addNavItem("Overview",        "overview"));
-        nav.add(Box.createVerticalStrut(3));
-        nav.add(addNavItem("Devotionals",     "devotionals"));
-        nav.add(Box.createVerticalStrut(3));
-        nav.add(addNavItem("Members",         "members"));
-        nav.add(Box.createVerticalStrut(3));
-        nav.add(addNavItem("Prayer",          "prayer"));
-        nav.add(Box.createVerticalStrut(3));
-        nav.add(addNavItem("Counseling",      "counseling"));
-        nav.add(Box.createVerticalStrut(3));
-        nav.add(addNavItem("Events",          "events"));
-        nav.add(Box.createVerticalStrut(3));
-        nav.add(addNavItem("Settings",         "settings"));
-
-        // Spacer
-        nav.add(Box.createVerticalGlue());
-        nav.add(Box.createVerticalStrut(24));
-        nav.add(addNavItem("Sign Out",        "signout"));
-
-        sidebar.add(logo);
-        sidebar.add(brand);
-        sidebar.add(brandSub);
-        sidebar.add(Box.createVerticalStrut(20));
-        sidebar.add(divider);
-        sidebar.add(nav);
-
-        return sidebar;
-    }
-
-    private JButton addNavItem(String text, String page) {
-        JButton btn = new JButton(text) {
-            private boolean hovered = false;
-
-            {
-                addMouseListener(new MouseAdapter() {
-                    public void mouseEntered(MouseEvent e) { hovered = true; repaint(); }
-                    public void mouseExited(MouseEvent e) { hovered = false; repaint(); }
-                });
-            }
-
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (hovered) {
-                    // Clean gold hover
-                    g2.setColor(C_GOLD_DIM_HOVER);
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                    g2.setColor(C_GOLD);
-                    g2.fillRoundRect(0, 6, 3, getHeight() - 12, 3, 3);
-                }
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        btn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
-        btn.setBackground(new Color(0, 0, 0, 0));
-        btn.setForeground(hovered(btn) ? C_TEXT : C_TEXT_MID);
-        btn.setFocusPainted(false);
-        btn.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
-        btn.setFont(F_BODY);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setOpaque(false);
-        btn.setContentAreaFilled(false);
-
-        btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) { btn.setForeground(C_TEXT); }
-            public void mouseExited(MouseEvent e) { btn.setForeground(C_TEXT_MID); }
-        });
-
-        btn.addActionListener(e -> {
-            switch (page) {
-                case "overview":    showOverviewPage(); break;
-                case "devotionals": showDevotionalsPage(); break;
-                case "members":     showMembersPage(); break;
-                case "prayer":      showPrayerPage(); break;
-                case "counseling":  showCounselingPage(); break;
-                case "events":      showEventsPage(); break;
-                case "settings":    showSettingsPage(); break;
-                case "signout": {
-                    dispose();
-                    new LoginFrame().setVisible(true);
-                    break;
-                }
-            }
-        });
-
-        return btn;
-    }
-
-    // Helper to avoid compile error — btn hover state managed via anonymous class
-    private boolean hovered(JButton btn) { return false; }
-
-    // ─── Main Area ────────────────────────────────────────────────────────────
-
-    private JPanel buildMainArea() {
-        JPanel main = new JPanel(new BorderLayout());
-        main.setOpaque(false);
-
-        cardLayout = new CardLayout();
-        contentArea = new JPanel(cardLayout);
-        contentArea.setOpaque(false);
-
-        contentArea.add(buildDashboardContent(), "overview");
-        contentArea.add(buildDevotionalsPage(),  "devotionals");
-        contentArea.add(buildMembersPage(),      "members");
-        contentArea.add(buildPrayerPage(),       "prayer");
-        contentArea.add(buildCounselingPage(),   "counseling");
-        contentArea.add(buildEventsPage(),       "events");
-        contentArea.add(buildSettingsPage(),     "settings");
-
-        JScrollPane scroll = new JScrollPane(contentArea);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.setBorder(null);
-        scroll.getVerticalScrollBar().setUnitIncrement(16);
-        scroll.getVerticalScrollBar().setUI(new ModernScrollBarUI());
-        main.add(scroll, BorderLayout.CENTER);
-
-        return main;
-    }
-
-    // ─── Dashboard Content ────────────────────────────────────────────────────
-
-    private JPanel buildDashboardContent() {
-        JPanel content = new JPanel();
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setOpaque(false);
-        content.setBorder(new EmptyBorder(36, 36, 36, 36));
-
-        // Page header
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        header.setBorder(new EmptyBorder(0, 0, 28, 0));
-        header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-
-        JLabel title = new JLabel("Pastoral Overview");
-        title.setFont(F_H1);
-        title.setForeground(C_TEXT);
-
-        JLabel subtitle = new JLabel("Manage your ministry and spiritual leadership");
-        subtitle.setFont(F_BODY);
-        subtitle.setForeground(C_TEXT_MID);
-        subtitle.setBorder(new EmptyBorder(6, 0, 0, 0));
-
-        header.add(title,    BorderLayout.NORTH);
-        header.add(subtitle, BorderLayout.CENTER);
-
-        content.add(header);
-        content.add(buildKpiRow());
-        content.add(Box.createVerticalStrut(28));
-        content.add(buildQuickActions());
-        content.add(Box.createVerticalStrut(28));
-        content.add(buildRecentActivities());
-
-        return content;
-    }
-
-    private JPanel buildKpiRow() {
-        JPanel row = new JPanel(new GridLayout(1, 4, 16, 0));
-        row.setOpaque(false);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 118));
-
-        JPanel cardTD = buildKpiCard("Total Devotionals", "0", "All time",     C_GOLD,     "📖");
-        JPanel cardMD = buildKpiCard("This Month",        "0", "Devotionals",  C_GOLD_HOVER, "📅");
-        JPanel cardTE = buildKpiCard("Total Members",     "0", "Congregation", C_TEXT_MID,   "👥");
-        JPanel cardNB = buildKpiCard("Active Members",    "0", "This season",  C_GOLD_DIM,   "✨");
-
-        lblTotalDevotionals = findValueLabel(cardTD);
-        lblThisMonth        = findValueLabel(cardMD);
-        lblTotalMembers     = findValueLabel(cardTE);
-        lblActiveMembers    = findValueLabel(cardNB);
-
-        row.add(cardTD); row.add(cardMD); row.add(cardTE); row.add(cardNB);
-        return row;
-    }
-
-    private JPanel buildKpiCard(String title, String value, String subtitle, Color accent, String icon) {
-        JPanel card = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                // Card background with subtle purple tint
-                g2.setColor(C_CARD);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
-
-                // Clean accent band
-                g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 40));
-                g2.fillRect(0, 0, getWidth(), (int)(getHeight() * 0.3));
-
-                // Left accent bar
-                g2.setColor(accent);
-                g2.fillRoundRect(0, 10, 4, getHeight() - 20, 4, 4);
-
-                // Border
-                g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 50));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14);
-
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        card.setBorder(new EmptyBorder(18, 20, 18, 20));
+    private JPanel buildUserInfoCard() {
+        JPanel card = new JPanel(new BorderLayout(10, 0));
         card.setOpaque(false);
+        card.setBorder(new EmptyBorder(5, 15, 5, 15));
 
-        // Top row: icon + title
-        JPanel top = new JPanel(new BorderLayout(8, 0));
-        top.setOpaque(false);
+        // Fetch real user data
+        Map<String, Object> userData = SanctumApiClient.getCurrentUserData();
+        String firstName   = userData != null ? userData.getOrDefault("first_name", "Pastor").toString() : "Pastor";
+        String lastName    = userData != null ? userData.getOrDefault("last_name", "").toString()     : "";
+        String displayName = lastName.isEmpty() ? firstName : firstName + " " + lastName;
+        String initials    = (firstName.isEmpty() ? "P" : String.valueOf(firstName.charAt(0)))
+                           + (lastName.isEmpty()  ? ""  : String.valueOf(lastName.charAt(0)));
 
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(F_H1);
-        iconLabel.setForeground(accent);
+        // Avatar circle
+        JPanel avatar = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(C_GOLD);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        avatar.setPreferredSize(new Dimension(35, 35));
+        avatar.setOpaque(false);
 
-        JLabel titleLabel = new JLabel(title.toUpperCase());
-        titleLabel.setFont(new Font("Verdana", Font.BOLD, 9));
-        titleLabel.setForeground(C_TEXT_DIM);
-        titleLabel.setVerticalAlignment(SwingConstants.BOTTOM);
+        JLabel initialsLabel = new JLabel(initials.toUpperCase());
+        initialsLabel.setFont(F_LABEL);
+        initialsLabel.setForeground(C_TEXT);
+        initialsLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        initialsLabel.setVerticalAlignment(SwingConstants.CENTER);
+        avatar.add(initialsLabel, BorderLayout.CENTER);
 
-        top.add(iconLabel,  BorderLayout.WEST);
-        top.add(titleLabel, BorderLayout.CENTER);
+        // Name + role stack
+        JPanel info = new JPanel();
+        info.setOpaque(false);
+        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
+        
+        JLabel name = new JLabel(displayName);
+        name.setFont(F_LABEL);
+        name.setForeground(C_TEXT);
+        JLabel role = new JLabel("Pastor");
+        role.setFont(F_MONO_SM);
+        role.setForeground(C_TEXT_DIM);
+        info.add(name);
+        info.add(role);
 
-        // Value
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(F_MONO_LG);
-        valueLabel.setForeground(C_TEXT);
-        valueLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        // Subtitle
-        JLabel subtitleLabel = new JLabel(subtitle);
-        subtitleLabel.setFont(new Font("Verdana", Font.PLAIN, 10));
-        subtitleLabel.setForeground(C_TEXT_DIM);
-        subtitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        JPanel center = new JPanel();
-        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
-        center.setOpaque(false);
-        center.add(Box.createVerticalStrut(6));
-        center.add(valueLabel);
-        center.add(Box.createVerticalStrut(3));
-        center.add(subtitleLabel);
-
-        card.add(top,    BorderLayout.NORTH);
-        card.add(center, BorderLayout.CENTER);
-
+        card.add(avatar, BorderLayout.WEST);
+        card.add(info,   BorderLayout.CENTER);
         return card;
     }
 
-    private JLabel findValueLabel(JPanel card) {
-        for (Component c : card.getComponents()) {
-            if (c instanceof JPanel) {
-                for (Component cc : ((JPanel) c).getComponents()) {
-                    if (cc instanceof JLabel && ((JLabel) cc).getFont().equals(F_MONO_LG)) {
-                        return (JLabel) cc;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private JPanel buildQuickActions() {
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setOpaque(false);
-        wrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 230));
-
-        JLabel sectionTitle = new JLabel("QUICK ACTIONS");
-        sectionTitle.setFont(new Font("Verdana", Font.BOLD, 10));
-        sectionTitle.setForeground(C_TEXT_DIM);
-        sectionTitle.setBorder(new EmptyBorder(0, 0, 12, 0));
-
-        JPanel grid = new JPanel(new GridLayout(2, 3, 14, 14));
-        grid.setOpaque(false);
-
-        grid.add(buildActionButton("New Devotional",   "Create daily devotional", C_GOLD));
-        grid.add(buildActionButton("View Members",     "Manage congregation",     C_GOLD_HOVER));
-        grid.add(buildActionButton("Prayer Requests",  "View and intercede",      C_TEXT_MID));
-        grid.add(buildActionButton("Counseling",       "Schedule sessions",       C_GOLD_DIM));
-        grid.add(buildActionButton("Events",           "Church activities",       C_GOLD));
-        grid.add(buildActionButton("Reports",          "Ministry insights",       C_GOLD_HOVER));
-
-        wrapper.add(sectionTitle, BorderLayout.NORTH);
-        wrapper.add(grid,         BorderLayout.CENTER);
-        return wrapper;
-    }
-
-    private JPanel buildActionButton(String title, String description, Color accent) {
-        JPanel btn = new JPanel(new BorderLayout()) {
-            private boolean hovered = false;
-
-            {
-                addMouseListener(new MouseAdapter() {
-                    public void mouseEntered(MouseEvent e) { hovered = true; repaint(); }
-                    public void mouseExited(MouseEvent e) { hovered = false; repaint(); }
-                });
-            }
-
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(hovered ? C_CARD_HOVER : C_CARD);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-                if (hovered) {
-                    g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 25));
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-                    g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 80));
-                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
-                } else {
-                    g2.setColor(C_BORDER);
-                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
-                }
-                g2.dispose();
+    // ─── Sidebar ──────────────────────────────────────────────────────
+    private JPanel buildSidebar() {
+        JPanel side = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(C_SURFACE);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(C_BORDER);
+                g2.fillRect(getWidth() - 1, 0, 1, getHeight());
+                g2.dispose();
             }
         };
-        btn.setBorder(new EmptyBorder(16, 16, 16, 16));
-        btn.setOpaque(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        side.setPreferredSize(new Dimension(200, 0));
+        side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
+        side.setBorder(BorderFactory.createEmptyBorder(16, 0, 16, 0));
 
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Verdana", Font.BOLD, 11));
-        titleLabel.setForeground(C_TEXT);
+        for (String[] item : MENU_ITEMS) {
+            side.add(buildMenuItem(item[0], item[1]));
+        }
+        side.add(Box.createVerticalGlue());
 
-        JLabel descLabel = new JLabel(description);
-        descLabel.setFont(F_SMALL);
-        descLabel.setForeground(C_TEXT_DIM);
+        JLabel ver = new JLabel("  v2.4.1 build 9081");
+        ver.setFont(F_MONO_SM);
+        ver.setForeground(C_TEXT_MID);
+        side.add(ver);
+        return side;
+    }
+    
+    private JPanel buildMenuItem(String icon, String text) {
+        JPanel item = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(text.equals(activeMenu) ? C_GOLD : C_SURFACE);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                if (text.equals(activeMenu)) {
+                    g2.setColor(C_GOLD.darker());
+                    g2.fillRect(0, 0, 4, getHeight());
+                }
+                g2.dispose();
+            }
+        };
+        item.setPreferredSize(new Dimension(200, 44));
+        item.setMaximumSize(new Dimension(200, 44));
+        item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        item.setBorder(new EmptyBorder(0, 16, 0, 16));
 
-        JPanel text = new JPanel();
-        text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
-        text.setOpaque(false);
-        text.add(titleLabel);
-        text.add(Box.createVerticalStrut(3));
-        text.add(descLabel);
+        JLabel iconLabel = new JLabel(icon + "  ");
+        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        iconLabel.setForeground(text.equals(activeMenu) ? C_BG : C_TEXT_MID);
 
-        btn.add(text, BorderLayout.CENTER);
+        JLabel textLabel = new JLabel(text) {
+            @Override public Color getForeground() {
+                return text.equals(activeMenu) ? C_BG : C_TEXT_MID;
+            }
+        };
+        textLabel.setFont(F_MONO_SM);
 
-        return btn;
+        item.add(iconLabel, BorderLayout.WEST);
+        item.add(textLabel, BorderLayout.CENTER);
+
+        item.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e)  { switchContent(text); }
+            @Override public void mouseEntered(MouseEvent e)  { item.repaint(); }
+            @Override public void mouseExited(MouseEvent e)   { item.repaint(); }
+        });
+
+        return item;
     }
 
-    private JPanel buildRecentActivities() {
-        JPanel panel = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
+    private void switchContent(String menu) {
+        activeMenu = menu;
+        if (menu.equals("Settings")) {
+            // Open settings dialog instead of switching content
+            new ChurchSettingsFrame().setVisible(true);
+        } else {
+            cardLayout.show(contentArea, menu.toLowerCase());
+        }
+        if (sidebar != null) sidebar.repaint();
+    }
+
+    // ─── Main Dashboard Page ──────────────────────────────────────────
+    private JPanel buildMainDashboard() {
+        JPanel main = new JPanel(new BorderLayout(20, 20));
+        main.setOpaque(false);
+        main.setBorder(new EmptyBorder(30, 30, 30, 30));
+
+        // Header
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+
+        JPanel logoBlock = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        logoBlock.setOpaque(false);
+        JLabel logoLabel = new JLabel("Sanctum");
+        logoLabel.setFont(new Font("Georgia", Font.BOLD, 20));
+        logoLabel.setForeground(C_TEXT);
+        JLabel roleLabel = new JLabel("PASTOR PORTAL");
+        roleLabel.setFont(F_MONO_SM);
+        roleLabel.setForeground(C_GOLD);
+        logoBlock.add(logoLabel);
+        logoBlock.add(Box.createHorizontalStrut(10));
+        logoBlock.add(roleLabel);
+        header.add(logoBlock, BorderLayout.WEST);
+
+        // KPI row
+        JPanel kpiRow = new JPanel(new GridLayout(1, 4, 15, 0));
+        kpiRow.setOpaque(false);
+
+        JLabel[] kpi = new JLabel[4];
+
+        kpiRow.add(buildKpiCard("Total Members",  "0", "Loading...", C_GOLD,      "👥", kpi, 0));
+        kpiRow.add(buildKpiCard("Devotionals",    "0", "Loading...", C_GOLD_HOVER, "📖", kpi, 1));
+        kpiRow.add(buildKpiCard("Prayer Requests","0", "Loading...", C_TEXT_MID,   "🙏", kpi, 2));
+        kpiRow.add(buildKpiCard("Counseling",     "0", "Loading...", C_GOLD_DIM,   "💬", kpi, 3));
+
+        lblTotalMembers     = kpi[0];
+        lblDevotionals      = kpi[1];
+        lblPrayerRequests   = kpi[2];
+        lblCounselingSessions = kpi[3];
+
+        JPanel north = new JPanel(new BorderLayout(0, 20));
+        north.setOpaque(false);
+        north.add(header, BorderLayout.NORTH);
+        north.add(kpiRow, BorderLayout.CENTER);
+
+        main.add(north, BorderLayout.NORTH);
+        return main;
+    }
+
+    private JPanel buildKpiCard(String title, String value, String subtitle,
+                                Color accent, String icon,
+                                JLabel[] out, int index) {
+        JPanel card = new JPanel(new BorderLayout(10, 8)) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(C_CARD);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
-                g2.setColor(C_BORDER);
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 14, 14);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(accent);
+                g2.fillRoundRect(0, 0, 4, getHeight(), 4, 4);
                 g2.dispose();
-                super.paintComponent(g);
             }
         };
-        panel.setBorder(new EmptyBorder(22, 22, 22, 22));
+        card.setOpaque(false);
+        card.setBorder(new EmptyBorder(15, 20, 15, 20));
+
+        // Top row: title + icon
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(F_LABEL);
+        titleLabel.setForeground(C_TEXT_MID);
+
+        JLabel iconLabel = new JLabel(icon);
+        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
+        iconLabel.setForeground(accent);
+        top.add(titleLabel, BorderLayout.WEST);
+        top.add(iconLabel,  BorderLayout.EAST);
+
+        // Value label — capture reference directly
+        JLabel valueLabel = new JLabel(value);
+        valueLabel.setFont(F_MONO_LG);
+        valueLabel.setForeground(C_TEXT);
+        out[index] = valueLabel;
+
+        JLabel subtitleLabel = new JLabel(subtitle);
+        subtitleLabel.setFont(F_MONO_SM);
+        subtitleLabel.setForeground(C_TEXT_DIM);
+
+        JPanel bottom = new JPanel(new GridLayout(2, 1, 0, 2));
+        bottom.setOpaque(false);
+        bottom.add(valueLabel);
+        bottom.add(subtitleLabel);
+
+        card.add(top, BorderLayout.NORTH);
+        card.add(bottom, BorderLayout.CENTER);
+        return card;
+    }
+
+    // ─── Sub-pages ────────────────────────────────────────────────────
+    private JPanel buildDevotionalsPage() {
+        JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
-        panel.setPreferredSize(new Dimension(0, 260));
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
+        panel.setBorder(new EmptyBorder(30, 30, 30, 30));
 
-        JLabel title = new JLabel("RECENT ACTIVITIES");
-        title.setFont(new Font("Verdana", Font.BOLD, 10));
-        title.setForeground(C_TEXT_DIM);
-        title.setBorder(new EmptyBorder(0, 0, 14, 0));
+        JLabel title = new JLabel("Devotionals Management");
+        title.setFont(F_TITLE);
+        title.setForeground(C_TEXT);
+        title.setBorder(new EmptyBorder(0, 0, 30, 0));
 
-        JLabel placeholder = new JLabel("Activity feed will appear here…");
-        placeholder.setFont(F_BODY);
-        placeholder.setForeground(C_TEXT_DIM);
-        placeholder.setHorizontalAlignment(SwingConstants.CENTER);
+        // Real devotionals panel
+        JPanel devotionalsPanel = new JPanel();
+        devotionalsPanel.setLayout(new BoxLayout(devotionalsPanel, BoxLayout.Y_AXIS));
+        devotionalsPanel.setOpaque(false);
 
-        panel.add(title,       BorderLayout.NORTH);
-        panel.add(placeholder, BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(devotionalsPanel);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
 
+        panel.add(title, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
+        
+        // Load real devotionals data
+        loadDevotionalsData(devotionalsPanel);
+        
         return panel;
     }
 
-    // ─── Devotionals Page ─────────────────────────────────────────────────────
+    private JPanel buildMembersPage() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(30, 30, 30, 30));
 
-    private JPanel buildDevotionalsPage() {
-        JPanel page = new JPanel(new BorderLayout());
-        page.setOpaque(false);
-        page.setBorder(new EmptyBorder(36, 36, 36, 36));
-
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        header.setBorder(new EmptyBorder(0, 0, 24, 0));
-
-        JLabel title = new JLabel("📖  Devotionals Management");
-        title.setFont(F_H1);
+        JLabel title = new JLabel("Members Directory");
+        title.setFont(F_TITLE);
         title.setForeground(C_TEXT);
+        title.setBorder(new EmptyBorder(0, 0, 30, 0));
 
-        JButton createBtn = buildAccentButton("✦ New Devotional", C_GOLD);
-        createBtn.addActionListener(e -> openDevotionalCreator());
-
-        header.add(title,     BorderLayout.WEST);
-        header.add(createBtn, BorderLayout.EAST);
-
-        String[] cols = {"Date", "Title", "Scripture", "Comments", "Reactions"};
-        DefaultTableModel model = new DefaultTableModel(new Object[][]{}, cols) {
+        // Members table with real data
+        String[] columns = {"ID", "Name", "Email", "Phone", "Join Date", "Status"};
+        DefaultTableModel model = new DefaultTableModel(new Object[][]{}, columns) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
-
-        devotionalsTable = new JTable(model) {
+        JTable table = new JTable(model);
+        table.setOpaque(false);
+        table.getTableHeader().setOpaque(false);
+        table.getTableHeader().setBackground(C_SURFACE);
+        table.getTableHeader().setForeground(C_TEXT);
+        table.getTableHeader().setFont(F_LABEL);
+        table.setForeground(C_TEXT);
+        table.setBackground(new Color(0, 0, 0, 0));
+        table.setRowHeight(30);
+        table.setSelectionBackground(C_GOLD_DIM);
+        table.setSelectionForeground(C_TEXT);
+        table.setGridColor(C_BORDER);
+        
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
-            public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
-                Component c = super.prepareRenderer(renderer, row, column);
-                if (!isRowSelected(row)) {
-                    c.setBackground(row % 2 == 0 ? C_CARD : C_CARD_HOVER);
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (c instanceof JLabel) {
+                    JLabel label = (JLabel) c;
+                    label.setForeground(C_TEXT);
+                    label.setOpaque(false);
+                    if (isSelected) {
+                        label.setBackground(C_GOLD_DIM);
+                        label.setOpaque(true);
+                    }
                 }
                 return c;
             }
-        };
+        });
+
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+
+        panel.add(title, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
         
-        // Add click listener for viewing details
-        devotionalsTable.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    int row = devotionalsTable.rowAtPoint(e.getPoint());
-                    if (row >= 0) {
-                        showDevotionalDetails(row);
-                    }
-                }
-            }
-        });
-        styleTable(devotionalsTable);
-
-        JScrollPane scroll = new JScrollPane(devotionalsTable);
-        scroll.setOpaque(false);
-        scroll.getViewport().setBackground(C_CARD);
-        scroll.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
-        scroll.getVerticalScrollBar().setUI(new ModernScrollBarUI());
-
-        page.add(header, BorderLayout.NORTH);
-        page.add(scroll, BorderLayout.CENTER);
-
-        return page;
+        // Load real members data
+        loadPastorMembersData(model);
+        
+        return panel;
     }
 
-    // ─── Members Page ─────────────────────────────────────────────────────────
+    private JPanel buildPrayerPage() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(30, 30, 30, 30));
 
-    private JPanel buildMembersPage() {
-        JPanel page = new JPanel(new BorderLayout());
-        page.setOpaque(false);
-        page.setBorder(new EmptyBorder(36, 36, 36, 36));
-
-        JPanel header = new JPanel(new BorderLayout(12, 0));
-        header.setOpaque(false);
-        header.setBorder(new EmptyBorder(0, 0, 24, 0));
-
-        JLabel title = new JLabel("👥  Church Members");
-        title.setFont(F_H1);
+        JLabel title = new JLabel("Prayer Requests");
+        title.setFont(F_TITLE);
         title.setForeground(C_TEXT);
+        title.setBorder(new EmptyBorder(0, 0, 30, 0));
 
-        JTextField search = new JTextField();
-        search.setBackground(C_CARD);
-        search.setForeground(C_TEXT);
-        search.setCaretColor(C_GOLD);
-        search.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(C_BORDER, 1),
-            BorderFactory.createEmptyBorder(8, 14, 8, 14)
-        ));
-        search.setFont(F_BODY);
-        search.setPreferredSize(new Dimension(220, 38));
-        search.setText("Search members…");
-        search.setForeground(C_TEXT_DIM);
-        search.addFocusListener(new FocusAdapter() {
-            public void focusGained(FocusEvent e) {
-                if (search.getText().equals("Search members…")) {
-                    search.setText("");
-                    search.setForeground(C_TEXT);
-                }
-            }
-            public void focusLost(FocusEvent e) {
-                if (search.getText().isEmpty()) {
-                    search.setText("Search members…");
-                    search.setForeground(C_TEXT_DIM);
-                }
-            }
-        });
+        // Real prayer requests panel
+        JPanel prayerPanel = new JPanel();
+        prayerPanel.setLayout(new BoxLayout(prayerPanel, BoxLayout.Y_AXIS));
+        prayerPanel.setOpaque(false);
 
-        header.add(title,  BorderLayout.WEST);
-        header.add(search, BorderLayout.EAST);
-
-        String[] cols = {"Name", "Email", "Membership #", "Status", "Date"};
-        DefaultTableModel model = new DefaultTableModel(new Object[][]{}, cols) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
-        };
-
-        membersTable = new JTable(model);
-        styleTable(membersTable);
-
-        JScrollPane scroll = new JScrollPane(membersTable);
+        JScrollPane scroll = new JScrollPane(prayerPanel);
         scroll.setOpaque(false);
-        scroll.getViewport().setBackground(C_CARD);
-        scroll.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
-        scroll.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        scroll.getViewport().setOpaque(false);
 
-        page.add(header, BorderLayout.NORTH);
-        page.add(scroll, BorderLayout.CENTER);
-
-        return page;
+        panel.add(title, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
+        
+        // Load real prayer requests data
+        loadPrayerRequestsData(prayerPanel);
+        
+        return panel;
     }
 
-    // ─── Placeholder Pages ────────────────────────────────────────────────────
+    private JPanel buildCounselingPage() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(30, 30, 30, 30));
 
-    private JPanel buildPrayerPage()     { return buildPlaceholderPage("🙏  Prayer Ministry",  "Manage prayer requests and intercession",     C_GOLD); }
-    private JPanel buildCounselingPage() { return buildPlaceholderPage("💬  Counseling",        "Pastoral counseling and appointments",         C_GOLD_HOVER); }
-    private JPanel buildEventsPage()     { return buildPlaceholderPage("📅  Events",            "Church events and activities",                 C_GOLD_DIM); }
-    private JPanel buildSettingsPage()   { return buildPlaceholderPage("⚙️  Settings",           "Pastoral preferences and configuration",       C_GOLD); }
+        JLabel title = new JLabel("Counseling Sessions");
+        title.setFont(F_TITLE);
+        title.setForeground(C_TEXT);
+        title.setBorder(new EmptyBorder(0, 0, 30, 0));
 
-    private JPanel buildPlaceholderPage(String title, String subtitle, Color accent) {
-        JPanel page = new JPanel(new BorderLayout());
-        page.setOpaque(false);
-        page.setBorder(new EmptyBorder(36, 36, 36, 36));
+        // Real counseling sessions panel
+        JPanel counselingPanel = new JPanel();
+        counselingPanel.setLayout(new BoxLayout(counselingPanel, BoxLayout.Y_AXIS));
+        counselingPanel.setOpaque(false);
 
-        JPanel center = new JPanel();
-        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
-        center.setOpaque(false);
+        JScrollPane scroll = new JScrollPane(counselingPanel);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
 
-        JLabel titleLabel = new JLabel(title.trim());
-        titleLabel.setFont(F_H1);
-        titleLabel.setForeground(C_TEXT);
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel subtitleLabel = new JLabel(subtitle);
-        subtitleLabel.setFont(F_BODY);
-        subtitleLabel.setForeground(C_TEXT_MID);
-        subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JButton comingSoon = buildAccentButton("Coming Soon", accent);
-        comingSoon.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        center.add(Box.createVerticalGlue());
-        center.add(titleLabel);
-        center.add(Box.createVerticalStrut(8));
-        center.add(subtitleLabel);
-        center.add(Box.createVerticalStrut(24));
-        center.add(comingSoon);
-        center.add(Box.createVerticalGlue());
-
-        page.add(center, BorderLayout.CENTER);
-        return page;
+        panel.add(title, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
+        
+        // Load real counseling sessions data
+        loadCounselingSessionsData(counselingPanel);
+        
+        return panel;
     }
 
-    // ─── Shared Accent Button ─────────────────────────────────────────────────
+    private JPanel buildEventsPage() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(30, 30, 30, 30));
 
-    private JButton buildAccentButton(String text, Color accent) {
-        JButton btn = new JButton(text) {
-            private boolean hovered = false;
+        JLabel title = new JLabel("Upcoming Events");
+        title.setFont(F_TITLE);
+        title.setForeground(C_TEXT);
+        title.setBorder(new EmptyBorder(0, 0, 30, 0));
 
-            {
-                addMouseListener(new MouseAdapter() {
-                    public void mouseEntered(MouseEvent e) { hovered = true; repaint(); }
-                    public void mouseExited(MouseEvent e) { hovered = false; repaint(); }
-                });
-            }
+        // Real events panel
+        JPanel eventsPanel = new JPanel();
+        eventsPanel.setLayout(new BoxLayout(eventsPanel, BoxLayout.Y_AXIS));
+        eventsPanel.setOpaque(false);
 
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                Color base = hovered
-                    ? new Color(Math.min(accent.getRed() + 20, 255), Math.min(accent.getGreen() + 20, 255), Math.min(accent.getBlue() + 20, 255))
-                    : accent;
-                g2.setColor(base);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        btn.setContentAreaFilled(false);
-        btn.setForeground(Color.WHITE);
+        JScrollPane scroll = new JScrollPane(eventsPanel);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+
+        panel.add(title, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
+        
+        // Load real events data
+        loadEventsData(eventsPanel);
+        
+        return panel;
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────
+    private JButton createStyledButton(String text, Color bg) {
+        JButton btn = new JButton(text);
+        btn.setFont(F_LABEL);
+        btn.setForeground(C_TEXT);
+        btn.setBackground(bg);
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         btn.setFocusPainted(false);
-        btn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        btn.setFont(new Font("Verdana", Font.BOLD, 11));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(bg.brighter()); }
+            @Override public void mouseExited(MouseEvent e)  { btn.setBackground(bg); }
+        });
         return btn;
     }
 
-    // ─── Navigation ───────────────────────────────────────────────────────────
-
-    private void showOverviewPage()    { cardLayout.show(contentArea, "overview");    loadData(); }
-    private void showDevotionalsPage() { cardLayout.show(contentArea, "devotionals"); loadDevotionalsData(); }
-    private void showMembersPage()     { cardLayout.show(contentArea, "members");     loadMembersData(); }
-    private void showPrayerPage()      { cardLayout.show(contentArea, "prayer"); }
-    private void showCounselingPage()  { cardLayout.show(contentArea, "counseling"); }
-    private void showEventsPage()      { cardLayout.show(contentArea, "events"); }
-    private void showSettingsPage()    { cardLayout.show(contentArea, "settings"); }
-
-    // ─── Devotional Creator ─────────────────────────────────────────────────────
-
-    private void openDevotionalCreator() {
-        JDialog dialog = new JDialog(this, "Create New Devotional", true);
-        dialog.setSize(600, 500);
-        dialog.setLocationRelativeTo(this);
-        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-
-        JPanel mainPanel = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(C_BG);
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        mainPanel.setBorder(new EmptyBorder(24, 24, 24, 24));
-
-        // Header
-        JLabel header = new JLabel("✦ Create New Devotional");
-        header.setFont(F_H1);
-        header.setForeground(C_TEXT);
-        header.setBorder(new EmptyBorder(0, 0, 20, 0));
-
-        // Form
-        JPanel form = new JPanel();
-        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
-        form.setOpaque(false);
-
-        // Title field
-        JLabel titleLabel = new JLabel("Title:");
-        titleLabel.setFont(F_LABEL);
-        titleLabel.setForeground(C_TEXT_MID);
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JTextField titleField = new JTextField();
-        titleField.setBackground(C_CARD);
-        titleField.setForeground(C_TEXT);
-        titleField.setCaretColor(C_GOLD);
-        titleField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(C_BORDER, 1),
-            BorderFactory.createEmptyBorder(12, 14, 12, 14)
-        ));
-        titleField.setFont(F_BODY);
-        titleField.setMaximumSize(new Dimension(Integer.MAX_VALUE, titleField.getPreferredSize().height));
-
-        // Scripture field
-        JLabel scriptureLabel = new JLabel("Scripture Reference:");
-        scriptureLabel.setFont(F_LABEL);
-        scriptureLabel.setForeground(C_TEXT_MID);
-        scriptureLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        scriptureLabel.setBorder(new EmptyBorder(16, 0, 8, 0));
-
-        JTextField scriptureField = new JTextField();
-        scriptureField.setBackground(C_CARD);
-        scriptureField.setForeground(C_TEXT);
-        scriptureField.setCaretColor(C_GOLD);
-        scriptureField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(C_BORDER, 1),
-            BorderFactory.createEmptyBorder(12, 14, 12, 14)
-        ));
-        scriptureField.setFont(F_BODY);
-        scriptureField.setMaximumSize(new Dimension(Integer.MAX_VALUE, scriptureField.getPreferredSize().height));
-
-        // Content area
-        JLabel contentLabel = new JLabel("Content:");
-        contentLabel.setFont(F_LABEL);
-        contentLabel.setForeground(C_TEXT_MID);
-        contentLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        contentLabel.setBorder(new EmptyBorder(16, 0, 8, 0));
-
-        JTextArea contentArea = new JTextArea(8, 20);
-        contentArea.setBackground(C_CARD);
-        contentArea.setForeground(C_TEXT);
-        contentArea.setCaretColor(C_GOLD);
-        contentArea.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(C_BORDER, 1),
-            BorderFactory.createEmptyBorder(12, 14, 12, 14)
-        ));
-        contentArea.setFont(F_BODY);
-        contentArea.setLineWrap(true);
-        contentArea.setWrapStyleWord(true);
-
-        JScrollPane contentScroll = new JScrollPane(contentArea);
-        contentScroll.setOpaque(false);
-        contentScroll.getViewport().setOpaque(false);
-        contentScroll.setBorder(null);
-        contentScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-
-        // Buttons
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
-        buttonPanel.setOpaque(false);
-
-        JButton cancelBtn = new JButton("Cancel");
-        cancelBtn.setBackground(C_CARD);
-        cancelBtn.setForeground(C_TEXT_MID);
-        cancelBtn.setFocusPainted(false);
-        cancelBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        cancelBtn.setFont(F_BODY);
-        cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        JButton createBtn = new JButton("Create Devotional");
-        createBtn.setBackground(C_GOLD);
-        createBtn.setForeground(Color.WHITE);
-        createBtn.setFocusPainted(false);
-        createBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        createBtn.setFont(F_BODY);
-        createBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        buttonPanel.add(cancelBtn);
-        buttonPanel.add(createBtn);
-
-        // Add components to form
-        form.add(titleLabel);
-        form.add(Box.createVerticalStrut(4));
-        form.add(titleField);
-        form.add(scriptureLabel);
-        form.add(Box.createVerticalStrut(4));
-        form.add(scriptureField);
-        form.add(contentLabel);
-        form.add(Box.createVerticalStrut(4));
-        form.add(contentScroll);
-        form.add(Box.createVerticalStrut(20));
-        form.add(buttonPanel);
-
-        mainPanel.add(header, BorderLayout.NORTH);
-        mainPanel.add(form, BorderLayout.CENTER);
-
-        // Button actions
-        cancelBtn.addActionListener(e -> dialog.dispose());
-
-        createBtn.addActionListener(e -> {
-            String title = titleField.getText().trim();
-            String scripture = scriptureField.getText().trim();
-            String content = contentArea.getText().trim();
-
-            if (title.isEmpty() || content.isEmpty()) {
-                JOptionPane.showMessageDialog(dialog, 
-                    "Please fill in both title and content fields.", 
-                    "Missing Information", 
-                    JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            createBtn.setEnabled(false);
-            createBtn.setText("Creating...");
-
-            SanctumApiClient.createDevotional(title, content, scripture).thenAccept(success -> {
-                SwingUtilities.invokeLater(() -> {
-                    if (success) {
-                        JOptionPane.showMessageDialog(dialog, 
-                            "Devotional created successfully!", 
-                            "Success", 
-                            JOptionPane.INFORMATION_MESSAGE);
-                        dialog.dispose();
-                        // Refresh devotionals data
-                        loadDevotionalsData();
-                        loadKpiData();
-                    } else {
-                        JOptionPane.showMessageDialog(dialog, 
-                            "Failed to create devotional. Please try again.", 
-                            "Error", 
-                            JOptionPane.ERROR_MESSAGE);
-                    }
-                    createBtn.setEnabled(true);
-                    createBtn.setText("Create Devotional");
-                });
-            });
-        });
-
-        dialog.setContentPane(mainPanel);
-        dialog.setVisible(true);
-    }
-
-    // ─── Devotional Details View ─────────────────────────────────────────────────
-
-    private void showDevotionalDetails(int row) {
-        DefaultTableModel model = (DefaultTableModel) devotionalsTable.getModel();
-        
-        // Store current devotionals data for access
-        if (currentDevotionals == null || currentDevotionals.isEmpty()) {
-            JOptionPane.showMessageDialog(this, 
-                "No devotional data available. Please refresh the devotionals list.", 
-                "No Data", 
-                JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
-        if (row >= currentDevotionals.size()) {
-            return;
-        }
-
-        Map<String, Object> devotional = currentDevotionals.get(row);
-        
-        JDialog dialog = new JDialog(this, "Devotional Details", true);
-        dialog.setSize(700, 600);
-        dialog.setLocationRelativeTo(this);
-        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-
-        JPanel mainPanel = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(C_BG);
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-        mainPanel.setBorder(new EmptyBorder(24, 24, 24, 24));
-
-        // Header
-        JLabel header = new JLabel("📖 " + devotional.getOrDefault("title", "Untitled"));
-        header.setFont(F_H1);
-        header.setForeground(C_TEXT);
-        header.setBorder(new EmptyBorder(0, 0, 16, 0));
-
-        // Content panel
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setOpaque(false);
-
-        // Scripture
-        String scripture = (String) devotional.getOrDefault("scripture_reference", "No scripture reference");
-        JLabel scriptureLabel = new JLabel("📜 " + scripture);
-        scriptureLabel.setFont(new Font("Verdana", Font.ITALIC, 14));
-        scriptureLabel.setForeground(C_GOLD_HOVER);
-        scriptureLabel.setBorder(new EmptyBorder(0, 0, 16, 0));
-        scriptureLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Date
-        String date = devotional.getOrDefault("date", "").toString();
-        if (date.length() > 10) date = date.substring(0, 10);
-        JLabel dateLabel = new JLabel("📅 Published: " + date);
-        dateLabel.setFont(F_SMALL);
-        dateLabel.setForeground(C_TEXT_DIM);
-        dateLabel.setBorder(new EmptyBorder(0, 0, 20, 0));
-        dateLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Content
-        String content = (String) devotional.getOrDefault("content", "No content available");
-        JTextArea contentArea = new JTextArea(content);
-        contentArea.setBackground(C_CARD);
-        contentArea.setForeground(C_TEXT);
-        contentArea.setEditable(false);
-        contentArea.setLineWrap(true);
-        contentArea.setWrapStyleWord(true);
-        contentArea.setFont(F_BODY);
-        contentArea.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(C_BORDER, 1),
-            BorderFactory.createEmptyBorder(16, 16, 16, 16)
-        ));
-        contentArea.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JScrollPane contentScroll = new JScrollPane(contentArea);
-        contentScroll.setOpaque(false);
-        contentScroll.getViewport().setOpaque(false);
-        contentScroll.setBorder(null);
-        contentScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-
-        // Stats
-        JPanel statsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 0));
-        statsPanel.setOpaque(false);
-        statsPanel.setBorder(new EmptyBorder(20, 0, 0, 0));
-        statsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        String comments = devotional.getOrDefault("comments_count", "0").toString();
-        String reactions = devotional.getOrDefault("reactions_count", "0").toString();
-
-        JLabel commentsLabel = new JLabel("💬 " + comments + " Comments");
-        commentsLabel.setFont(F_BODY);
-        commentsLabel.setForeground(C_TEXT_MID);
-
-        JLabel reactionsLabel = new JLabel("❤️ " + reactions + " Reactions");
-        reactionsLabel.setFont(F_BODY);
-        reactionsLabel.setForeground(C_TEXT_MID);
-
-        statsPanel.add(commentsLabel);
-        statsPanel.add(reactionsLabel);
-
-        // Close button
-        JButton closeBtn = new JButton("Close");
-        closeBtn.setBackground(C_GOLD);
-        closeBtn.setForeground(Color.WHITE);
-        closeBtn.setFocusPainted(false);
-        closeBtn.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
-        closeBtn.setFont(F_BODY);
-        closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        closeBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        closeBtn.addActionListener(e -> dialog.dispose());
-
-        // Add components
-        contentPanel.add(scriptureLabel);
-        contentPanel.add(dateLabel);
-        contentPanel.add(contentScroll);
-        contentPanel.add(statsPanel);
-        contentPanel.add(Box.createVerticalStrut(24));
-        contentPanel.add(closeBtn);
-
-        mainPanel.add(header, BorderLayout.NORTH);
-        mainPanel.add(contentPanel, BorderLayout.CENTER);
-
-        dialog.setContentPane(mainPanel);
-        dialog.setVisible(true);
-    }
-
-    // ─── Data Loading ─────────────────────────────────────────────────────────
-
-    private void loadData() {
-        loadDevotionalsData();
-        loadMembersData();
-        loadKpiData();
-    }
-
-    private void loadDevotionalsData() {
-        SanctumApiClient.getDevotionals().thenAccept(devotionals -> {
-            SwingUtilities.invokeLater(() -> updateDevotionalsTable(devotionals));
-        }).exceptionally(ex -> { System.err.println("Devotionals load error: " + ex.getMessage()); return null; });
-    }
-
-    private void updateDevotionalsTable(List<Map<String, Object>> devotionals) {
-        // Store current devotionals for details view
-        currentDevotionals = new ArrayList<>(devotionals);
-        
-        if (devotionalsTable == null) return;
-        DefaultTableModel model = (DefaultTableModel) devotionalsTable.getModel();
-        model.setRowCount(0);
-
-        if (devotionals.isEmpty()) {
-            model.addRow(new Object[]{"—", "No devotionals available", "—", "—", "—"});
-        } else {
-            for (Map<String, Object> d : devotionals) {
-                String date = d.getOrDefault("date", "—").toString();
-                if (date.length() > 10) date = date.substring(0, 10);
-                model.addRow(new Object[]{
-                    date,
-                    d.getOrDefault("title", "—"),
-                    d.getOrDefault("scripture_reference", "—"),
-                    d.getOrDefault("comments_count", "0"),
-                    d.getOrDefault("reactions_count", "0")
-                });
-            }
-        }
-    }
-
-    private void loadMembersData() {
-        SanctumApiClient.getMembers().thenAccept(members ->
-            SwingUtilities.invokeLater(() -> updateMembersTable(members))
-        ).exceptionally(ex -> { System.err.println("Members load error: " + ex.getMessage()); return null; });
-    }
-
-    private void loadKpiData() {
-        // Load members count
-        SanctumApiClient.getMembers().thenAccept(members -> {
-            SwingUtilities.invokeLater(() -> {
-                if (lblTotalMembers != null) {
-                    lblTotalMembers.setText(String.valueOf(members.size()));
-                }
-                // Calculate active members (those with membership status not equal to 'inactive')
-                long activeCount = members.stream()
-                    .filter(m -> {
-                        String status = (String) m.getOrDefault("membership_status", "");
-                        return !"inactive".equalsIgnoreCase(status) && !"former".equalsIgnoreCase(status);
-                    })
-                    .count();
-                if (lblActiveMembers != null) {
-                    lblActiveMembers.setText(String.valueOf(activeCount));
-                }
-            });
-        }).exceptionally(ex -> {
-            System.err.println("KPI members load error: " + ex.getMessage());
-            return null;
-        });
-
-        // Load devotionals count
-        SanctumApiClient.getDevotionals().thenAccept(devotionals -> {
-            SwingUtilities.invokeLater(() -> {
-                if (lblTotalDevotionals != null) {
-                    lblTotalDevotionals.setText(String.valueOf(devotionals.size()));
-                }
-                
-                // Calculate this month's devotionals
-                java.time.LocalDateTime now = java.time.LocalDateTime.now();
-                int currentMonth = now.getMonthValue();
-                int currentYear = now.getYear();
-                
-                long thisMonthCount = devotionals.stream()
-                    .filter(d -> {
-                        String dateStr = d.getOrDefault("date", "").toString();
-                        if (dateStr.isEmpty()) return false;
-                        try {
-                            java.time.LocalDate date = java.time.LocalDate.parse(dateStr.substring(0, 10));
-                            return date.getMonthValue() == currentMonth && date.getYear() == currentYear;
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    })
-                    .count();
-                
-                if (lblThisMonth != null) {
-                    lblThisMonth.setText(String.valueOf(thisMonthCount));
-                }
-            });
-        }).exceptionally(ex -> {
-            System.err.println("KPI devotionals load error: " + ex.getMessage());
-            return null;
-        });
-    }
-
-    private void updateMembersTable(List<Map<String, Object>> members) {
-        // Store current members for details view
-        currentMembers = new ArrayList<>(members);
-        
-        if (membersTable == null) return;
-        DefaultTableModel model = (DefaultTableModel) membersTable.getModel();
-        model.setRowCount(0);
-        if (members.isEmpty()) {
-            model.addRow(new Object[]{"—", "No members available", "—", "—", "—"});
-        } else {
-            for (Map<String, Object> m : members) {
-                model.addRow(new Object[]{
-                    m.getOrDefault("first_name", "") + " " + m.getOrDefault("last_name", ""),
-                    m.getOrDefault("email", ""),
-                    m.getOrDefault("membership_number", "—"),
-                    m.getOrDefault("membership_status", "—"),
-                    m.getOrDefault("membership_date", "—")
-                });
-            }
-        }
-    }
-
-    // ─── Table Styling ────────────────────────────────────────────────────────
-
-    private void styleTable(JTable table) {
-        table.setFont(F_SMALL);
-        table.setForeground(C_TEXT);
-        table.setBackground(C_CARD);
-        table.setGridColor(new Color(C_BORDER.getRed(), C_BORDER.getGreen(), C_BORDER.getBlue(), 80));
-        table.setRowHeight(36);
-        table.setShowVerticalLines(false);
-        table.setIntercellSpacing(new Dimension(0, 1));
-        table.setSelectionBackground(C_GOLD_DIM);
-        table.setSelectionForeground(C_TEXT);
-        table.setFillsViewportHeight(true);
-
-        // Header
-        JTableHeader header = table.getTableHeader();
-        header.setBackground(new Color(16, 10, 40));
-        header.setForeground(C_TEXT_DIM);
-        header.setFont(new Font("Verdana", Font.BOLD, 9));
-        header.setPreferredSize(new Dimension(0, 36));
-        header.setBorder(new MatteBorder(0, 0, 1, 0, C_BORDER));
-        ((DefaultTableCellRenderer) header.getDefaultRenderer()).setHorizontalAlignment(SwingConstants.LEFT);
-
-        // Alternating row renderer
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable tbl, Object val,
-                    boolean isSelected, boolean hasFocus, int row, int col) {
-                super.getTableCellRendererComponent(tbl, val, isSelected, hasFocus, row, col);
-                if (!isSelected) {
-                    setBackground(row % 2 == 0 ? C_CARD : new Color(26, 16, 58));
-                    setForeground(C_TEXT_MID);
-                } else {
-                    setBackground(new Color(C_GOLD.getRed(), C_GOLD.getGreen(), C_GOLD.getBlue(), 35));
-                    setForeground(C_TEXT);
-                }
-                setBorder(new EmptyBorder(0, 12, 0, 12));
-                return this;
-            }
-        });
-    }
-
-    // ─── Scrollbar UI ─────────────────────────────────────────────────────────
-
-    private static class ModernScrollBarUI extends javax.swing.plaf.basic.BasicScrollBarUI {
-        @Override
-        protected void paintThumb(Graphics g, JComponent c, Rectangle r) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(isDragging ? new Color(130, 80, 220) : new Color(80, 50, 150));
-            g2.fillRoundRect(r.x + 2, r.y + 2, r.width - 4, r.height - 4, 6, 6);
-            g2.dispose();
-        }
-
-        @Override
-        protected void paintTrack(Graphics g, JComponent c, Rectangle r) {
-            g.setColor(new Color(13, 8, 32));
-            g.fillRect(r.x, r.y, r.width, r.height);
-        }
-
-        @Override protected JButton createDecreaseButton(int o) { return createZeroBtn(); }
-        @Override protected JButton createIncreaseButton(int o) { return createZeroBtn(); }
-
-        private JButton createZeroBtn() {
-            JButton btn = new JButton();
-            btn.setPreferredSize(new Dimension(0, 0));
-            btn.setMinimumSize(new Dimension(0, 0));
-            btn.setMaximumSize(new Dimension(0, 0));
-            return btn;
-        }
-    }
-
-    // ─── Logout Functionality ─────────────────────────────────────────────────────
-
     private void performLogout() {
-        // Show confirmation dialog
         int result = JOptionPane.showConfirmDialog(
             this,
-            "Are you sure you want to logout?\n\nThis will clear your session and return to the login screen.",
+            "Are you sure you want to logout?",
             "Confirm Logout",
             JOptionPane.YES_NO_OPTION,
             JOptionPane.QUESTION_MESSAGE
         );
 
         if (result == JOptionPane.YES_OPTION) {
-            try {
-                // Clear session
-                SessionManager sessionManager = SessionManager.getInstance();
-                sessionManager.clearSession();
-                
-                // Show success message briefly
-                JOptionPane.showMessageDialog(this, 
-                    "Logged out successfully!", 
-                    "Logout", 
-                    JOptionPane.INFORMATION_MESSAGE);
-
-                // Close current window and open login
-                dispose();
-                new LoginFrame().setVisible(true);
-                
-            } catch (Exception e) {
-                // Handle any errors during logout
-                JOptionPane.showMessageDialog(this,
-                    "An error occurred during logout: " + e.getMessage(),
-                    "Logout Error",
-                    JOptionPane.ERROR_MESSAGE);
-            }
+            dispose();
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    new LoginFrame().setVisible(true);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(null,
+                        "Error returning to login: " + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            });
         }
     }
 
-    // ─── Entry Point ─────────────────────────────────────────────────────────
+    // ─── Icon Loading ─────────────────────────────────────────────────
+    private void setApplicationIcon() {
+        Image img = loadIconFromResources("/images/icon.png");
+        if (img == null) img = loadIconFromResources("/images/icon.ico");
+        if (img != null) setIconImage(img);
+    }
 
+    private Image loadIconFromResources(String path) {
+        try (InputStream is = PastorDashboardFrame.class.getResourceAsStream(path)) {
+            if (is == null) return null;
+            BufferedImage bi = ImageIO.read(is);
+            if (bi != null) System.out.println("Icon loaded: " + path);
+            return bi;
+        } catch (Exception e) {
+            System.err.println("Icon load failed (" + path + "): " + e.getMessage());
+            return null;
+        }
+    }
+
+    // ─── Data Loading ─────────────────────────────────────────────────
+    private void loadData() {
+        // Show loading state on EDT
+        setKpiLabels("Loading...");
+
+        SanctumApiClient.getDashboardData().thenAccept(data -> SwingUtilities.invokeLater(() -> {
+            if (data != null) {
+                lblTotalMembers.setText(String.valueOf(data.getOrDefault("total_members", "0")));
+                lblDevotionals.setText(String.valueOf(data.getOrDefault("devotionals_count", "0")));
+                lblPrayerRequests.setText(String.valueOf(data.getOrDefault("prayer_requests", "0")));
+                lblCounselingSessions.setText(String.valueOf(data.getOrDefault("counseling_sessions", "0")));
+                System.out.println("Pastor dashboard data loaded successfully.");
+            } else {
+                setKpiLabels("—");
+            }
+        })).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                System.err.println("Failed to load dashboard data: " + ex.getMessage());
+                setKpiLabels("—");
+            });
+            return null;
+        });
+    }
+
+    // ─── Data Loading Methods ─────────────────────────────────────────────
+    private void loadDevotionalsData(JPanel devotionalsPanel) {
+        SanctumApiClient.getDevotionals().thenAccept(devotionals -> {
+            SwingUtilities.invokeLater(() -> {
+                devotionalsPanel.removeAll();
+                if (devotionals.isEmpty()) {
+                    JLabel noDataLabel = new JLabel("No devotionals available");
+                    noDataLabel.setFont(F_LABEL);
+                    noDataLabel.setForeground(C_TEXT_DIM);
+                    noDataLabel.setBorder(new EmptyBorder(20, 20, 20, 20));
+                    devotionalsPanel.add(noDataLabel);
+                } else {
+                    for (Map<String, Object> devotional : devotionals) {
+                        JPanel item = new JPanel(new BorderLayout());
+                        item.setOpaque(false);
+                        item.setBorder(new EmptyBorder(10, 20, 10, 20));
+                        
+                        String title = devotional.getOrDefault("title", "Untitled").toString();
+                        String date = devotional.getOrDefault("created_at", "").toString();
+                        if (date.length() > 10) date = date.substring(0, 10);
+                        
+                        JLabel label = new JLabel("📖 " + title + (date.isEmpty() ? "" : " - " + date));
+                        label.setFont(F_LABEL);
+                        label.setForeground(C_TEXT_MID);
+                        
+                        item.add(label, BorderLayout.CENTER);
+                        devotionalsPanel.add(item);
+                        devotionalsPanel.add(Box.createVerticalStrut(5));
+                    }
+                }
+                devotionalsPanel.revalidate();
+                devotionalsPanel.repaint();
+            });
+        }).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                devotionalsPanel.removeAll();
+                JLabel errorLabel = new JLabel("Failed to load devotionals");
+                errorLabel.setFont(F_LABEL);
+                errorLabel.setForeground(C_DANGER);
+                errorLabel.setBorder(new EmptyBorder(20, 20, 20, 20));
+                devotionalsPanel.add(errorLabel);
+                devotionalsPanel.revalidate();
+                devotionalsPanel.repaint();
+            });
+            return null;
+        });
+    }
+
+    private void loadPastorMembersData(DefaultTableModel model) {
+        SanctumApiClient.getMembers().thenAccept(members -> {
+            SwingUtilities.invokeLater(() -> {
+                model.setRowCount(0);
+                if (members.isEmpty()) {
+                    model.addRow(new Object[]{"No data", "No members found", "", "", "", ""});
+                } else {
+                    for (Map<String, Object> member : members) {
+                        Object[] row = {
+                            member.getOrDefault("id", "N/A"),
+                            member.getOrDefault("name", "Unknown"),
+                            member.getOrDefault("email", "N/A"),
+                            member.getOrDefault("phone", "N/A"),
+                            member.getOrDefault("join_date", "N/A"),
+                            member.getOrDefault("status", "Unknown")
+                        };
+                        model.addRow(row);
+                    }
+                }
+            });
+        }).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                model.setRowCount(0);
+                model.addRow(new Object[]{"Error", "Failed to load members", "", "", "", ""});
+            });
+            return null;
+        });
+    }
+
+    private void loadPrayerRequestsData(JPanel prayerPanel) {
+        // Use announcements as a temporary fallback for prayer requests
+        SanctumApiClient.getAnnouncements().thenAccept(announcements -> {
+            SwingUtilities.invokeLater(() -> {
+                prayerPanel.removeAll();
+                if (announcements.isEmpty()) {
+                    JLabel noDataLabel = new JLabel("No prayer requests available");
+                    noDataLabel.setFont(F_LABEL);
+                    noDataLabel.setForeground(C_TEXT_DIM);
+                    noDataLabel.setBorder(new EmptyBorder(20, 20, 20, 20));
+                    prayerPanel.add(noDataLabel);
+                } else {
+                    for (Map<String, Object> prayer : announcements) {
+                        JPanel item = new JPanel(new BorderLayout());
+                        item.setOpaque(false);
+                        item.setBorder(new EmptyBorder(10, 20, 10, 20));
+                        
+                        String request = prayer.getOrDefault("title", "Untitled").toString();
+                        String date = prayer.getOrDefault("created_at", "").toString();
+                        if (date.length() > 10) date = date.substring(0, 10);
+                        
+                        JLabel label = new JLabel("🙏 " + request + (date.isEmpty() ? "" : " (" + date + ")"));
+                        label.setFont(F_LABEL);
+                        label.setForeground(C_TEXT_MID);
+                        
+                        item.add(label, BorderLayout.CENTER);
+                        prayerPanel.add(item);
+                        prayerPanel.add(Box.createVerticalStrut(5));
+                    }
+                }
+                prayerPanel.revalidate();
+                prayerPanel.repaint();
+            });
+        }).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                prayerPanel.removeAll();
+                JLabel errorLabel = new JLabel("Failed to load prayer requests");
+                errorLabel.setFont(F_LABEL);
+                errorLabel.setForeground(C_DANGER);
+                errorLabel.setBorder(new EmptyBorder(20, 20, 20, 20));
+                prayerPanel.add(errorLabel);
+                prayerPanel.revalidate();
+                prayerPanel.repaint();
+            });
+            return null;
+        });
+    }
+
+    private void loadCounselingSessionsData(JPanel counselingPanel) {
+        // Use staff data as a temporary fallback for counseling sessions
+        SanctumApiClient.getStaff().thenAccept(staff -> {
+            SwingUtilities.invokeLater(() -> {
+                counselingPanel.removeAll();
+                if (staff.isEmpty()) {
+                    JLabel noDataLabel = new JLabel("No counseling sessions scheduled");
+                    noDataLabel.setFont(F_LABEL);
+                    noDataLabel.setForeground(C_TEXT_DIM);
+                    noDataLabel.setBorder(new EmptyBorder(20, 20, 20, 20));
+                    counselingPanel.add(noDataLabel);
+                } else {
+                    for (Map<String, Object> session : staff) {
+                        JPanel item = new JPanel(new BorderLayout());
+                        item.setOpaque(false);
+                        item.setBorder(new EmptyBorder(10, 20, 10, 20));
+                        
+                        String type = session.getOrDefault("role", "Unknown").toString();
+                        String client = session.getOrDefault("name", "Unknown").toString();
+                        
+                        JLabel label = new JLabel("💬 " + type + " - " + client);
+                        label.setFont(F_LABEL);
+                        label.setForeground(C_TEXT_MID);
+                        
+                        item.add(label, BorderLayout.CENTER);
+                        counselingPanel.add(item);
+                        counselingPanel.add(Box.createVerticalStrut(5));
+                    }
+                }
+                counselingPanel.revalidate();
+                counselingPanel.repaint();
+            });
+        }).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                counselingPanel.removeAll();
+                JLabel errorLabel = new JLabel("Failed to load counseling sessions");
+                errorLabel.setFont(F_LABEL);
+                errorLabel.setForeground(C_DANGER);
+                errorLabel.setBorder(new EmptyBorder(20, 20, 20, 20));
+                counselingPanel.add(errorLabel);
+                counselingPanel.revalidate();
+                counselingPanel.repaint();
+            });
+            return null;
+        });
+    }
+
+    private void loadEventsData(JPanel eventsPanel) {
+        // Use announcements as a temporary fallback for events
+        SanctumApiClient.getAnnouncements().thenAccept(events -> {
+            SwingUtilities.invokeLater(() -> {
+                eventsPanel.removeAll();
+                if (events.isEmpty()) {
+                    JLabel noDataLabel = new JLabel("No upcoming events");
+                    noDataLabel.setFont(F_LABEL);
+                    noDataLabel.setForeground(C_TEXT_DIM);
+                    noDataLabel.setBorder(new EmptyBorder(20, 20, 20, 20));
+                    eventsPanel.add(noDataLabel);
+                } else {
+                    for (Map<String, Object> event : events) {
+                        JPanel item = new JPanel(new BorderLayout());
+                        item.setOpaque(false);
+                        item.setBorder(new EmptyBorder(10, 20, 10, 20));
+                        
+                        String title = event.getOrDefault("title", "Untitled").toString();
+                        String date = event.getOrDefault("created_at", "").toString();
+                        if (date.length() > 10) date = date.substring(0, 10);
+                        
+                        JLabel label = new JLabel("📅 " + title + (date.isEmpty() ? "" : " - " + date));
+                        label.setFont(F_LABEL);
+                        label.setForeground(C_TEXT_MID);
+                        
+                        item.add(label, BorderLayout.CENTER);
+                        eventsPanel.add(item);
+                        eventsPanel.add(Box.createVerticalStrut(5));
+                    }
+                }
+                eventsPanel.revalidate();
+                eventsPanel.repaint();
+            });
+        }).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                eventsPanel.removeAll();
+                JLabel errorLabel = new JLabel("Failed to load events");
+                errorLabel.setFont(F_LABEL);
+                errorLabel.setForeground(C_DANGER);
+                errorLabel.setBorder(new EmptyBorder(20, 20, 20, 20));
+                eventsPanel.add(errorLabel);
+                eventsPanel.revalidate();
+                eventsPanel.repaint();
+            });
+            return null;
+        });
+    }
+
+    /** Convenience: set all four KPI labels to the same text (e.g. "Loading..." or "—"). */
+    private void setKpiLabels(String text) {
+        if (lblTotalMembers     != null) lblTotalMembers.setText(text);
+        if (lblDevotionals      != null) lblDevotionals.setText(text);
+        if (lblPrayerRequests   != null) lblPrayerRequests.setText(text);
+        if (lblCounselingSessions != null) lblCounselingSessions.setText(text);
+    }
+
+    // ─── Entry Point ──────────────────────────────────────────────────
     public static void main(String[] args) {
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
-        SwingUtilities.invokeLater(() -> {
-            try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            new PastorDashboardFrame().setVisible(true);
-        });
+        SwingUtilities.invokeLater(() -> new PastorDashboardFrame().setVisible(true));
     }
 }
-
-

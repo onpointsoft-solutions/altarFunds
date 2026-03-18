@@ -2,6 +2,7 @@ package com.sanctum.view;
 
 import com.sanctum.api.SanctumApiClient;
 import com.sanctum.util.WindowsDialogFix;
+import com.sanctum.util.DialogManager;
 import com.sanctum.auth.SessionManager;
 
 import javax.swing.*;
@@ -10,8 +11,11 @@ import javax.swing.border.MatteBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -73,6 +77,7 @@ public class TreasurerDashboardFrame extends JFrame {
 
     public TreasurerDashboardFrame() {
         configureWindow();
+        setApplicationIcon();
         buildUI();
         loadData();
     }
@@ -1078,6 +1083,64 @@ public class TreasurerDashboardFrame extends JFrame {
         return card;
     }
 
+    // ─── Icon Loading ──────────────────────────────────────────────────────────
+
+    /**
+     * Sets the application icon for this window using PNG for better compatibility
+     */
+    private void setApplicationIcon() {
+        try {
+            // Try PNG first (better Java compatibility)
+            Image iconImage = loadIconFromResources("/images/icon.png");
+            
+            if (iconImage != null) {
+                setIconImage(iconImage);
+                System.out.println("TreasurerDashboardFrame PNG icon loaded successfully - Size: " + iconImage.getWidth(null) + "x" + iconImage.getHeight(null));
+            } else {
+                System.out.println("TreasurerDashboardFrame PNG icon failed to load, trying ICO fallback");
+                iconImage = loadIconFromResources("/images/icon.ico");
+                
+                if (iconImage != null) {
+                    setIconImage(iconImage);
+                    System.out.println("TreasurerDashboardFrame ICO icon loaded successfully as fallback - Size: " + iconImage.getWidth(null) + "x" + iconImage.getHeight(null));
+                } else {
+                    System.out.println("TreasurerDashboardFrame Both PNG and ICO fallback failed - using default icon");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to set TreasurerDashboardFrame application icon: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Load icon image from resources using ImageIO for better format support
+     */
+    private Image loadIconFromResources(String path) {
+        try {
+            InputStream inputStream = TreasurerDashboardFrame.class.getResourceAsStream(path);
+            if (inputStream == null) {
+                System.out.println("TreasurerDashboardFrame Resource not found: " + path);
+                return null;
+            }
+            
+            // Use ImageIO to read the image (better for ICO files)
+            BufferedImage bufferedImage = ImageIO.read(inputStream);
+            inputStream.close();
+            
+            if (bufferedImage != null) {
+                System.out.println("TreasurerDashboardFrame Successfully loaded image from " + path + " - Size: " + bufferedImage.getWidth() + "x" + bufferedImage.getHeight());
+                return bufferedImage;
+            } else {
+                System.out.println("TreasurerDashboardFrame Failed to read image from " + path);
+                return null;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("TreasurerDashboardFrame Error loading image from " + path + ": " + e.getMessage());
+            return null;
+        }
+    }
+
     // ─── Data Loading ─────────────────────────────────────────────────────────
 
     private void loadData() {
@@ -1120,15 +1183,10 @@ public class TreasurerDashboardFrame extends JFrame {
     // ─── Add Donation Dialog ──────────────────────────────────────────────────
 
     private void showAddDonationDialog() {
-        // Create dialog with Windows-specific settings
-        JDialog dlg = new JDialog(this, "Record New Donation", true);
+        // Create enhanced dialog with anti-minimizing features
+        JDialog dlg = DialogManager.createModalDialog(this, "Record New Donation");
         dlg.setSize(440, 340);
         dlg.setLocationRelativeTo(this);
-        dlg.setUndecorated(false);
-        dlg.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        
-        // Apply Windows-specific fixes
-        WindowsDialogFix.fixDialogBlinking(dlg);
 
         JPanel panel = new JPanel(new GridBagLayout()) {
             @Override protected void paintComponent(Graphics g) {
@@ -1186,8 +1244,8 @@ public class TreasurerDashboardFrame extends JFrame {
 
         dlg.setContentPane(panel);
         
-        // Show dialog with Windows-specific smooth display
-        WindowsDialogFix.showDialogSmoothly(dlg);
+        // Show dialog with enhanced anti-minimizing display
+        DialogManager.showDialogEnhanced(dlg);
     }
 
     private JTextField styledField(String placeholder) {

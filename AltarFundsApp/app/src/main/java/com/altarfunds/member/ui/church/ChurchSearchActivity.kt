@@ -79,6 +79,9 @@ class ChurchSearchActivity : AppCompatActivity() {
     private fun searchChurches(query: String) {
         binding.progressBar.visible()
         
+        // Debug log
+        android.util.Log.d("ChurchSearch", "Searching for: '$query'")
+        
         lifecycleScope.launch {
             // First, try to load from cache
             val cachedChurches = app.database.churchDao().searchChurches(query).firstOrNull()
@@ -87,6 +90,7 @@ class ChurchSearchActivity : AppCompatActivity() {
                 churchAdapter.submitList(churches)
                 binding.tvEmpty.gone()
                 binding.rvChurches.visible()
+                android.util.Log.d("ChurchSearch", "Loaded ${churches.size} churches from cache")
             }
             
             // Check network availability
@@ -104,10 +108,14 @@ class ChurchSearchActivity : AppCompatActivity() {
             
             // Fetch from network
             try {
+                android.util.Log.d("ChurchSearch", "Making API call for: '$query'")
                 val response = app.apiService.getChurches(search = query, page = 1)
+                
+                android.util.Log.d("ChurchSearch", "API Response: ${response.code()} - ${response.message()}")
                 
                 if (response.isSuccessful && response.body() != null) {
                     val churches = response.body()!!.results
+                    android.util.Log.d("ChurchSearch", "Found ${churches.size} churches")
                     
                     // Cache the churches
                     if (churches.isNotEmpty()) {
@@ -126,6 +134,7 @@ class ChurchSearchActivity : AppCompatActivity() {
                         showToast("✓ Found ${churches.size} church(es)")
                     }
                 } else {
+                    android.util.Log.d("ChurchSearch", "API Error: ${response.code()} - ${response.message()}")
                     if (cachedChurches.isNullOrEmpty()) {
                         val errorMessage = when (response.code()) {
                             400 -> "✗ Invalid search query. Please try different keywords."
@@ -138,16 +147,19 @@ class ChurchSearchActivity : AppCompatActivity() {
                 }
             } catch (e: java.net.UnknownHostException) {
                 e.printStackTrace()
+                android.util.Log.e("ChurchSearch", "Network error: No internet connection", e)
                 if (cachedChurches.isNullOrEmpty()) {
                     showToast("✗ No internet connection. Please check your network.")
                 }
             } catch (e: java.net.SocketTimeoutException) {
                 e.printStackTrace()
+                android.util.Log.e("ChurchSearch", "Network error: Connection timeout", e)
                 if (cachedChurches.isNullOrEmpty()) {
                     showToast("✗ Connection timeout. Please try again.")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                android.util.Log.e("ChurchSearch", "Unexpected error: ${e.message}", e)
                 if (cachedChurches.isNullOrEmpty()) {
                     showToast("✗ Search error: ${e.message ?: "Network error"}")
                 }

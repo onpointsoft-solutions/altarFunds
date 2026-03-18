@@ -4,6 +4,10 @@ import com.sanctum.api.SanctumApiClient;
 import com.sanctum.auth.SessionManager;
 import com.sanctum.util.LogoLoader;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.awt.Image;
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
@@ -94,6 +98,7 @@ public class ChurchSetupFrame extends JFrame {
 
     public ChurchSetupFrame() {
         this.sessionManager = SessionManager.getInstance();
+        setApplicationIcon();
         initializeFrame();
         createComponents();
         layoutComponents();
@@ -889,5 +894,61 @@ public class ChurchSetupFrame extends JFrame {
         }
 
         return true;
+    }
+    
+    /**
+     * Sets the application icon for this window using PNG for better compatibility
+     */
+    private void setApplicationIcon() {
+        try {
+            // Try PNG first (better Java compatibility)
+            Image iconImage = loadIconFromResources("/images/icon.png");
+            
+            if (iconImage != null) {
+                setIconImage(iconImage);
+                System.out.println("ChurchSetupFrame PNG icon loaded successfully - Size: " + iconImage.getWidth(null) + "x" + iconImage.getHeight(null));
+            } else {
+                System.out.println("ChurchSetupFrame PNG icon failed to load, trying ICO fallback");
+                iconImage = loadIconFromResources("/images/icon.ico");
+                
+                if (iconImage != null) {
+                    setIconImage(iconImage);
+                    System.out.println("ChurchSetupFrame ICO icon loaded successfully as fallback - Size: " + iconImage.getWidth(null) + "x" + iconImage.getHeight(null));
+                } else {
+                    System.out.println("ChurchSetupFrame Both PNG and ICO fallback failed - using default icon");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to set ChurchSetupFrame application icon: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Load icon image from resources using ImageIO for better format support
+     */
+    private Image loadIconFromResources(String path) {
+        try {
+            InputStream inputStream = ChurchSetupFrame.class.getResourceAsStream(path);
+            if (inputStream == null) {
+                System.out.println("ChurchSetupFrame Resource not found: " + path);
+                return null;
+            }
+            
+            // Use ImageIO to read the image (better for ICO files)
+            BufferedImage bufferedImage = ImageIO.read(inputStream);
+            inputStream.close();
+            
+            if (bufferedImage != null) {
+                System.out.println("ChurchSetupFrame Successfully loaded image from " + path + " - Size: " + bufferedImage.getWidth() + "x" + bufferedImage.getHeight());
+                return bufferedImage;
+            } else {
+                System.out.println("ChurchSetupFrame Failed to read image from " + path);
+                return null;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("ChurchSetupFrame Error loading image from " + path + ": " + e.getMessage());
+            return null;
+        }
     }
 }

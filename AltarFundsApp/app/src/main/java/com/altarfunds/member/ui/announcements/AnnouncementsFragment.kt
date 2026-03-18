@@ -42,20 +42,20 @@ class AnnouncementsFragment : Fragment() {
     
     private fun setupRecyclerView() {
         announcementAdapter = AnnouncementAdapter()
-        binding.rvAnnouncements.apply {
+        _binding?.rvAnnouncements?.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = announcementAdapter
         }
     }
     
     private fun setupListeners() {
-        binding.swipeRefresh.setOnRefreshListener {
+        _binding?.swipeRefresh?.setOnRefreshListener {
             loadAnnouncements()
         }
     }
     
     private fun loadAnnouncements() {
-        binding.swipeRefresh.isRefreshing = true
+        _binding?.swipeRefresh?.isRefreshing = true
         
         lifecycleScope.launch {
             // First, try to load from cache
@@ -63,19 +63,23 @@ class AnnouncementsFragment : Fragment() {
             if (!cachedAnnouncements.isNullOrEmpty()) {
                 val announcements = cachedAnnouncements.map { it.toModel() }
                 announcementAdapter.submitList(announcements)
-                binding.tvEmpty.gone()
-                binding.rvAnnouncements.visible()
+                _binding?.let { binding ->
+                    binding.tvEmpty.gone()
+                    binding.rvAnnouncements.visible()
+                }
             }
             
             // Check network availability
             if (!NetworkUtils.isNetworkAvailable(requireContext())) {
-                binding.swipeRefresh.isRefreshing = false
+                _binding?.swipeRefresh?.isRefreshing = false
                 if (!cachedAnnouncements.isNullOrEmpty()) {
                     requireContext().showToast("ℹ Offline mode - Showing cached announcements")
                 } else {
                     requireContext().showToast("✗ No internet connection and no cached announcements")
-                    binding.tvEmpty.visible()
-                    binding.rvAnnouncements.gone()
+                    _binding?.let { binding ->
+                        binding.tvEmpty.visible()
+                        binding.rvAnnouncements.gone()
+                    }
                 }
                 return@launch
             }
@@ -95,12 +99,14 @@ class AnnouncementsFragment : Fragment() {
                     
                     announcementAdapter.submitList(announcements)
                     
-                    if (announcements.isEmpty()) {
-                        binding.tvEmpty.visible()
-                        binding.rvAnnouncements.gone()
-                    } else {
-                        binding.tvEmpty.gone()
-                        binding.rvAnnouncements.visible()
+                    _binding?.let { binding ->
+                        if (announcements.isEmpty()) {
+                            binding.tvEmpty.visible()
+                            binding.rvAnnouncements.gone()
+                        } else {
+                            binding.tvEmpty.gone()
+                            binding.rvAnnouncements.visible()
+                        }
                     }
                 } else {
                     if (cachedAnnouncements.isNullOrEmpty()) {
@@ -113,7 +119,9 @@ class AnnouncementsFragment : Fragment() {
                     requireContext().showToast("✗ Network error: ${e.message ?: "Unknown error"}")
                 }
             } finally {
-                binding.swipeRefresh.isRefreshing = false
+                _binding?.let { binding ->
+                    binding.swipeRefresh.isRefreshing = false
+                }
             }
         }
     }

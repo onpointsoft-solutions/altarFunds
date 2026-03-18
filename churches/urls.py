@@ -9,7 +9,8 @@ from .views import (
     MpesaAccountListCreateView, MpesaAccountDetailView,
     church_summary, church_options, department_options, small_group_options,
     ChurchRegistrationView, join_church, join_church_by_id, transfer_church, pending_churches,
-    approve_church, reject_church, church_members
+    approve_church, reject_church, church_members,
+    upload_church_logo, update_church_branding
 )
 from .search_views import search_churches
 from .mobile_views import church_payment_details, church_theme_colors
@@ -27,6 +28,8 @@ urlpatterns = [
     path('<int:pk>/approve/', approve_church, name='approve_church'),
     path('<int:pk>/reject/', reject_church, name='reject_church'),
     path('<int:pk>/members/', church_members, name='church_members'),
+    path('<int:pk>/upload-logo/', upload_church_logo, name='upload_church_logo'),
+    path('<int:pk>/branding/', update_church_branding, name='update_church_branding'),
     path('register/', ChurchRegistrationView.as_view(), name='register'),
     path('transfer/', transfer_church, name='transfer_church'),
     path('pending-approval/', pending_churches, name='pending_churches'),

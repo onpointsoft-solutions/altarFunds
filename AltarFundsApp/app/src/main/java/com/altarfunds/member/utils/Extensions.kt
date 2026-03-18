@@ -54,16 +54,24 @@ fun String.isValidEmail(): Boolean {
 }
 
 fun String.isValidPhone(): Boolean {
-    val phonePattern = "^(\\+254|0)[17]\\d{8}$".toRegex()
+    // Accept Kenya phone numbers: +254XXXXXXXXX or 07XXXXXXXXX (where X is any digit)
+    val phonePattern = "^(\\+254|0)[1-9]\\d{8}$".toRegex()
     return phonePattern.matches(this)
 }
 
 fun String.formatPhoneNumber(): String {
-    // Convert 0712345678 to 254712345678
+    // Convert various Kenya phone formats to +254XXXXXXXXX format
     return when {
         this.startsWith("0") -> "254${this.substring(1)}"
-        this.startsWith("+254") -> this.substring(1)
-        this.startsWith("254") -> this
-        else -> this
+        this.startsWith("+254") -> this
+        this.startsWith("254") -> "+$this"
+        else -> {
+            // If it doesn't start with any known prefix, assume it needs +254
+            if (this.length == 9 && this.startsWith("7")) {
+                "254$this"
+            } else {
+                this
+            }
+        }
     }
 }

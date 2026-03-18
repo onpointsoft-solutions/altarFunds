@@ -1160,6 +1160,113 @@ def church_members(request, church_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def upload_church_logo(request, pk):
+    """Upload church logo"""
+    try:
+        church = Church.objects.get(pk=pk)
+        user = request.user
+        
+        # Check permissions
+        if user.role not in ['pastor', 'treasurer', 'denomination_admin', 'system_admin']:
+            return Response({
+                'success': False,
+                'message': 'Insufficient permissions'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Handle file upload
+        if 'logo' not in request.FILES:
+            return Response({
+                'success': False,
+                'message': 'No logo file provided'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        logo_file = request.FILES['logo']
+        
+        # Save file and get URL
+        from django.core.files.storage import default_storage
+        from django.core.files.base import ContentFile
+        import os
+        
+        # Generate unique filename
+        ext = os.path.splitext(logo_file.name)[1]
+        filename = f"church_{church.id}_logo{ext}"
+        filepath = f"church_logos/{filename}"
+        
+        # Save file
+        saved_path = default_storage.save(filepath, ContentFile(logo_file.read()))
+        
+        # Update church logo field
+        church.logo = saved_path
+        church.save()
+        
+        # Build full URL
+        logo_url = request.build_absolute_uri(default_storage.url(saved_path))
+        
+        return Response({
+            'success': True,
+            'message': 'Logo uploaded successfully',
+            'logo_url': logo_url,
+            'data': {
+                'id': church.id,
+                'logo': saved_path,
+                'logo_url': logo_url
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Church.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Church not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PATCH', 'PUT'])
+@permission_classes([permissions.IsAuthenticated])
+def update_church_branding(request, pk):
+    """Update church branding (theme colors)"""
+    try:
+        church = Church.objects.get(pk=pk)
+        user = request.user
+        
+        # Check permissions
+        if user.role not in ['pastor', 'treasurer', 'denomination_admin', 'system_admin']:
+            return Response({
+                'success': False,
+                'message': 'Insufficient permissions'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Update theme colors
+        data = request.data
+        
+        if 'primary_color' in data:
+            church.primary_color = data['primary_color']
+        if 'secondary_color' in data:
+            church.secondary_color = data['secondary_color']
+        if 'accent_color' in data:
+            church.accent_color = data['accent_color']
+        
+        church.save()
+        
+        return Response({
+            'success': True,
+            'message': 'Branding updated successfully',
+            'data': {
+                'id': church.id,
+                'primary_color': church.primary_color,
+                'secondary_color': church.secondary_color,
+                'accent_color': church.accent_color
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Church.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Church not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
 def get_client_ip(request):
     """Get client IP address"""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')

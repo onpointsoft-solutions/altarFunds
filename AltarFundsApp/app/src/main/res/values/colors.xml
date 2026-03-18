@@ -47,4 +47,8 @@
     <color name="transparent">#00000000</color>
     <color name="divider">#E0E0E0</color>
     <color name="ripple">#1F000000</color>
+    <color name="outline">#E0E0E0</color>
+    <color name="surface_variant">#F3F3F3</color>
+    <color name="on_surface">#1C1B1F</color>
+    <color name="on_surface_variant">#49454F</color>
 </resources>

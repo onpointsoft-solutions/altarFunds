@@ -15,6 +15,7 @@ class RegisterActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityRegisterBinding
     private val app by lazy { MemberApp.getInstance() }
+    private lateinit var progressDialog: ProgressDialog
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,6 +24,8 @@ class RegisterActivity : AppCompatActivity() {
         
         setupToolbar()
         setupListeners()
+        progressDialog = ProgressDialog(this)
+        setupInputValidation()
     }
     
     private fun setupToolbar() {
@@ -68,90 +71,41 @@ class RegisterActivity : AppCompatActivity() {
     }
     
     private fun validateInput(): Boolean {
-        val firstName = binding.etFirstName.text.toString().trim()
-        val lastName = binding.etLastName.text.toString().trim()
-        val email = binding.etEmail.text.toString().trim()
-        val phone = binding.etPhone.text.toString().trim()
-        val churchCode = binding.etChurchCode.text.toString().trim()
-        val password = binding.etPassword.text.toString().trim()
-        val confirmPassword = binding.etConfirmPassword.text.toString().trim()
+        return InputValidator.validateForm(
+            binding.etFirstName to binding.tilFirstName,
+            binding.etLastName to binding.tilLastName,
+            binding.etEmail to binding.tilEmail,
+            binding.etPhone to binding.tilPhone,
+            binding.etPassword to binding.tilPassword,
+            binding.etConfirmPassword to binding.tilConfirmPassword,
+            binding.etChurchCode to binding.tilChurchCode
+        )
+    }
+    
+    private fun setupInputValidation() {
+        // Email validation
+        InputValidator.addEmailValidation(binding.etEmail, binding.tilEmail)
         
-        // Clear previous errors
-        binding.tilFirstName.error = null
-        binding.tilLastName.error = null
-        binding.tilEmail.error = null
-        binding.tilPhone.error = null
-        binding.tilChurchCode.error = null
-        binding.tilPassword.error = null
-        binding.tilConfirmPassword.error = null
+        // Phone validation
+        InputValidator.addPhoneValidation(binding.etPhone, binding.tilPhone)
         
-        // Validate first name
-        if (firstName.isEmpty()) {
-            binding.tilFirstName.error = getString(R.string.required_field)
-            return false
-        }
+        // Password validation with confirm password
+        InputValidator.addPasswordValidation(
+            binding.etPassword, 
+            binding.tilPassword,
+            binding.etConfirmPassword,
+            binding.tilConfirmPassword
+        )
         
-        // Validate last name
-        if (lastName.isEmpty()) {
-            binding.tilLastName.error = getString(R.string.required_field)
-            return false
-        }
-        
-        // Validate email
-        if (email.isEmpty()) {
-            binding.tilEmail.error = getString(R.string.required_field)
-            return false
-        }
-        
-        if (!email.isValidEmail()) {
-            binding.tilEmail.error = getString(R.string.invalid_email)
-            return false
-        }
-        
-        // Validate phone
-        if (phone.isEmpty()) {
-            binding.tilPhone.error = getString(R.string.required_field)
-            return false
-        }
-        
-        if (!phone.isValidPhone()) {
-            binding.tilPhone.error = getString(R.string.invalid_phone)
-            return false
-        }
-        
-        // Validate church code
-        if (churchCode.isEmpty()) {
-            binding.tilChurchCode.error = getString(R.string.required_field)
-            return false
-        }
-        
-        // Validate password
-        if (password.isEmpty()) {
-            binding.tilPassword.error = getString(R.string.required_field)
-            return false
-        }
-        
-        if (password.length < 8) {
-            binding.tilPassword.error = getString(R.string.password_too_short)
-            return false
-        }
-        
-        // Validate confirm password
-        if (confirmPassword.isEmpty()) {
-            binding.tilConfirmPassword.error = getString(R.string.required_field)
-            return false
-        }
-        
-        if (password != confirmPassword) {
-            binding.tilConfirmPassword.error = getString(R.string.password_mismatch)
-            return false
-        }
-        
-        return true
+        // Required field validations
+        InputValidator.addRequiredFieldValidation(binding.etFirstName, binding.tilFirstName, "First name")
+        InputValidator.addRequiredFieldValidation(binding.etLastName, binding.tilLastName, "Last name")
+        InputValidator.addRequiredFieldValidation(binding.etChurchCode, binding.tilChurchCode, "Church code")
     }
     
     private fun register() {
-        showLoading(true)
+        progressDialog.setMessage("Creating your account...")
+        progressDialog.show()
         
         val firstName = binding.etFirstName.text.toString().trim()
         val lastName = binding.etLastName.text.toString().trim()
@@ -177,8 +131,10 @@ class RegisterActivity : AppCompatActivity() {
                     val registerResponse = response.body()!!
                     showToast("✓ Registration successful! Please login with your credentials.")
                     
-                    // Navigate back to login
-                    finish()
+                    binding.btnRegister.animateSuccess {
+                        // Navigate back to login
+                        finish()
+                    }
                 } else {
                     // Try to parse error response body for detailed errors
                     val errorBody = response.errorBody()?.string()
@@ -188,9 +144,8 @@ class RegisterActivity : AppCompatActivity() {
                                 "✗ Invalid email format. Please enter a valid email address."
                             } else if (errorBody?.contains("password", ignoreCase = true) == true) {
                                 "✗ Password requirements not met. Use at least 8 characters."
-                            } else if (errorBody?.contains("phone", ignoreCase = true) == true) {
-                                "✗ Invalid phone number. Use format: 254XXXXXXXXX"
-                            } else {
+                            }
+                            else {
                                 "✗ Invalid registration data. Please check all fields."
                             }
                         }
@@ -211,18 +166,8 @@ class RegisterActivity : AppCompatActivity() {
                 e.printStackTrace()
                 showToast("✗ Registration failed: ${e.message ?: "Network error"}")
             } finally {
-                showLoading(false)
+                progressDialog.dismiss()
             }
-        }
-    }
-    
-    private fun showLoading(show: Boolean) {
-        if (show) {
-            binding.progressBar.visible()
-            binding.btnRegister.isEnabled = false
-        } else {
-            binding.progressBar.gone()
-            binding.btnRegister.isEnabled = true
         }
     }
 }

@@ -216,6 +216,21 @@ data class Donation(
     @SerializedName("created_at") val createdAt: String
 )
 
+// Paystack Payment Models
+data class PaystackPaymentRequest(
+    val email: String,
+    val amount: String,
+    @SerializedName("giving_type") val givingType: String,
+    @SerializedName("church_id") val churchId: Int,
+    val metadata: Map<String, Any> = emptyMap()
+)
+
+data class PaystackPaymentResponse(
+    @SerializedName("authorization_url") val authorizationUrl: String,
+    val reference: String,
+    @SerializedName("access_code") val accessCode: String
+)
+
 // M-Pesa Models
 data class MpesaRequest(
     @SerializedName("phone_number") val phoneNumber: String,

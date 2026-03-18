@@ -5,8 +5,10 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.altarfunds.member.R
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.altarfunds.member.MemberApp
 import com.altarfunds.member.adapters.AnnouncementAdapter
@@ -78,6 +80,13 @@ class DashboardFragment : Fragment() {
         binding.swipeRefresh.setOnRefreshListener {
             loadDashboardData()
         }
+        
+        // Customize swipe refresh colors
+        binding.swipeRefresh.setColorSchemeColors(
+            ContextCompat.getColor(requireContext(), R.color.primary),
+            ContextCompat.getColor(requireContext(), R.color.secondary),
+            ContextCompat.getColor(requireContext(), R.color.accent)
+        )
     }
     
     private fun loadDashboardData() {

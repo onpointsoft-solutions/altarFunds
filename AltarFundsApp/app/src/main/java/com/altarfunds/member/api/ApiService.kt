@@ -61,6 +61,13 @@ interface ApiService {
     @POST("giving/initialize-payment/")
     suspend fun initializePayment(@Body request: Map<String, Any>): Response<ApiResponse<Map<String, Any>>>
     
+    // Paystack Payment
+    @POST("payments/payments/initialize_paystack/")
+    suspend fun initializePaystackPayment(@Body request: PaystackPaymentRequest): Response<ApiResponse<Map<String, Any>>>
+    
+    @GET("payments/payments/verify_payment/")
+    suspend fun verifyPaystackPayment(@Query("reference") reference: String): Response<ApiResponse<Map<String, Any>>>
+    
     // Payment Verification
     @POST("giving/verify-payment/")
     suspend fun verifyPayment(@Body request: Map<String, String>): Response<ApiResponse<Map<String, Any>>>

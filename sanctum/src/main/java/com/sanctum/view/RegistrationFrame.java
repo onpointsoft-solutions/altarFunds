@@ -11,7 +11,11 @@ import com.sanctum.ui.ModernButton;
 import com.sanctum.ui.RoundedPanel;
 import com.sanctum.util.LogoLoader;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.awt.Image;
 import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -135,6 +139,7 @@ public class RegistrationFrame extends JFrame {
         this.userRepository = new UserRepository();
         this.authService = new AuthService();
         
+        setApplicationIcon();
         initializeFrame();
         createComponents();
         layoutComponents();
@@ -206,13 +211,13 @@ public class RegistrationFrame extends JFrame {
         adminDetailsPanel = createAdminDetailsPanel();
         reviewPanel = createReviewPanel();
         
-        // Add tabs
-        tabbedPane.addTab("🏛️ CHURCH INFO", churchBasicPanel);
-        tabbedPane.addTab("📞 CHURCH CONTACT", churchContactPanel);
-        tabbedPane.addTab("👨‍⚕️ PASTOR", pastorPanel);
-        tabbedPane.addTab("📊 CHURCH STATS", churchStatsPanel);
-        tabbedPane.addTab("👤 ADMIN ACCOUNT", adminDetailsPanel);
-        tabbedPane.addTab("✅ REVIEW", reviewPanel);
+        // Add tabs (titles without emojis - icons added in customizeTabbedPane)
+        tabbedPane.addTab("CHURCH INFO", churchBasicPanel);
+        tabbedPane.addTab("CHURCH CONTACT", churchContactPanel);
+        tabbedPane.addTab("PASTOR", pastorPanel);
+        tabbedPane.addTab("CHURCH STATS", churchStatsPanel);
+        tabbedPane.addTab("ADMIN ACCOUNT", adminDetailsPanel);
+        tabbedPane.addTab("REVIEW", reviewPanel);
         
         // Customize tab appearance
         customizeTabbedPane();
@@ -1701,6 +1706,10 @@ public class RegistrationFrame extends JFrame {
         tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 13));
         tabbedPane.setForeground(Color.WHITE);
         
+        // Define tab data: titles and icon types
+        String[] tabTitles = {"CHURCH INFO", "CHURCH CONTACT", "PASTOR", "CHURCH STATS", "ADMIN ACCOUNT", "REVIEW"};
+        String[] iconTypes = {"church", "contact", "pastor", "stats", "admin", "review"};
+        
         // Customize tab appearance
         final JTabbedPane finalTabbedPane = tabbedPane; // Make effectively final for inner class access
         for (int i = 0; i < finalTabbedPane.getTabCount(); i++) {
@@ -1732,12 +1741,24 @@ public class RegistrationFrame extends JFrame {
             tabPanel.setOpaque(false);
             tabPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
             
-            JLabel tabLabel = new JLabel(finalTabbedPane.getTitleAt(i));
+            // Create icon + label panel
+            JPanel contentPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+            contentPanel.setOpaque(false);
+            
+            // Create and add icon
+            ImageIcon icon = createTabIcon(iconTypes[i]);
+            JLabel iconLabel = new JLabel(icon);
+            iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            
+            // Create text label without emoji
+            JLabel tabLabel = new JLabel(tabTitles[i]);
             tabLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
             tabLabel.setForeground(Color.WHITE);
-            tabLabel.setHorizontalAlignment(SwingConstants.CENTER);
             
-            tabPanel.add(tabLabel, BorderLayout.CENTER);
+            contentPanel.add(iconLabel);
+            contentPanel.add(tabLabel);
+            
+            tabPanel.add(contentPanel, BorderLayout.CENTER);
             finalTabbedPane.setTabComponentAt(i, tabPanel);
         }
         
@@ -1749,14 +1770,6 @@ public class RegistrationFrame extends JFrame {
             }
         });
         
-        // Add tab icons for better visual appeal
-        tabbedPane.setIconAt(0, new ImageIcon(createTabIcon("🏛️")));
-        tabbedPane.setIconAt(1, new ImageIcon(createTabIcon("📞")));
-        tabbedPane.setIconAt(2, new ImageIcon(createTabIcon("👨‍⚕️")));
-        tabbedPane.setIconAt(3, new ImageIcon(createTabIcon("📊")));
-        tabbedPane.setIconAt(4, new ImageIcon(createTabIcon("👤")));
-        tabbedPane.setIconAt(5, new ImageIcon(createTabIcon("✅")));
-        
         // Make tabs fill available space
         tabbedPane.setTabPlacement(JTabbedPane.TOP);
         
@@ -1764,16 +1777,73 @@ public class RegistrationFrame extends JFrame {
         tabbedPane.setPreferredSize(new Dimension(800, 650));
     }
     
-    private Image createTabIcon(String emoji) {
-        // Create a simple icon from emoji text
-        BufferedImage image = new BufferedImage(20, 20, BufferedImage.TYPE_INT_ARGB);
+    private ImageIcon createTabIcon(String iconType) {
+        int size = 20;
+        BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = image.createGraphics();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        g2d.setColor(Color.BLACK);
-        g2d.drawString(emoji, 2, 15);
+        g2d.setStroke(new BasicStroke(1.5f));
+        g2d.setColor(Color.WHITE);
+        
+        int cx = size / 2;
+        int cy = size / 2;
+        
+        switch (iconType) {
+            case "church":
+                // Church roof (triangle)
+                int[] roofX = {cx, cx - 7, cx + 7};
+                int[] roofY = {4, 12, 12};
+                g2d.drawPolygon(roofX, roofY, 3);
+                // Cross
+                g2d.drawLine(cx, 2, cx, 8);
+                g2d.drawLine(cx - 2, 5, cx + 2, 5);
+                // Base
+                g2d.drawRect(cx - 5, 12, 10, 6);
+                break;
+                
+            case "contact":
+                // Phone receiver
+                g2d.drawArc(cx - 6, cy - 6, 12, 12, 45, 270);
+                g2d.drawLine(cx - 4, cy - 4, cx - 2, cy - 2);
+                g2d.drawLine(cx + 2, cy + 2, cx + 4, cy + 4);
+                break;
+                
+            case "pastor":
+                // Person head
+                g2d.drawOval(cx - 3, 4, 6, 6);
+                // Shoulders
+                g2d.drawArc(cx - 7, 12, 14, 8, 0, 180);
+                break;
+                
+            case "stats":
+                // Bar chart
+                g2d.fillRect(cx - 6, 14, 3, 4);
+                g2d.fillRect(cx - 1, 10, 3, 8);
+                g2d.fillRect(cx + 4, 6, 3, 12);
+                break;
+                
+            case "admin":
+                // User/person with badge
+                g2d.drawOval(cx - 3, 4, 6, 6);
+                g2d.drawArc(cx - 6, 12, 12, 6, 0, 180);
+                // Badge
+                g2d.fillOval(cx + 2, 10, 4, 4);
+                break;
+                
+            case "review":
+                // Checkmark in circle
+                g2d.drawOval(cx - 7, cy - 7, 14, 14);
+                g2d.drawLine(cx - 3, cy, cx - 1, cy + 4);
+                g2d.drawLine(cx - 1, cy + 4, cx + 4, cy - 3);
+                break;
+                
+            default:
+                // Default circle
+                g2d.drawOval(cx - 5, cy - 5, 10, 10);
+        }
+        
         g2d.dispose();
-        return image;
+        return new ImageIcon(image);
     }
     
     private void updateReviewContent() {
@@ -2163,20 +2233,28 @@ public class RegistrationFrame extends JFrame {
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         controls.setOpaque(false);
         
-        JButton minimizeBtn = new JButton("─") {
+        JButton minimizeBtn = new JButton("—") {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Clear background
+                g2.setColor(getBackground());
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Background on hover
                 if (getModel().isRollover()) {
-                    g2.setColor(new Color(255, 255, 255, 30));
-                    g2.fillRect(0, 0, getWidth(), getHeight());
+                    g2.setColor(new Color(255, 255, 255, 50));
+                    g2.fillRoundRect(2, 2, getWidth()-4, getHeight()-4, 4, 4);
                 }
-                g2.setColor(C_TEXT_MID);
-                g2.setFont(FONT_SMALL);
-                FontMetrics fm = g2.getFontMetrics();
-                int tx = (getWidth() - fm.stringWidth("─")) / 2;
-                int ty = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
-                g2.drawString("─", tx, ty);
+                
+                // Draw minimize icon (horizontal line)
+                g2.setColor(C_TEXT);
+                g2.setStroke(new BasicStroke(2f));
+                int lineY = getHeight() / 2;
+                g2.drawLine(getWidth()/2 - 6, lineY, getWidth()/2 + 6, lineY);
+                
                 g2.dispose();
             }
         };
@@ -2191,18 +2269,27 @@ public class RegistrationFrame extends JFrame {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Clear background
+                g2.setColor(getBackground());
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Background on hover
                 if (getModel().isRollover()) {
-                    g2.setColor(C_TEXT_MID);
-                    g2.fillRect(0, 0, getWidth(), getHeight());
-                    g2.setColor(C_TEXT);
-                } else {
-                    g2.setColor(C_TEXT_MID);
+                    g2.setColor(new Color(255, 100, 100, 100));
+                    g2.fillRoundRect(2, 2, getWidth()-4, getHeight()-4, 4, 4);
                 }
-                g2.setFont(FONT_SMALL);
-                FontMetrics fm = g2.getFontMetrics();
-                int tx = (getWidth() - fm.stringWidth("✕")) / 2;
-                int ty = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
-                g2.drawString("✕", tx, ty);
+                
+                // Draw X
+                g2.setColor(C_TEXT);
+                g2.setStroke(new BasicStroke(2f));
+                int cx = getWidth() / 2;
+                int cy = getHeight() / 2;
+                int offset = 5;
+                g2.drawLine(cx - offset, cy - offset, cx + offset, cy + offset);
+                g2.drawLine(cx + offset, cy - offset, cx - offset, cy + offset);
+                
                 g2.dispose();
             }
         };
@@ -2450,9 +2537,6 @@ public class RegistrationFrame extends JFrame {
             @Override
             protected Boolean doInBackground() throws Exception {
                 try {
-                    // Create SanctumApiClient for registration
-                    SanctumApiClient apiClient = new SanctumApiClient();
-                    
                     // Build registration data according to Django backend format
                     Map<String, Object> registrationData = new HashMap<>();
                     
@@ -2495,7 +2579,8 @@ public class RegistrationFrame extends JFrame {
                     System.out.println("Church Data: " + churchData);
                     System.out.println("=== END REGISTRATION DATA ===");
                     
-                    return apiClient.register(registrationData).get();
+                    // Call static register method directly on the class
+                    return SanctumApiClient.register(registrationData).get();
                     
                 } catch (Exception e) {
                     logger.severe("Registration failed: " + e.getMessage());
@@ -2539,6 +2624,62 @@ public class RegistrationFrame extends JFrame {
     private void showStatus(String message, boolean isError) {
         statusLabel.setText(message);
         statusLabel.setForeground(isError ? C_TEXT_MID : C_GOLD);
+    }
+    
+    /**
+     * Sets the application icon for this window using PNG for better compatibility
+     */
+    private void setApplicationIcon() {
+        try {
+            // Try PNG first (better Java compatibility)
+            Image iconImage = loadIconFromResources("/images/icon.png");
+            
+            if (iconImage != null) {
+                setIconImage(iconImage);
+                System.out.println("RegistrationFrame PNG icon loaded successfully - Size: " + iconImage.getWidth(null) + "x" + iconImage.getHeight(null));
+            } else {
+                System.out.println("RegistrationFrame PNG icon failed to load, trying ICO fallback");
+                iconImage = loadIconFromResources("/images/icon.ico");
+                
+                if (iconImage != null) {
+                    setIconImage(iconImage);
+                    System.out.println("RegistrationFrame ICO icon loaded successfully as fallback - Size: " + iconImage.getWidth(null) + "x" + iconImage.getHeight(null));
+                } else {
+                    System.out.println("RegistrationFrame Both PNG and ICO fallback failed - using default icon");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to set RegistrationFrame application icon: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Load icon image from resources using ImageIO for better format support
+     */
+    private Image loadIconFromResources(String path) {
+        try {
+            InputStream inputStream = RegistrationFrame.class.getResourceAsStream(path);
+            if (inputStream == null) {
+                System.out.println("RegistrationFrame Resource not found: " + path);
+                return null;
+            }
+            
+            // Use ImageIO to read the image (better for ICO files)
+            BufferedImage bufferedImage = ImageIO.read(inputStream);
+            inputStream.close();
+            
+            if (bufferedImage != null) {
+                System.out.println("RegistrationFrame Successfully loaded image from " + path + " - Size: " + bufferedImage.getWidth() + "x" + bufferedImage.getHeight());
+                return bufferedImage;
+            } else {
+                System.out.println("RegistrationFrame Failed to read image from " + path);
+                return null;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("RegistrationFrame Error loading image from " + path + ": " + e.getMessage());
+            return null;
+        }
     }
     
 }

@@ -19,6 +19,7 @@ class LoginActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityLoginBinding
     private val app by lazy { MemberApp.getInstance() }
+    private lateinit var progressDialog: ProgressDialog
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,15 +33,14 @@ class LoginActivity : AppCompatActivity() {
         }
         
         setupListeners()
+        progressDialog = ProgressDialog(this)
+        setupInputValidation()
     }
     
     private fun setupListeners() {
         binding.btnLogin.setOnClickListener {
-            val email = binding.etEmail.text.toString().trim()
-            val password = binding.etPassword.text.toString().trim()
-            
-            if (validateInput(email, password)) {
-                login(email, password)
+            if (validateInput()) {
+                login()
             }
         }
         
@@ -53,29 +53,24 @@ class LoginActivity : AppCompatActivity() {
         }
     }
     
-    private fun validateInput(email: String, password: String): Boolean {
-        if (email.isEmpty()) {
-            binding.tilEmail.error = getString(R.string.required_field)
-            return false
-        }
-        
-        if (!email.isValidEmail()) {
-            binding.tilEmail.error = getString(R.string.invalid_email)
-            return false
-        }
-        
-        if (password.isEmpty()) {
-            binding.tilPassword.error = getString(R.string.required_field)
-            return false
-        }
-        
-        binding.tilEmail.error = null
-        binding.tilPassword.error = null
-        return true
+    private fun validateInput(): Boolean {
+        return InputValidator.validateForm(
+            binding.etEmail to binding.tilEmail,
+            binding.etPassword to binding.tilPassword
+        )
     }
     
-    private fun login(email: String, password: String) {
-        showLoading(true)
+    private fun setupInputValidation() {
+        InputValidator.addEmailValidation(binding.etEmail, binding.tilEmail)
+        InputValidator.addRequiredFieldValidation(binding.etPassword, binding.tilPassword, "Password")
+    }
+    
+    private fun login() {
+        val email = binding.etEmail.text.toString().trim()
+        val password = binding.etPassword.text.toString().trim()
+        
+        progressDialog.setMessage("Signing in...")
+        progressDialog.show()
         
         lifecycleScope.launch {
             try {
@@ -123,7 +118,9 @@ class LoginActivity : AppCompatActivity() {
                     }
                     
                     showToast("✓ Welcome back! Login successful")
-                    navigateToMain()
+                    binding.btnLogin.animateSuccess {
+                        navigateToMain()
+                    }
                 } else {
                     val errorMessage = when (response.code()) {
                         401 -> "✗ Invalid email or password. Please check your credentials."
@@ -145,18 +142,8 @@ class LoginActivity : AppCompatActivity() {
                 e.printStackTrace()
                 showToast("✗ Network error: ${e.message ?: "Unable to connect to server"}")
             } finally {
-                showLoading(false)
+                progressDialog.dismiss()
             }
-        }
-    }
-    
-    private fun showLoading(show: Boolean) {
-        if (show) {
-            binding.progressBar.visible()
-            binding.btnLogin.isEnabled = false
-        } else {
-            binding.progressBar.gone()
-            binding.btnLogin.isEnabled = true
         }
     }
     

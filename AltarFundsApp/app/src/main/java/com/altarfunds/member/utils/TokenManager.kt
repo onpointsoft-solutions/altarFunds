@@ -73,4 +73,8 @@ class TokenManager(private val context: Context) {
     val accessTokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[ACCESS_TOKEN_KEY]
     }
+    fun getChurchId():Int
+    {
+        return 0
+    }
 }

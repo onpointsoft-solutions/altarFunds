@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.core.content.ContextCompat
+import com.altarfunds.member.R
 import com.altarfunds.member.MemberApp
 import com.altarfunds.member.adapters.GivingTransactionAdapter
 import com.altarfunds.member.data.mappers.toEntity
@@ -24,6 +26,7 @@ class GivingFragment : Fragment() {
     private val binding get() = _binding!!
     private val app by lazy { MemberApp.getInstance() }
     private lateinit var givingAdapter: GivingTransactionAdapter
+    private lateinit var emptyStateHelper: EmptyStateHelper
     
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -39,6 +42,9 @@ class GivingFragment : Fragment() {
         
         setupRecyclerView()
         setupListeners()
+        emptyStateHelper = EmptyStateHelper.forGiving(binding.root) {
+            loadGivingTransactions()
+        }
         loadGivingTransactions()
     }
     
@@ -58,6 +64,13 @@ class GivingFragment : Fragment() {
         binding.swipeRefresh.setOnRefreshListener {
             loadGivingTransactions()
         }
+        
+        // Customize swipe refresh colors
+        binding.swipeRefresh.setColorSchemeColors(
+            ContextCompat.getColor(requireContext(), R.color.primary),
+            ContextCompat.getColor(requireContext(), R.color.secondary),
+            ContextCompat.getColor(requireContext(), R.color.accent)
+        )
     }
     
     private fun loadGivingTransactions() {
@@ -67,7 +80,9 @@ class GivingFragment : Fragment() {
             // Check network availability
             if (!NetworkUtils.isNetworkAvailable(requireContext())) {
                 binding.swipeRefresh.isRefreshing = false
-            requireContext().showToast("No internet connection")
+                EmptyStateHelper.forNetworkError(binding.root) {
+                    loadGivingTransactions()
+                }
                 return@launch
             }
             
@@ -81,18 +96,30 @@ class GivingFragment : Fragment() {
                     givingAdapter.submitList(transactions)
                     
                     if (transactions.isEmpty()) {
-                        binding.tvEmpty.visible()
+                        emptyStateHelper.show(
+                            title = "No Giving History",
+                            description = "You haven't made any donations yet. Tap the button below to give.",
+                            actionText = "Give Now"
+                        )
                         binding.rvDonations.gone()
-                    } else {
                         binding.tvEmpty.gone()
+                    } else {
+                        emptyStateHelper.hide()
                         binding.rvDonations.visible()
+                        binding.tvEmpty.gone()
                     }
                 } else {
-                    requireContext().showToast("Failed to load giving history")
+                    ErrorHandler.showError(requireContext(), response.code())
+                    EmptyStateHelper.forNetworkError(binding.root) {
+                        loadGivingTransactions()
+                    }
                 }
-            } catch (e: java.lang.Exception) {
+            } catch (e: Exception) {
                 e.printStackTrace()
-                requireContext().showToast("Error: ${e.message}")
+                ErrorHandler.showError(requireContext(), e)
+                EmptyStateHelper.forNetworkError(binding.root) {
+                    loadGivingTransactions()
+                }
             } finally {
                 binding.swipeRefresh.isRefreshing = false
             }
