@@ -903,9 +903,13 @@ public class LoginFrame extends JFrame {
         System.out.println("=== NAVIGATING TO DASHBOARD ===");
         System.out.println("User Role: " + userRole);
         
-        // Show loading indicator
-        loadingPanel.setVisible(true);
-        loginButton.setEnabled(false);
+        // Show loading indicator (check for null first)
+        if (loadingPanel != null) {
+            loadingPanel.setVisible(true);
+        }
+        if (loginButton != null) {
+            loginButton.setEnabled(false);
+        }
         
         // Use SwingWorker for async dashboard loading
         SwingWorker<JFrame, Void> worker = new SwingWorker<>() {
@@ -941,15 +945,21 @@ public class LoginFrame extends JFrame {
                     if (dashboard != null) {
                         // Hide loading and show dashboard
                         SwingUtilities.invokeLater(() -> {
-                            loadingPanel.setVisible(false);
+                            if (loadingPanel != null) {
+                                loadingPanel.setVisible(false);
+                            }
                             dispose();
                             dashboard.setVisible(true);
                         });
                     }
                 } catch (Exception e) {
                     SwingUtilities.invokeLater(() -> {
-                        loadingPanel.setVisible(false);
-                        loginButton.setEnabled(true);
+                        if (loadingPanel != null) {
+                            loadingPanel.setVisible(false);
+                        }
+                        if (loginButton != null) {
+                            loginButton.setEnabled(true);
+                        }
                         statusLabel.setText("Dashboard loading failed. Please try again.");
                         statusLabel.setForeground(C_TEXT_MID);
                     });

@@ -41,28 +41,33 @@ def financial_summary(request):
             # Members view their own data
             church_filter = Q(church=user.church)
         
-        # Date filter
-        date_filter = Q()
+        # Date filters for different models
+        giving_date_filter = Q()
+        expense_date_filter = Q()
+        
         if start_date:
-            date_filter &= Q(transaction_date__gte=start_date)
+            giving_date_filter &= Q(transaction_date__gte=start_date)
+            expense_date_filter &= Q(date__gte=start_date)
         if end_date:
-            date_filter &= Q(transaction_date__lte=end_date)
+            giving_date_filter &= Q(transaction_date__lte=end_date)
+            expense_date_filter &= Q(date__lte=end_date)
         else:
             # Default to current month
             start_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            date_filter &= Q(transaction_date__gte=start_of_month)
+            giving_date_filter &= Q(transaction_date__gte=start_of_month)
+            expense_date_filter &= Q(date__gte=start_of_month)
         
         # Calculate income (givings)
         givings = GivingTransaction.objects.filter(
             church_filter,
-            date_filter,
+            giving_date_filter,
             status='completed'
         )
         total_income = givings.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
         # Calculate expenses
         expenses = Expense.objects.filter(
-            date_filter,
+            expense_date_filter,
             status='approved'
         )
         
@@ -442,8 +447,8 @@ def system_overview(request):
         
         # Total expenses (this month)
         this_month_expenses = Expense.objects.filter(
-            expense_date__month=current_month,
-            expense_date__year=current_year,
+            date__month=current_month,
+            date__year=current_year,
             status='approved'
         )
         total_expenses = this_month_expenses.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')

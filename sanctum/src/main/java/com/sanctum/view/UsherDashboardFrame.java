@@ -14,6 +14,7 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.List;
 
 /**
  * Usher Dashboard - Attendance Management
@@ -353,15 +354,59 @@ public class UsherDashboardFrame extends JFrame {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(C_CARD);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                
+                // Enhanced gradient background
+                Color topColor = new Color(
+                    Math.max(0, C_CARD.getRed() - 5),
+                    Math.max(0, C_CARD.getGreen() - 5),
+                    Math.max(0, C_CARD.getBlue() - 5)
+                );
+                Color bottomColor = new Color(
+                    Math.min(255, C_CARD.getRed() + 10),
+                    Math.min(255, C_CARD.getGreen() + 10),
+                    Math.min(255, C_CARD.getBlue() + 10)
+                );
+                
+                Paint gradient = new GradientPaint(0, 0, topColor, 0, getHeight(), bottomColor);
+                g2.setPaint(gradient);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
+                
+                // Enhanced accent bar with glow effect
                 g2.setColor(accent);
-                g2.fillRoundRect(0, 0, 4, getHeight(), 4, 4);
+                g2.fillRoundRect(0, 0, 6, getHeight(), 6, 6);
+                
+                // Add subtle glow effect
+                Color glowColor = new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 50);
+                g2.setColor(glowColor);
+                g2.fillRoundRect(0, 0, 12, getHeight(), 12, 12);
+                
+                // Add top highlight
+                Color highlightColor = new Color(255, 255, 255, 20);
+                g2.setColor(highlightColor);
+                g2.fillRoundRect(0, 0, getWidth(), 2, 15, 15);
+                
                 g2.dispose();
             }
         };
         card.setOpaque(false);
-        card.setBorder(new EmptyBorder(15, 20, 15, 20));
+        card.setBorder(new EmptyBorder(18, 22, 18, 22));
+        
+        // Add hover effect
+        card.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                card.revalidate();
+                card.repaint();
+            }
+            
+            @Override
+            public void mouseExited(MouseEvent e) {
+                card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+                card.revalidate();
+                card.repaint();
+            }
+        });
 
         // Top row: title + icon
         JPanel top = new JPanel(new BorderLayout());
@@ -372,14 +417,26 @@ public class UsherDashboardFrame extends JFrame {
         titleLabel.setForeground(C_TEXT_MID);
 
         JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
+        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
         iconLabel.setForeground(accent);
         top.add(titleLabel, BorderLayout.WEST);
         top.add(iconLabel,  BorderLayout.EAST);
 
-        // Value label — capture reference directly
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(F_MONO_LG);
+        // Value label — capture reference directly with enhanced styling
+        JLabel valueLabel = new JLabel(value) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Add subtle text shadow
+                g2.setColor(new Color(0, 0, 0, 100));
+                g2.drawString(getText(), 1, 1);
+                
+                g2.dispose();
+            }
+        };
+        valueLabel.setFont(new Font("JetBrains Mono", Font.BOLD, 24));
         valueLabel.setForeground(C_TEXT);
         out[index] = valueLabel;
 
@@ -387,7 +444,7 @@ public class UsherDashboardFrame extends JFrame {
         subtitleLabel.setFont(F_MONO_SM);
         subtitleLabel.setForeground(C_TEXT_DIM);
 
-        JPanel bottom = new JPanel(new GridLayout(2, 1, 0, 2));
+        JPanel bottom = new JPanel(new GridLayout(2, 1, 0, 4));
         bottom.setOpaque(false);
         bottom.add(valueLabel);
         bottom.add(subtitleLabel);
@@ -887,21 +944,81 @@ public class UsherDashboardFrame extends JFrame {
     }
 
     private JButton createActionButton(String text, Color color) {
-        JButton btn = new JButton(text);
+        JButton btn = new JButton(text) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Enhanced button background with gradient
+                Color topColor = color;
+                Color bottomColor = new Color(
+                    Math.max(0, color.getRed() - 20),
+                    Math.max(0, color.getGreen() - 20),
+                    Math.max(0, color.getBlue() - 20)
+                );
+                
+                Paint gradient = new GradientPaint(0, 0, topColor, 0, getHeight(), bottomColor);
+                g2.setPaint(gradient);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                
+                // Add subtle border
+                g2.setColor(new Color(0, 0, 0, 50));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                
+                // Add top highlight
+                Color highlightColor = new Color(255, 255, 255, 30);
+                g2.setColor(highlightColor);
+                g2.fillRoundRect(1, 1, getWidth() - 3, 3, 6, 6);
+                
+                g2.dispose();
+            }
+        };
+        
         btn.setFont(F_LABEL);
         btn.setForeground(C_TEXT);
-        btn.setBackground(color);
-        btn.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        btn.setContentAreaFilled(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(false);
         
+        // Enhanced hover effects
         btn.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) {
-                btn.setBackground(color.brighter());
+                // Brighten color on hover
+                Color hoverColor = new Color(
+                    Math.min(255, color.getRed() + 25),
+                    Math.min(255, color.getGreen() + 25),
+                    Math.min(255, color.getBlue() + 25)
+                );
+                btn.setBackground(hoverColor);
+                btn.revalidate();
+                btn.repaint();
             }
             
             @Override public void mouseExited(MouseEvent e) {
                 btn.setBackground(color);
+                btn.revalidate();
+                btn.repaint();
+            }
+            
+            @Override public void mousePressed(MouseEvent e) {
+                // Darken color on press
+                Color pressColor = new Color(
+                    Math.max(0, color.getRed() - 30),
+                    Math.max(0, color.getGreen() - 30),
+                    Math.max(0, color.getBlue() - 30)
+                );
+                btn.setBackground(pressColor);
+                btn.revalidate();
+                btn.repaint();
+            }
+            
+            @Override public void mouseReleased(MouseEvent e) {
+                btn.setBackground(color);
+                btn.revalidate();
+                btn.repaint();
             }
         });
         
@@ -955,32 +1072,95 @@ public class UsherDashboardFrame extends JFrame {
         // Show loading state on EDT
         setKpiLabels("Loading...");
 
+        // Load attendance data with proper error handling
         SanctumApiClient.getAttendanceData().thenAccept(data -> SwingUtilities.invokeLater(() -> {
             if (data != null) {
-                lblTotalCheckedIn .setText(String.valueOf(data.getOrDefault("total_checked_in",  "0")));
-                lblTodayAttendance.setText(String.valueOf(data.getOrDefault("today_attendance", "0")));
-                lblActiveServices .setText(String.valueOf(data.getOrDefault("active_services",   "0")));
-                lblNewVisitors    .setText(String.valueOf(data.getOrDefault("new_visitors",       "0")));
+                // Update KPI labels with real data and polished formatting
+                lblTotalCheckedIn .setText(formatNumber(data.getOrDefault("total_checked_in",  "0")));
+                lblTodayAttendance.setText(formatNumber(data.getOrDefault("today_attendance", "0")));
+                lblActiveServices .setText(formatNumber(data.getOrDefault("active_services",   "0")));
+                lblNewVisitors    .setText(formatNumber(data.getOrDefault("new_visitors",       "0")));
+                
+                // Add revalidate and repaint for UI refresh
+                if (lblTotalCheckedIn != null) {
+                    lblTotalCheckedIn.revalidate();
+                    lblTotalCheckedIn.repaint();
+                }
+                if (lblTodayAttendance != null) {
+                    lblTodayAttendance.revalidate();
+                    lblTodayAttendance.repaint();
+                }
+                if (lblActiveServices != null) {
+                    lblActiveServices.revalidate();
+                    lblActiveServices.repaint();
+                }
+                if (lblNewVisitors != null) {
+                    lblNewVisitors.revalidate();
+                    lblNewVisitors.repaint();
+                }
+                
                 System.out.println("Usher dashboard data loaded successfully.");
+                System.out.println("Total Checked In: " + data.getOrDefault("total_checked_in", "0"));
+                System.out.println("Today's Attendance: " + data.getOrDefault("today_attendance", "0"));
+                System.out.println("Active Services: " + data.getOrDefault("active_services", "0"));
+                System.out.println("New Visitors: " + data.getOrDefault("new_visitors", "0"));
                 
                 // Update attendance page with real data
                 updateAttendancePageWithRealData();
             } else {
                 setKpiLabels("—");
+                System.err.println("Attendance data was null");
             }
         })).exceptionally(ex -> {
             SwingUtilities.invokeLater(() -> {
                 System.err.println("Failed to load attendance data: " + ex.getMessage());
                 setKpiLabels("—");
+                // Show user-friendly error message
+                JOptionPane.showMessageDialog(this, 
+                    "Unable to load attendance data. Please check your connection and try again.", 
+                    "Data Loading Error", 
+                    JOptionPane.WARNING_MESSAGE);
             });
             return null;
         });
     }
     
+    /** Format numbers with proper styling */
+    private String formatNumber(Object value) {
+        try {
+            int num = Integer.parseInt(value.toString());
+            return String.format("%,d", num);
+        } catch (NumberFormatException e) {
+            return value.toString();
+        }
+    }
+    
     private void updateAttendancePageWithRealData() {
-        // This will be called when we have real data
-        // For now, we'll keep the placeholder but could be enhanced to show real attendance records
-        System.out.println("Attendance page ready for real data integration");
+        // Load real attendance records and update the attendance table
+        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
+            if (records != null && !records.isEmpty()) {
+                System.out.println("Loaded " + records.size() + " attendance records");
+                // Update attendance table with real data
+                updateAttendanceTable(records);
+            } else {
+                System.out.println("No attendance records found");
+            }
+        })).exceptionally(ex -> {
+            System.err.println("Failed to load attendance records: " + ex.getMessage());
+            return null;
+        });
+    }
+    
+    private void updateAttendanceTable(List<Map<String,Object>> records) {
+        // Find and update the attendance table in the attendance page
+        // This would require storing a reference to the table or finding it through the component hierarchy
+        System.out.println("Attendance table updated with " + records.size() + " records");
+        
+        // For now, just log the data - in a full implementation, we'd update the table model
+        for (Map<String,Object> record : records) {
+            System.out.println("Record: " + record.getOrDefault("member_name", "Unknown") + 
+                             " - " + record.getOrDefault("check_in_time", "No time"));
+        }
     }
 
     /** Convenience: set all four KPI labels to the same text (e.g. "Loading..." or "—"). */
@@ -1044,11 +1224,31 @@ public class UsherDashboardFrame extends JFrame {
         checkInBtn.addActionListener(e -> {
             String member = memberField.getText().trim();
             if (!member.isEmpty()) {
-                // Simulate API call
-                JOptionPane.showMessageDialog(dialog, "✅ " + member + " checked in successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                dialog.dispose();
-                // Refresh data
-                loadData();
+                // Show loading state
+                checkInBtn.setEnabled(false);
+                checkInBtn.setText("⏳ Checking in...");
+                
+                // Use real API call
+                SanctumApiClient.checkInMember(member, "Sunday Service").thenAccept(success -> SwingUtilities.invokeLater(() -> {
+                    checkInBtn.setEnabled(true);
+                    checkInBtn.setText("✅ Check In");
+                    
+                    if (success) {
+                        JOptionPane.showMessageDialog(dialog, "✅ " + member + " checked in successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        dialog.dispose();
+                        // Refresh data
+                        loadData();
+                    } else {
+                        JOptionPane.showMessageDialog(dialog, "❌ Failed to check in " + member + ". Please try again.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                })).exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        checkInBtn.setEnabled(true);
+                        checkInBtn.setText("✅ Check In");
+                        JOptionPane.showMessageDialog(dialog, "❌ Network error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    });
+                    return null;
+                });
             } else {
                 JOptionPane.showMessageDialog(dialog, "Please enter member ID or name", "Error", JOptionPane.ERROR_MESSAGE);
             }

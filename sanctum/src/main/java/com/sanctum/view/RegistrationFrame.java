@@ -56,32 +56,29 @@ public class RegistrationFrame extends JFrame {
     private static final Font FONT_VALUE  = new Font("Segoe UI", Font.BOLD, 16);
     private static final Font FONT_SMALL  = new Font("Segoe UI", Font.PLAIN, 11);
     private static final Font FONT_BUTTON = new Font("Segoe UI", Font.BOLD, 14);
-    // Wizard steps
+    // Wizard steps - using these for sidebar labels
     private static final String[] STEP_TITLES = {
-        "Church Information",
-        "Church Contact", 
-        "Pastor Details",
-        "Church Statistics",
-        "Admin Account",
-        "Review & Submit"
+        "1. Church Info",
+        "2. Contact", 
+        "3. Pastor",
+        "4. Statistics",
+        "5. Admin",
+        "6. Review"
     };
     
     private static final String[] STEP_DESCRIPTIONS = {
-        "Please enter the basic details about your church location.",
-        "Provide contact information for the church office.",
-        "Enter information about the senior pastor.",
-        "Share statistics about your church community.",
-        "Create the administrator account for your church.",
-        "Review all information before submitting registration."
+        "Basic church details",
+        "Contact information",
+        "Pastor information",
+        "Church statistics",
+        "Administrator account",
+        "Review and submit"
     };
-    
-    private int currentStep = 0;
     private JPanel stepIndicatorPanel;
     private JLabel stepTitleLabel;
     private JLabel stepDescriptionLabel;
     private JPanel cardPanel;
-    private CardLayout cardLayout;
-    
+
     private JTextField churchNameField;
     private JTextField churchAddressField;
     private JTextField churchCityField;
@@ -109,17 +106,20 @@ public class RegistrationFrame extends JFrame {
     private JButton cancelButton;
     private JLabel statusLabel;
     
-    private JTabbedPane tabbedPane;
-    private JPanel churchPanel;
-    private JPanel adminPanel;
-    private JPanel reviewPanel;
+    // Sidebar navigation components
+    private JPanel sidebar;
+    private JPanel contentArea;
+    private CardLayout cardLayout;
+    private JButton[] stepButtons;
+    private int currentStep = 0;
     
-    // New split tabs
+    // Content panels for each step
     private JPanel churchBasicPanel;
     private JPanel churchContactPanel;
     private JPanel pastorPanel;
     private JPanel churchStatsPanel;
     private JPanel adminDetailsPanel;
+    private JPanel reviewPanel;
     
     // Loading components
     private JProgressBar loadingBar;
@@ -169,41 +169,37 @@ public class RegistrationFrame extends JFrame {
         registerButton = createGlowButton("CREATE ACCOUNT", C_GOLD);
         registerButton.setPreferredSize(new Dimension(200, 50));
         
-        cancelButton = createGlowButton("CANCEL", C_TEXT_MID);
-        cancelButton.setPreferredSize(new Dimension(180, 40));
+        cancelButton = createGlowButton("Cancel", C_TEXT_MID);
+        cancelButton.setPreferredSize(new Dimension(120, 45));
         
-        // Status label
         statusLabel = new JLabel("", SwingConstants.CENTER);
         statusLabel.setFont(FONT_SMALL);
-        statusLabel.setForeground(C_GOLD);
+        statusLabel.setForeground(C_TEXT_DIM);
         
-        // Loading components
-        loadingLabel = new JLabel("Creating account...", SwingConstants.CENTER);
-        loadingLabel.setFont(FONT_SMALL);
+        // Create loading components
+        loadingLabel = new JLabel("Creating your church account...", SwingConstants.CENTER);
+        loadingLabel.setFont(FONT_LABEL);
         loadingLabel.setForeground(C_GOLD);
         
         loadingBar = new JProgressBar();
         loadingBar.setIndeterminate(true);
         loadingBar.setStringPainted(false);
         loadingBar.setForeground(C_GOLD);
-        loadingBar.setBackground(C_BORDER);
-        loadingBar.setBorderPainted(false);
-        loadingBar.setPreferredSize(new Dimension(0, 6));
+        loadingBar.setBackground(C_SURFACE);
+        loadingBar.setBorder(BorderFactory.createEmptyBorder());
         
-        loadingPanel = new JPanel(new BorderLayout());
+        loadingPanel = new JPanel(new GridLayout(2, 1, 0, 10));
         loadingPanel.setOpaque(false);
-        loadingPanel.add(loadingLabel, BorderLayout.NORTH);
-        loadingPanel.add(loadingBar, BorderLayout.CENTER);
-        loadingPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        loadingPanel.add(loadingLabel);
+        loadingPanel.add(loadingBar);
         loadingPanel.setVisible(false);
         
-        // Create tabbed interface
-        tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(FONT_LABEL);
-        tabbedPane.setBackground(C_SURFACE);
-        tabbedPane.setForeground(C_TEXT);
+        // Create CardLayout for content area
+        cardLayout = new CardLayout();
+        contentArea = new JPanel(cardLayout);
+        contentArea.setOpaque(false);
         
-        // Create panels for each tab
+        // Create panels for each step
         churchBasicPanel = createChurchBasicPanel();
         churchContactPanel = createChurchContactPanel();
         pastorPanel = createPastorPanel();
@@ -211,16 +207,146 @@ public class RegistrationFrame extends JFrame {
         adminDetailsPanel = createAdminDetailsPanel();
         reviewPanel = createReviewPanel();
         
-        // Add tabs (titles without emojis - icons added in customizeTabbedPane)
-        tabbedPane.addTab("CHURCH INFO", churchBasicPanel);
-        tabbedPane.addTab("CHURCH CONTACT", churchContactPanel);
-        tabbedPane.addTab("PASTOR", pastorPanel);
-        tabbedPane.addTab("CHURCH STATS", churchStatsPanel);
-        tabbedPane.addTab("ADMIN ACCOUNT", adminDetailsPanel);
-        tabbedPane.addTab("REVIEW", reviewPanel);
+        // Add panels to content area
+        contentArea.add(churchBasicPanel, "step0");
+        contentArea.add(churchContactPanel, "step1");
+        contentArea.add(pastorPanel, "step2");
+        contentArea.add(churchStatsPanel, "step3");
+        contentArea.add(adminDetailsPanel, "step4");
+        contentArea.add(reviewPanel, "step5");
         
-        // Customize tab appearance
-        customizeTabbedPane();
+        // Initialize sidebar
+        createSidebar();
+    }
+    
+    private void createSidebar() {
+        sidebar = new JPanel(new BorderLayout(0, 15));
+        sidebar.setOpaque(false);
+        sidebar.setBorder(BorderFactory.createEmptyBorder(20, 15, 20, 15));
+        sidebar.setPreferredSize(new Dimension(200, 0));
+        
+        // Logo at top
+        JLabel logoPanel = LogoLoader.createLogoLabel(new Dimension(100, 100));
+        logoPanel.setPreferredSize(new Dimension(0, 100));
+        
+        // Step buttons panel
+        JPanel stepsPanel = new JPanel();
+        stepsPanel.setLayout(new BoxLayout(stepsPanel, BoxLayout.Y_AXIS));
+        stepsPanel.setOpaque(false);
+        
+        stepButtons = new JButton[6];
+        for (int i = 0; i < 6; i++) {
+            final int step = i;
+            JButton stepBtn = createStepButton(STEP_TITLES[i], STEP_DESCRIPTIONS[i], i == 0);
+            stepBtn.addActionListener(e -> navigateToStep(step));
+            stepButtons[i] = stepBtn;
+            stepsPanel.add(stepBtn);
+            stepsPanel.add(Box.createVerticalStrut(8));
+        }
+        
+        // Progress indicator
+        JLabel progressLabel = new JLabel("Step 1 of 6", SwingConstants.CENTER);
+        progressLabel.setFont(FONT_SMALL);
+        progressLabel.setForeground(C_TEXT_DIM);
+        progressLabel.setName("progressLabel");
+        
+        sidebar.add(logoPanel, BorderLayout.NORTH);
+        sidebar.add(stepsPanel, BorderLayout.CENTER);
+        sidebar.add(progressLabel, BorderLayout.SOUTH);
+    }
+    
+    private JButton createStepButton(String title, String description, boolean active) {
+        JButton btn = new JButton() {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                boolean isActive = stepButtons != null && this == stepButtons[currentStep];
+                boolean isCompleted = stepButtons != null && getStepIndex(this) < currentStep;
+                
+                // Background
+                if (isActive) {
+                    g2.setColor(C_GOLD);
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                } else if (isCompleted) {
+                    g2.setColor(new Color(C_GOLD.getRed(), C_GOLD.getGreen(), C_GOLD.getBlue(), 100));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                } else if (getModel().isRollover()) {
+                    g2.setColor(C_CARD_HOVER);
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                }
+                
+                // Text
+                g2.setFont(FONT_LABEL);
+                if (isActive) {
+                    g2.setColor(C_BG);
+                } else {
+                    g2.setColor(isCompleted ? C_GOLD : C_TEXT_MID);
+                }
+                
+                FontMetrics fm = g2.getFontMetrics();
+                int textY = (getHeight() + fm.getAscent() - fm.getDescent()) / 2 - 3;
+                g2.drawString(title, 15, textY);
+                
+                g2.setFont(FONT_SMALL);
+                g2.setColor(isActive ? C_BG : C_TEXT_DIM);
+                FontMetrics fmSmall = g2.getFontMetrics();
+                int descY = textY + fmSmall.getHeight();
+                g2.drawString(description, 15, descY);
+                
+                g2.dispose();
+            }
+        };
+        btn.setPreferredSize(new Dimension(170, 50));
+        btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+    
+    private int getStepIndex(JButton btn) {
+        for (int i = 0; i < stepButtons.length; i++) {
+            if (stepButtons[i] == btn) return i;
+        }
+        return -1;
+    }
+    
+    private void navigateToStep(int step) {
+        if (step >= 0 && step < 6) {
+            currentStep = step;
+            cardLayout.show(contentArea, "step" + step);
+            updateSidebarSelection();
+            if (step == 5) {
+                updateReviewContent();
+            }
+        }
+    }
+    
+    private void updateSidebarSelection() {
+        for (int i = 0; i < stepButtons.length; i++) {
+            stepButtons[i].repaint();
+        }
+        // Update progress label
+        for (Component c : sidebar.getComponents()) {
+            if (c instanceof JLabel && "progressLabel".equals(c.getName())) {
+                ((JLabel) c).setText("Step " + (currentStep + 1) + " of 6");
+            }
+        }
+    }
+    
+    private void nextStep() {
+        if (currentStep < 5) {
+            navigateToStep(currentStep + 1);
+        }
+    }
+    
+    private void previousStep() {
+        if (currentStep > 0) {
+            navigateToStep(currentStep - 1);
+        }
     }
     
     private JButton createGlowButton(String text, Color accent) {
@@ -402,7 +528,7 @@ public class RegistrationFrame extends JFrame {
         nextButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         nextButton.setFocusPainted(false);
         nextButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        nextButton.addActionListener(e -> tabbedPane.setSelectedIndex(1));
+        nextButton.addActionListener(e -> nextStep());
         
         buttonPanel.add(nextButton);
         
@@ -540,7 +666,7 @@ public class RegistrationFrame extends JFrame {
         nextButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         nextButton.setFocusPainted(false);
         nextButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        nextButton.addActionListener(e -> tabbedPane.setSelectedIndex(1));
+        nextButton.addActionListener(e -> nextStep());
         
         buttonPanel.add(nextButton);
         
@@ -677,7 +803,7 @@ public class RegistrationFrame extends JFrame {
         backButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         backButton.setFocusPainted(false);
         backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButton.addActionListener(e -> tabbedPane.setSelectedIndex(0));
+        backButton.addActionListener(e -> previousStep());
         
         JButton nextButton = new JButton("Next →");
         nextButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -687,7 +813,7 @@ public class RegistrationFrame extends JFrame {
         nextButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         nextButton.setFocusPainted(false);
         nextButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        nextButton.addActionListener(e -> tabbedPane.setSelectedIndex(2));
+        nextButton.addActionListener(e -> nextStep());
         
         buttonPanel.add(backButton);
         buttonPanel.add(nextButton);
@@ -825,7 +951,7 @@ public class RegistrationFrame extends JFrame {
         backButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         backButton.setFocusPainted(false);
         backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButton.addActionListener(e -> tabbedPane.setSelectedIndex(4));
+        backButton.addActionListener(e -> previousStep());
         
         JButton nextButton = new JButton("Next →");
         nextButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -835,7 +961,7 @@ public class RegistrationFrame extends JFrame {
         nextButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         nextButton.setFocusPainted(false);
         nextButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        nextButton.addActionListener(e -> tabbedPane.setSelectedIndex(3));
+        nextButton.addActionListener(e -> nextStep());
         
         buttonPanel.add(backButton);
         buttonPanel.add(nextButton);
@@ -973,7 +1099,7 @@ public class RegistrationFrame extends JFrame {
         backButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         backButton.setFocusPainted(false);
         backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButton.addActionListener(e -> tabbedPane.setSelectedIndex(2));
+        backButton.addActionListener(e -> previousStep());
         
         JButton nextButton = new JButton("Next →");
         nextButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -983,7 +1109,7 @@ public class RegistrationFrame extends JFrame {
         nextButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         nextButton.setFocusPainted(false);
         nextButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        nextButton.addActionListener(e -> tabbedPane.setSelectedIndex(4));
+        nextButton.addActionListener(e -> nextStep());
         
         buttonPanel.add(backButton);
         buttonPanel.add(nextButton);
@@ -1140,7 +1266,7 @@ public class RegistrationFrame extends JFrame {
         backButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         backButton.setFocusPainted(false);
         backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButton.addActionListener(e -> tabbedPane.setSelectedIndex(3));
+        backButton.addActionListener(e -> previousStep());
         
         JButton nextButton = new JButton("Next →");
         nextButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -1152,7 +1278,7 @@ public class RegistrationFrame extends JFrame {
         nextButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         nextButton.addActionListener(e -> {
             updateReviewContent();
-            tabbedPane.setSelectedIndex(5);
+            nextStep();
         });
         
         buttonPanel.add(backButton);
@@ -1296,7 +1422,7 @@ public class RegistrationFrame extends JFrame {
         backButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         backButton.setFocusPainted(false);
         backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButton.addActionListener(e -> tabbedPane.setSelectedIndex(0));
+        backButton.addActionListener(e -> previousStep());
         
         JButton nextButton = new JButton("Next →");
         nextButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -1308,7 +1434,7 @@ public class RegistrationFrame extends JFrame {
         nextButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         nextButton.addActionListener(e -> {
             updateReviewContent();
-            tabbedPane.setSelectedIndex(2);
+            nextStep();
         });
         
         buttonPanel.add(backButton);
@@ -1698,154 +1824,6 @@ public class RegistrationFrame extends JFrame {
         parent.add(field, gbc);
     }
     
-    private void customizeTabbedPane() {
-        tabbedPane.setBackground(C_SURFACE);
-        tabbedPane.setTabLayoutPolicy(JTabbedPane.WRAP_TAB_LAYOUT);
-        
-        // Set custom tab colors and styling
-        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        tabbedPane.setForeground(Color.WHITE);
-        
-        // Define tab data: titles and icon types
-        String[] tabTitles = {"CHURCH INFO", "CHURCH CONTACT", "PASTOR", "CHURCH STATS", "ADMIN ACCOUNT", "REVIEW"};
-        String[] iconTypes = {"church", "contact", "pastor", "stats", "admin", "review"};
-        
-        // Customize tab appearance
-        final JTabbedPane finalTabbedPane = tabbedPane; // Make effectively final for inner class access
-        for (int i = 0; i < finalTabbedPane.getTabCount(); i++) {
-            final int tabIndex = i; // Make effectively final for inner class access
-            JPanel tabPanel = new JPanel(new BorderLayout()) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    super.paintComponent(g);
-                    Graphics2D g2d = (Graphics2D) g.create();
-                    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    
-                    // Dark background with rounded corners
-                    g2d.setColor(C_CARD);
-                    g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                    
-                    // Border
-                    g2d.setColor(C_BORDER);
-                    g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
-                    
-                    // Highlight for selected tab
-                    if (finalTabbedPane.getSelectedIndex() == tabIndex) {
-                        g2d.setColor(new Color(C_GOLD.getRed(), C_GOLD.getGreen(), C_GOLD.getBlue(), 40));
-                        g2d.fillRoundRect(1, 1, getWidth()-2, getHeight()-2, 6, 6);
-                    }
-                    
-                    g2d.dispose();
-                }
-            };
-            tabPanel.setOpaque(false);
-            tabPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-            
-            // Create icon + label panel
-            JPanel contentPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-            contentPanel.setOpaque(false);
-            
-            // Create and add icon
-            ImageIcon icon = createTabIcon(iconTypes[i]);
-            JLabel iconLabel = new JLabel(icon);
-            iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            
-            // Create text label without emoji
-            JLabel tabLabel = new JLabel(tabTitles[i]);
-            tabLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            tabLabel.setForeground(Color.WHITE);
-            
-            contentPanel.add(iconLabel);
-            contentPanel.add(tabLabel);
-            
-            tabPanel.add(contentPanel, BorderLayout.CENTER);
-            finalTabbedPane.setTabComponentAt(i, tabPanel);
-        }
-        
-        // Add change listener to update tab appearance
-        finalTabbedPane.addChangeListener(e -> {
-            for (int i = 0; i < finalTabbedPane.getTabCount(); i++) {
-                JPanel tabPanel = (JPanel) finalTabbedPane.getTabComponentAt(i);
-                tabPanel.repaint();
-            }
-        });
-        
-        // Make tabs fill available space
-        tabbedPane.setTabPlacement(JTabbedPane.TOP);
-        
-        // Set preferred size for better control
-        tabbedPane.setPreferredSize(new Dimension(800, 650));
-    }
-    
-    private ImageIcon createTabIcon(String iconType) {
-        int size = 20;
-        BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = image.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setStroke(new BasicStroke(1.5f));
-        g2d.setColor(Color.WHITE);
-        
-        int cx = size / 2;
-        int cy = size / 2;
-        
-        switch (iconType) {
-            case "church":
-                // Church roof (triangle)
-                int[] roofX = {cx, cx - 7, cx + 7};
-                int[] roofY = {4, 12, 12};
-                g2d.drawPolygon(roofX, roofY, 3);
-                // Cross
-                g2d.drawLine(cx, 2, cx, 8);
-                g2d.drawLine(cx - 2, 5, cx + 2, 5);
-                // Base
-                g2d.drawRect(cx - 5, 12, 10, 6);
-                break;
-                
-            case "contact":
-                // Phone receiver
-                g2d.drawArc(cx - 6, cy - 6, 12, 12, 45, 270);
-                g2d.drawLine(cx - 4, cy - 4, cx - 2, cy - 2);
-                g2d.drawLine(cx + 2, cy + 2, cx + 4, cy + 4);
-                break;
-                
-            case "pastor":
-                // Person head
-                g2d.drawOval(cx - 3, 4, 6, 6);
-                // Shoulders
-                g2d.drawArc(cx - 7, 12, 14, 8, 0, 180);
-                break;
-                
-            case "stats":
-                // Bar chart
-                g2d.fillRect(cx - 6, 14, 3, 4);
-                g2d.fillRect(cx - 1, 10, 3, 8);
-                g2d.fillRect(cx + 4, 6, 3, 12);
-                break;
-                
-            case "admin":
-                // User/person with badge
-                g2d.drawOval(cx - 3, 4, 6, 6);
-                g2d.drawArc(cx - 6, 12, 12, 6, 0, 180);
-                // Badge
-                g2d.fillOval(cx + 2, 10, 4, 4);
-                break;
-                
-            case "review":
-                // Checkmark in circle
-                g2d.drawOval(cx - 7, cy - 7, 14, 14);
-                g2d.drawLine(cx - 3, cy, cx - 1, cy + 4);
-                g2d.drawLine(cx - 1, cy + 4, cx + 4, cy - 3);
-                break;
-                
-            default:
-                // Default circle
-                g2d.drawOval(cx - 5, cy - 5, 10, 10);
-        }
-        
-        g2d.dispose();
-        return new ImageIcon(image);
-    }
-    
     private void updateReviewContent() {
         // Update church review panel
         JPanel churchDetailsPanel = new JPanel();
@@ -1953,7 +1931,7 @@ public class RegistrationFrame extends JFrame {
         backButton.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         backButton.setFocusPainted(false);
         backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButton.addActionListener(e -> tabbedPane.setSelectedIndex(4));
+        backButton.addActionListener(e -> previousStep());
         
         buttonPanel.add(backButton);
         buttonPanel.add(cancelButton);
@@ -2001,214 +1979,62 @@ public class RegistrationFrame extends JFrame {
         };
         mainContainer.setOpaque(false);
         
-        // Center panel - Registration form
-        JPanel centerPanel = createCenterPanel();
-        
         // Window controls
         JPanel windowControls = createWindowControls();
         
+        // Sidebar navigation
+        JPanel sidebarPanel = createSidebarPanel();
+        
+        // Add components
         add(windowControls, BorderLayout.NORTH);
         add(mainContainer, BorderLayout.CENTER);
         
-        // Left side panel (reduced spacing)
-        JPanel leftPanel = new JPanel();
-        leftPanel.setOpaque(false);
-        leftPanel.setPreferredSize(new Dimension(50, 0));
-        
-        // Right side panel (reduced spacing)  
-        JPanel rightPanel = new JPanel();
-        rightPanel.setOpaque(false);
-        rightPanel.setPreferredSize(new Dimension(50, 0));
-        
-        mainContainer.add(leftPanel, BorderLayout.WEST);
-        mainContainer.add(centerPanel, BorderLayout.CENTER);
-        mainContainer.add(rightPanel, BorderLayout.EAST);
-        
-        // Add tab change listener to update review content
-        tabbedPane.addChangeListener(e -> {
-            if (tabbedPane.getSelectedIndex() == 2) { // Review tab
-                updateReviewContent();
-            }
-        });
+        // Add sidebar and content to main container
+        mainContainer.add(sidebarPanel, BorderLayout.WEST);
+        mainContainer.add(contentArea, BorderLayout.CENTER);
     }
     
-    private JPanel createCenterPanel() {
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setOpaque(false);
-        
-        // Registration Form Panel - now takes full width
-        JPanel registrationFormPanel = createRegistrationFormPanel();
-        
-        // Add registration form to center with full width
-        mainPanel.add(registrationFormPanel, BorderLayout.CENTER);
-        
-        return mainPanel;
-    }
-    
-    private JPanel createAppInfoPanel() {
-        JPanel panel = new JPanel(new GridBagLayout()) {
-            @Override protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Gradient background
-                GradientPaint gradient = new GradientPaint(0, 0, C_SURFACE, getWidth(), getHeight(), new Color(30, 35, 45));
-                g2.setPaint(gradient);
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                
-                // Decorative elements
-                g2.setColor(new Color(C_GOLD.getRed(), C_GOLD.getGreen(), C_GOLD.getBlue(), 20));
-                g2.fillOval(getWidth() - 100, 50, 80, 80);
-                g2.fillOval(getWidth() - 60, 150, 40, 40);
-                
-                g2.dispose();
-            }
-        };
+    private JPanel createSidebarPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 15));
         panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createEmptyBorder(60, 40, 60, 20));
-        panel.setPreferredSize(new Dimension(250, 0));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 15, 20, 15));
+        panel.setPreferredSize(new Dimension(220, 0));
         
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(20, 0, 20, 0);
-        gbc.anchor = GridBagConstraints.NORTHWEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        // Logo at top
+        JLabel logoPanel = LogoLoader.createLogoLabel(new Dimension(100, 100));
+        logoPanel.setPreferredSize(new Dimension(0, 100));
         
-        // App title
-        gbc.gridx = 0; gbc.gridy = 0;
-        JPanel titlePanel = new JPanel(new BorderLayout());
-        titlePanel.setOpaque(false);
+        // Step buttons panel
+        JPanel stepsPanel = new JPanel();
+        stepsPanel.setLayout(new BoxLayout(stepsPanel, BoxLayout.Y_AXIS));
+        stepsPanel.setOpaque(false);
         
-        // Logo placeholder
-        JLabel logoPanel = LogoLoader.createLogoLabel(new Dimension(120, 120));
-        
-        JLabel appTitle = new JLabel("Sanctum", SwingConstants.CENTER);
-        appTitle.setFont(FONT_TITLE);
-        appTitle.setForeground(C_GOLD);
-        
-        titlePanel.add(logoPanel, BorderLayout.NORTH);
-        titlePanel.add(appTitle, BorderLayout.CENTER);
-        panel.add(titlePanel, gbc);
-        
-        // App subtitle
-        gbc.gridy = 1;
-        JLabel appSubtitle = new JLabel("Church Registration");
-        appSubtitle.setFont(FONT_LABEL);
-        appSubtitle.setForeground(C_TEXT_MID);
-        panel.add(appSubtitle, gbc);
-        
-        // Version info
-        gbc.gridy = 2;
-        gbc.insets = new Insets(40, 0, 10, 0);
-        JLabel versionLabel = new JLabel("Version 1.0.0");
-        versionLabel.setFont(FONT_SMALL);
-        versionLabel.setForeground(C_TEXT_MID);
-        panel.add(versionLabel, gbc);
-        
-        // Features section
-        gbc.gridy = 3;
-        gbc.insets = new Insets(30, 0, 15, 0);
-        JLabel featuresTitle = new JLabel("// CREATE");
-        featuresTitle.setFont(FONT_LABEL);
-        featuresTitle.setForeground(C_TEXT_MID);
-        panel.add(featuresTitle, gbc);
-        
-        // Features list
-        String[] features = {
-            "• Church Profile",
-            "• Admin Account", 
-            "• Secure Setup",
-            "• Quick Start",
-            "• Professional Design"
-        };
-        
-        gbc.insets = new Insets(5, 10, 5, 0);
-        for (int i = 0; i < features.length; i++) {
-            gbc.gridy = 4 + i;
-            JLabel featureLabel = new JLabel(features[i]);
-            featureLabel.setFont(FONT_SMALL);
-            featureLabel.setForeground(C_TEXT);
-            panel.add(featureLabel, gbc);
+        stepButtons = new JButton[6];
+        for (int i = 0; i < 6; i++) {
+            final int step = i;
+            JButton stepBtn = createStepButton(STEP_TITLES[i], STEP_DESCRIPTIONS[i], i == 0);
+            stepBtn.addActionListener(e -> navigateToStep(step));
+            stepButtons[i] = stepBtn;
+            stepsPanel.add(stepBtn);
+            stepsPanel.add(Box.createVerticalStrut(8));
         }
         
-        // Footer info
-        gbc.gridy = 9;
-        gbc.insets = new Insets(40, 0, 0, 0);
-        JLabel footerLabel = new JLabel("© 2026 Sanctum Solutions");
-        footerLabel.setFont(FONT_SMALL);
-        footerLabel.setForeground(C_TEXT_MID);
-        panel.add(footerLabel, gbc);
+        // Progress indicator at bottom
+        JPanel progressPanel = new JPanel(new BorderLayout());
+        progressPanel.setOpaque(false);
+        JLabel progressLabel = new JLabel("Step 1 of 6", SwingConstants.CENTER);
+        progressLabel.setFont(FONT_SMALL);
+        progressLabel.setForeground(C_TEXT_DIM);
+        progressLabel.setName("progressLabel");
+        progressPanel.add(progressLabel, BorderLayout.CENTER);
+        
+        panel.add(logoPanel, BorderLayout.NORTH);
+        panel.add(stepsPanel, BorderLayout.CENTER);
+        panel.add(progressPanel, BorderLayout.SOUTH);
         
         return panel;
     }
-    
-    private JPanel createRegistrationFormPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setOpaque(false);
-        
-        // Registration card with flexible size
-        JPanel registrationCard = new JPanel(new GridBagLayout()) {
-            @Override protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                g2.setColor(C_CARD);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-                
-                g2.setColor(C_BORDER);
-                g2.setStroke(new BasicStroke(1f));
-                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
-                
-                // Glow effect
-                g2.setColor(new Color(C_GOLD.getRed(), C_GOLD.getGreen(), C_GOLD.getBlue(), 30));
-                g2.fillRoundRect(1, 1, getWidth()-2, 4, 4, 4);
-                
-                g2.dispose();
-            }
-        };
-        registrationCard.setOpaque(false);
-        registrationCard.setBorder(BorderFactory.createEmptyBorder(25, 35, 25, 35));
-        
-        GridBagConstraints cardGbc = new GridBagConstraints();
-        cardGbc.insets = new Insets(5, 5, 5, 5);
-        cardGbc.fill = GridBagConstraints.BOTH;
-        cardGbc.weightx = 1.0;
-        cardGbc.weighty = 1.0;
-        cardGbc.anchor = GridBagConstraints.CENTER;
-        
-        // Add tabbed interface to the card
-        cardGbc.gridx = 0; cardGbc.gridy = 0; cardGbc.gridwidth = 2;
-        registrationCard.add(tabbedPane, cardGbc);
-        
-        // Status label
-        cardGbc.gridy = 1;
-        cardGbc.weighty = 0.0;
-        cardGbc.insets = new Insets(3, 5, 5, 5);
-        registrationCard.add(statusLabel, cardGbc);
-        
-        // Loading panel (initially hidden)
-        cardGbc.gridy = 2;
-        cardGbc.insets = new Insets(5, 5, 5, 5);
-        registrationCard.add(loadingPanel, cardGbc);
-        
-        // Add registration card to panel with scroll support
-        JScrollPane scrollPane = new JScrollPane(registrationCard);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(null);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        
-        // Customize scrollbar
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.getVerticalScrollBar().setBlockIncrement(32);
-        
-        panel.add(scrollPane, BorderLayout.CENTER);
-        
-        return panel;
-    }
-    
+
     private JPanel createWindowControls() {
         JPanel panel = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
@@ -2445,86 +2271,86 @@ public class RegistrationFrame extends JFrame {
         // Validation - Required Church Fields
         if (churchName.isEmpty()) {
             showStatus("Please enter church name", true);
-            tabbedPane.setSelectedIndex(0);
+            navigateToStep(0);
             return;
         }
         
         if (churchAddress.isEmpty()) {
             showStatus("Please enter church address", true);
-            tabbedPane.setSelectedIndex(0);
+            navigateToStep(0);
             return;
         }
         
         if (churchCity.isEmpty()) {
             showStatus("Please enter church city", true);
-            tabbedPane.setSelectedIndex(0);
+            navigateToStep(0);
             return;
         }
         
         if (churchCounty.isEmpty()) {
             showStatus("Please enter church county", true);
-            tabbedPane.setSelectedIndex(0);
+            navigateToStep(0);
             return;
         }
         
         if (churchPhone.isEmpty()) {
             showStatus("Please enter church phone", true);
-            tabbedPane.setSelectedIndex(0);
+            navigateToStep(0);
             return;
         }
         
         if (churchEmail.isEmpty()) {
             showStatus("Please enter church email", true);
-            tabbedPane.setSelectedIndex(0);
+            navigateToStep(0);
             return;
         }
         
         if (churchPastor.isEmpty()) {
             showStatus("Please enter senior pastor name", true);
-            tabbedPane.setSelectedIndex(0);
+            navigateToStep(0);
             return;
         }
         
         // Validation - Required Admin Fields
         if (adminUsername.isEmpty()) {
             showStatus("Please enter username", true);
-            tabbedPane.setSelectedIndex(1);
+            navigateToStep(4);
             return;
         }
         
         if (adminFirstName.isEmpty()) {
             showStatus("Please enter your first name", true);
-            tabbedPane.setSelectedIndex(1);
+            navigateToStep(4);
             return;
         }
         
         if (adminLastName.isEmpty()) {
             showStatus("Please enter your last name", true);
-            tabbedPane.setSelectedIndex(1);
+            navigateToStep(4);
             return;
         }
         
         if (adminEmail.isEmpty()) {
             showStatus("Please enter email address", true);
-            tabbedPane.setSelectedIndex(1);
+            navigateToStep(4);
             return;
         }
         
         if (adminPassword.isEmpty()) {
             showStatus("Please enter password", true);
-            tabbedPane.setSelectedIndex(1);
+            navigateToStep(4);
             return;
         }
         
         if (!adminPassword.equals(adminConfirmPassword)) {
             showStatus("Passwords do not match", true);
-            tabbedPane.setSelectedIndex(1);
+            navigateToStep(4);
             return;
         }
         
         if (!PasswordUtil.isPasswordValid(adminPassword)) {
             showStatus("Password does not meet requirements", true);
-            tabbedPane.setSelectedIndex(1);
+            navigateToStep(4);
             return;
         }
         

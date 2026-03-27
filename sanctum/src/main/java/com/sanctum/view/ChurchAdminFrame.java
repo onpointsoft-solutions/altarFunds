@@ -39,7 +39,8 @@ public class ChurchAdminFrame extends JFrame {
     private static final Color C_TEXT_DIM    = new Color(156, 163, 175);  // Dim Text
     private static final Color C_BORDER      = new Color(42, 74, 69);   // Border Color
     private static final Color C_SUCCESS      = new Color(52, 199, 89);
-    private static final Color C_DANGER      = new Color(255, 59, 48);
+    private static final Color C_DANGER       = new Color(255, 59, 48);
+    private static final Color C_INFO         = new Color(59, 130, 246);
 
     // ─── Typography ──────────────────────────────────────────────────────────
     private static final Font F_TITLE       = new Font("Segoe UI", Font.BOLD, 28);
@@ -63,6 +64,14 @@ public class ChurchAdminFrame extends JFrame {
     private JPanel contentArea;
     private JPanel sidebar;
     private String activeMenu = "Dashboard";
+    
+    // Dashboard overview cards for direct access
+    private JLabel announcementsCountLabel;
+    private JLabel announcementsDetailLabel;
+    private JLabel membersCountLabel;
+    private JLabel membersDetailLabel;
+    private JLabel staffCountLabel;
+    private JLabel staffDetailLabel;
 
     // ─── Constructor ──────────────────────────────────────────────────
     public ChurchAdminFrame() {
@@ -269,6 +278,39 @@ public class ChurchAdminFrame extends JFrame {
             side.add(buildMenuItem(item[0], item[1]));
         }
         side.add(Box.createVerticalGlue());
+        
+        // Logout button
+        JPanel logoutItem = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(C_DANGER);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        logoutItem.setPreferredSize(new Dimension(200, 44));
+        logoutItem.setMaximumSize(new Dimension(200, 44));
+        logoutItem.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        logoutItem.setBorder(new EmptyBorder(0, 16, 0, 16));
+        
+        JLabel logoutIcon = new JLabel("🚪  ");
+        logoutIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        logoutIcon.setForeground(C_TEXT);
+        
+        JLabel logoutText = new JLabel("Logout");
+        logoutText.setFont(F_MONO_SM);
+        logoutText.setForeground(C_TEXT);
+        
+        logoutItem.add(logoutIcon, BorderLayout.WEST);
+        logoutItem.add(logoutText, BorderLayout.CENTER);
+        logoutItem.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) { performLogout(); }
+            @Override public void mouseEntered(MouseEvent e) { logoutItem.repaint(); }
+            @Override public void mouseExited(MouseEvent e) { logoutItem.repaint(); }
+        });
+        side.add(logoutItem);
+        side.add(Box.createVerticalStrut(16));
 
         JLabel ver = new JLabel("  v2.4.1 build 9081");
         ver.setFont(F_MONO_SM);
@@ -361,12 +403,13 @@ public class ChurchAdminFrame extends JFrame {
         header.add(logoBlock, BorderLayout.WEST);
 
         // Main content area with overview cards
-        JPanel contentPanel = new JPanel(new GridLayout(1, 2, 20, 20));
+        JPanel contentPanel = new JPanel(new GridLayout(1, 3, 20, 20));
         contentPanel.setOpaque(false);
         
         // Announcements Overview Card
         JPanel announcementsCard = createOverviewCard(
-            "📢 Announcements",
+            "Announcements",
+            "📢",
             "Recent announcements and updates",
             C_GOLD,
             () -> switchContent("announcements")
@@ -374,14 +417,25 @@ public class ChurchAdminFrame extends JFrame {
         
         // Members Overview Card
         JPanel membersCard = createOverviewCard(
-            "👥 Members",
+            "Members",
+            "👥",
             "Member management and overview",
             C_SUCCESS,
             () -> switchContent("members")
         );
         
+        // Staff Overview Card
+        JPanel staffCard = createOverviewCard(
+            "Staff",
+            "👨‍💼",
+            "Church staff and leadership team",
+            C_INFO,
+            () -> switchContent("staff")
+        );
+        
         contentPanel.add(announcementsCard);
         contentPanel.add(membersCard);
+        contentPanel.add(staffCard);
         
         // Quick Actions Panel
         JPanel quickActionsPanel = createQuickActionsPanel();
@@ -406,7 +460,7 @@ public class ChurchAdminFrame extends JFrame {
     }
 
     // ─── Overview Cards and Quick Actions ───────────────────────────────────
-    private JPanel createOverviewCard(String title, String description, Color accent, Runnable onClick) {
+    private JPanel createOverviewCard(String title, String icon, String description, Color accent, Runnable onClick) {
         JPanel card = new JPanel(new BorderLayout(0, 15)) {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
@@ -446,11 +500,11 @@ public class ChurchAdminFrame extends JFrame {
         JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
         headerPanel.setOpaque(false);
         
-        JLabel iconLabel = new JLabel(title.split(" ")[0]);
+        JLabel iconLabel = new JLabel(icon);
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 32));
         iconLabel.setForeground(accent);
         
-        JLabel titleLabel = new JLabel(title.substring(title.indexOf(' ') + 1));
+        JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(F_HEADING);
         titleLabel.setForeground(C_TEXT);
         
@@ -498,13 +552,19 @@ public class ChurchAdminFrame extends JFrame {
         card.add(arrowPanel, BorderLayout.EAST);
         card.add(statsPanel, BorderLayout.SOUTH);
         
-        // Store references for data updates
-        if (title.contains("Announcements")) {
-            card.putClientProperty("countLabel", countLabel);
-            card.putClientProperty("detailLabel", detailLabel);
-        } else if (title.contains("Members")) {
-            card.putClientProperty("countLabel", countLabel);
-            card.putClientProperty("detailLabel", detailLabel);
+        // Store references for data updates with card type
+        if (title.equals("Announcements")) {
+            card.putClientProperty("cardType", "Announcements");
+            announcementsCountLabel = countLabel;
+            announcementsDetailLabel = detailLabel;
+        } else if (title.equals("Members")) {
+            card.putClientProperty("cardType", "Members");
+            membersCountLabel = countLabel;
+            membersDetailLabel = detailLabel;
+        } else if (title.equals("Staff")) {
+            card.putClientProperty("cardType", "Staff");
+            staffCountLabel = countLabel;
+            staffDetailLabel = detailLabel;
         }
         
         return card;
@@ -639,66 +699,50 @@ public class ChurchAdminFrame extends JFrame {
             });
             return null;
         });
+        
+        // Load staff overview
+        SanctumApiClient.getStaff().thenAccept(staff -> {
+            SwingUtilities.invokeLater(() -> {
+                int totalStaff = staff.size();
+                int leadershipCount = (int) staff.stream()
+                    .filter(s -> {
+                        Object role = s.get("role");
+                        String roleStr = role != null ? role.toString().toLowerCase() : "";
+                        return roleStr.contains("pastor") || roleStr.contains("bishop") || roleStr.contains("elder");
+                    })
+                    .count();
+                
+                // Update staff card stats
+                updateOverviewCardStats("👨‍💼 Staff", totalStaff, leadershipCount + " leadership");
+            });
+        }).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                updateOverviewCardStats("👨‍💼 Staff", 0, "Error loading data");
+            });
+            return null;
+        });
     }
     
     private void updateOverviewCardStats(String cardIdentifier, int count, String detail) {
-        // Find and update the appropriate overview card with safer navigation
+        // Update the appropriate overview card using direct references
         try {
-            // Navigate to the overview cards more safely
-            if (contentArea != null) {
-                Component overviewComponent = null;
-                
-                // Try to find the main dashboard component
-                for (Component comp : contentArea.getComponents()) {
-                    if (comp instanceof JPanel) {
-                        JPanel mainPanel = (JPanel) comp;
-                        // Look for the center content panel
-                        for (Component innerComp : mainPanel.getComponents()) {
-                            if (innerComp instanceof JPanel) {
-                                JPanel centerPanel = (JPanel) innerComp;
-                                // Look for the content panel with overview cards
-                                for (Component contentComp : centerPanel.getComponents()) {
-                                    if (contentComp instanceof JPanel) {
-                                        JPanel contentPanel = (JPanel) contentComp;
-                                        // This should be our content panel with overview cards
-                                        overviewComponent = contentPanel;
-                                        break;
-                                    }
-                                }
-                                if (overviewComponent != null) break;
-                            }
-                        }
-                        if (overviewComponent != null) break;
-                    }
+            if (cardIdentifier.contains("Announcements")) {
+                if (announcementsCountLabel != null && announcementsDetailLabel != null) {
+                    announcementsCountLabel.setText(String.valueOf(count));
+                    announcementsDetailLabel.setText(detail);
+                    System.out.println("Updated Announcements: " + count + " " + detail);
                 }
-                
-                if (overviewComponent instanceof JPanel) {
-                    JPanel contentPanel = (JPanel) overviewComponent;
-                    for (Component comp : contentPanel.getComponents()) {
-                        if (comp instanceof JPanel) {
-                            JPanel card = (JPanel) comp;
-                            Object countLabelObj = card.getClientProperty("countLabel");
-                            Object detailLabelObj = card.getClientProperty("detailLabel");
-                            
-                            if (countLabelObj instanceof JLabel && detailLabelObj instanceof JLabel) {
-                                JLabel countLabel = (JLabel) countLabelObj;
-                                JLabel detailLabel = (JLabel) detailLabelObj;
-                                
-                                // Check if this is the right card based on its current content
-                                if (cardIdentifier.contains("Announcements") && countLabel.getText().contains("Loading")) {
-                                    countLabel.setText(String.valueOf(count));
-                                    detailLabel.setText(detail);
-                                    card.repaint();
-                                    break;
-                                } else if (cardIdentifier.contains("Members") && !countLabel.getText().equals(String.valueOf(count))) {
-                                    countLabel.setText(String.valueOf(count));
-                                    detailLabel.setText(detail);
-                                    card.repaint();
-                                    break;
-                                }
-                            }
-                        }
-                    }
+            } else if (cardIdentifier.contains("Members")) {
+                if (membersCountLabel != null && membersDetailLabel != null) {
+                    membersCountLabel.setText(String.valueOf(count));
+                    membersDetailLabel.setText(detail);
+                    System.out.println("Updated Members: " + count + " " + detail);
+                }
+            } else if (cardIdentifier.contains("Staff")) {
+                if (staffCountLabel != null && staffDetailLabel != null) {
+                    staffCountLabel.setText(String.valueOf(count));
+                    staffDetailLabel.setText(detail);
+                    System.out.println("Updated Staff: " + count + " " + detail);
                 }
             }
         } catch (Exception e) {
@@ -958,6 +1002,10 @@ public class ChurchAdminFrame extends JFrame {
         );
 
         if (result == JOptionPane.YES_OPTION) {
+            // Clear session before disposing
+            SessionManager sessionMgr = SessionManager.getInstance();
+            sessionMgr.clearSession();
+            
             dispose();
             SwingUtilities.invokeLater(() -> {
                 try {
@@ -2475,9 +2523,16 @@ public class ChurchAdminFrame extends JFrame {
         contentPanel.setOpaque(false);
         
         // Logo display/upload section
-        String logoUrl = churchData.getOrDefault("logo", "").toString();
+        Object logoObj = churchData.get("logo");
+        String logoUrl = logoObj != null ? logoObj.toString() : "";
         if (logoUrl.isEmpty() || logoUrl.equals("null")) {
-            logoUrl = churchData.getOrDefault("logo_url", "").toString();
+            Object logoUrlObj = churchData.get("logo_url");
+            logoUrl = logoUrlObj != null ? logoUrlObj.toString() : "";
+        }
+        
+        // Prepend base URL if logo path is relative
+        if (!logoUrl.isEmpty() && !logoUrl.startsWith("http")) {
+            logoUrl = "https://backend.sanctum.co.ke/media/" + logoUrl;
         }
         
         JPanel logoPanel = new JPanel(new BorderLayout(10, 0));

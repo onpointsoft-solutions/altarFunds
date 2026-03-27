@@ -7,7 +7,7 @@
 #define MyAppPublisher "Sanctum Church Software"
 #define MyAppURL "https://www.sanctumchurch.com"
 #define MyAppSupportURL "https://support.sanctumchurch.com"
-#define MyAppExeName "Sanctum.exe"
+#define MyAppExeName "SanctumChurchManagement.jar"
 #define MyAppAssocName "Sanctum Church Management"
 
 [Setup]
@@ -38,7 +38,7 @@ ArchitecturesInstallIn64BitMode=x64 arm64
 ; Output configuration
 OutputDir=..\
 OutputBaseFilename=SanctumSetup-{#MyAppVersion}
-SetupIconFile=..\src\main\resources\images\icon.ico
+SetupIconFile=app.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
@@ -56,7 +56,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 CreateUninstallRegKey=yes
 CloseApplications=yes
-CloseApplicationsFilter=*.exe
+CloseApplicationsFilter=*{#MyAppExeName}*
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -73,10 +73,8 @@ Name: "{app}\logs"; Permissions: users-modify
 Name: "{localappdata}\{#MyAppShort}"; Permissions: users-modify
 
 [Files]
-; Main application executable
-Source: "..\target\Sanctum.exe"; DestDir: "{app}"; Flags: ignoreversion
-; Required JAR file (embedded but needed for .exe to work)
-Source: "..\target\sanctum-church-management-{#MyAppVersion}.jar"; DestDir: "{app}"; Flags: ignoreversion
+; Main application
+Source: "{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; Documentation
 Source: "README.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion

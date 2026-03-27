@@ -44,7 +44,7 @@ def financial_summary(request):
     
     monthly_income = GivingTransaction.objects.filter(
         church=church,
-        created_at__gte=timezone.now() - timedelta(days=30)
+        transaction_date__gte=timezone.now() - timedelta(days=30)
     ).aggregate(total=Sum('amount'))['total'] or 0
     
     # Calculate expenses
@@ -98,7 +98,7 @@ def monthly_trend(request):
         
         income = GivingTransaction.objects.filter(
             church=church,
-            created_at__range=[month_start, month_end]
+            transaction_date__range=[month_start, month_end]
         ).aggregate(total=Sum('amount'))['total'] or 0
         
         expenses = Expense.objects.filter(

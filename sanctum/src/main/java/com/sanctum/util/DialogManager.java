@@ -237,6 +237,31 @@ public class DialogManager {
         
         return result[0];
     }
+
+    public static void showMessageDialog(Component parent, String message, String title, int messageType) {
+        Window parentWindow = getParentWindow(parent);
+        JDialog dialog = createModalDialog(parentWindow, title);
+
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
+
+        JLabel messageLabel = new JLabel("<html><div style='width:320px'>" + message + "</div></html>");
+        messageLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        JButton okButton = new JButton("OK");
+        styleDialogButton(okButton);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.add(okButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        okButton.addActionListener(e -> dialog.dispose());
+
+        dialog.setContentPane(panel);
+        dialog.pack();
+        dialog.setLocationRelativeTo(parent);
+        showDialogEnhanced(dialog);
+    }
     
     /**
      * Style dialog buttons consistently
