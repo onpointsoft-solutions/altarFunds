@@ -35,9 +35,6 @@ class GivingViewModel : ViewModel() {
     private val _donationResult = MutableLiveData<Resource<GivingTransaction>>()
     val donationResult: LiveData<Resource<GivingTransaction>> = _donationResult
     
-    private val _paystackPaymentResult = MutableLiveData<Resource<PaystackPaymentResponse>>()
-    val paystackPaymentResult: LiveData<Resource<PaystackPaymentResponse>> = _paystackPaymentResult
-    
         
     fun loadGivingCategories() {
         _givingCategories.value = Resource.Loading
@@ -137,62 +134,72 @@ class GivingViewModel : ViewModel() {
         }
     }
     
-    fun initializePaystackPayment(
-        amount: String,
-        givingType: String,
-        churchId: Int,
-        email: String
+    fun initiatePayment(
+        amount: Double,
+        categoryId: Int,
+        paymentMethod: String, // "mpesa", "paystack", "card"
+        phoneNumber: String? = null,
+        email: String? = null
     ) {
-        _paystackPaymentResult.value = Resource.Loading
+        _donationResult.value = Resource.Loading
         viewModelScope.launch {
             try {
-                val paystackRequest = PaystackPaymentRequest(
-                    email = email,
+                val givingRequest = GivingTransactionRequest(
+                    category = categoryId,
                     amount = amount,
-                    givingType = givingType,
-                    churchId = churchId,
-                    metadata = mapOf(
-                        "user_id" to app.tokenManager.getRefreshToken(),
-                        "user_email" to email
-                    ) as Map<String, Any>
+                    paymentMethod = paymentMethod,
+                    note = "Mobile donation via $paymentMethod",
+                    isAnonymous = false,
+                    // Add payment-specific details if needed
+                    phoneNumber = phoneNumber,
+                    email = email
                 )
                 
-                val response = getApiService().initializePaystackPayment(paystackRequest)
+                // Create donation - backend will handle payment initiation
+                val response = getApiService().createDonation(givingRequest)
                 if (response.isSuccessful) {
                     val apiResponse = response.body()
-                    if (apiResponse?.success == true && apiResponse?.data != null) {
-                        val paymentData = apiResponse.data
-                        val paystackResponse = PaystackPaymentResponse(
-                            authorizationUrl = paymentData["authorization_url"] as String,
-                            reference = paymentData["reference"] as String,
-                            accessCode = paymentData["access_code"] as String
-                        )
-                        _paystackPaymentResult.value = Resource.Success(paystackResponse)
+                    if (apiResponse?.success == true && apiResponse.data != null) {
+                        val donation = apiResponse.data
+                        
+                        // Check if payment initiation was successful
+                        if (donation.paymentStatus == "pending" || donation.paymentReference != null) {
+                            _donationResult.value = Resource.Success(donation)
+                        } else {
+                            _donationResult.value = Resource.Error("Payment initiation failed")
+                        }
                     } else {
-                        _paystackPaymentResult.value = Resource.Error(apiResponse?.message ?: "Failed to initialize payment")
+                        _donationResult.value = Resource.Error(apiResponse?.message ?: "Failed to initiate payment")
                     }
                 } else {
-                    _paystackPaymentResult.value = Resource.Error("Failed to initialize payment: ${response.code()}")
+                    _donationResult.value = Resource.Error("Failed to initiate payment: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _paystackPaymentResult.value = Resource.Error("Network error: ${e.message}")
+                _donationResult.value = Resource.Error("Network error: ${e.message}")
             }
         }
     }
     
-    fun verifyPaystackPayment(reference: String) {
+    fun checkPaymentStatus(donationId: Int) {
         viewModelScope.launch {
             try {
-                val response = getApiService().verifyPaystackPayment(reference)
+                // Get updated donation status from backend
+                val response = getApiService().getGivingTransactions()
                 if (response.isSuccessful) {
-                    val apiResponse = response.body()
-                    if (apiResponse?.success == true) {
-                        // Payment verified successfully
-                        // You might want to refresh giving transactions here
+                    val transactions = response.body()?.results ?: emptyList()
+                    val updatedDonation = transactions.find { it.id == donationId }
+                    
+                    updatedDonation?.let { donation ->
+                        if (donation.paymentStatus == "completed") {
+                            _donationResult.value = Resource.Success(donation)
+                        } else if (donation.paymentStatus == "failed") {
+                            _donationResult.value = Resource.Error("Payment failed")
+                        }
+                        // If still pending, continue waiting
                     }
                 }
             } catch (e: Exception) {
-                // Handle verification error
+                // Handle error
             }
         }
     }

@@ -56,4 +56,8 @@ urlpatterns = [
     
     # Feedback
     path('feedback/submit/', views.mobile_submit_feedback, name='submit-feedback'),
+    
+    # Announcements & Devotionals
+    path('announcements/', views.MobileAnnouncementListView.as_view(), name='announcements'),
+    path('devotionals/', views.MobileDevotionalListView.as_view(), name='devotionals'),
 ]

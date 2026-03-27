@@ -58,25 +58,15 @@ class DevotionalsFragment : Fragment() {
         binding.swipeRefresh.isRefreshing = true
         
         lifecycleScope.launch {
-            // First, try to load from cache
-            val cachedDevotionals = app.database.devotionalDao().getAllDevotionals().firstOrNull()
-            if (!cachedDevotionals.isNullOrEmpty()) {
-                val devotionals = cachedDevotionals.map { it.toModel() }
-                devotionalAdapter.submitList(devotionals)
-                binding.tvEmpty.gone()
-                binding.rvDevotionals.visible()
-            }
+            // Clear cached data first to force fresh load
+            app.database.devotionalDao().deleteAllDevotionals()
             
             // Check network availability
             if (!NetworkUtils.isNetworkAvailable(requireContext())) {
                 binding.swipeRefresh.isRefreshing = false
-                if (!cachedDevotionals.isNullOrEmpty()) {
-                    requireContext().showToast("ℹ Offline mode - Showing cached devotionals")
-                } else {
-                    requireContext().showToast("✗ No internet connection and no cached devotionals")
-                    binding.tvEmpty.visible()
-                    binding.rvDevotionals.gone()
-                }
+                requireContext().showToast("✗ No internet connection")
+                binding.tvEmpty.visible()
+                binding.rvDevotionals.gone()
                 return@launch
             }
             
@@ -89,7 +79,6 @@ class DevotionalsFragment : Fragment() {
                     
                     // Cache the devotionals
                     if (devotionals.isNotEmpty()) {
-                        app.database.devotionalDao().deleteAllDevotionals()
                         app.database.devotionalDao().insertDevotionals(devotionals.map { it.toEntity() })
                     }
                     
@@ -103,15 +92,15 @@ class DevotionalsFragment : Fragment() {
                         binding.rvDevotionals.visible()
                     }
                 } else {
-                    if (cachedDevotionals.isNullOrEmpty()) {
-                        requireContext().showToast("✗ Failed to load devotionals")
-                    }
+                    requireContext().showToast("✗ Failed to load devotionals")
+                    binding.tvEmpty.visible()
+                    binding.rvDevotionals.gone()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                if (cachedDevotionals.isNullOrEmpty()) {
-                    requireContext().showToast("✗ Network error: ${e.message ?: "Unknown error"}")
-                }
+                requireContext().showToast("✗ Network error: ${e.message ?: "Unknown error"}")
+                binding.tvEmpty.visible()
+                binding.rvDevotionals.gone()
             } finally {
                 binding.swipeRefresh.isRefreshing = false
             }

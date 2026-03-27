@@ -58,28 +58,16 @@ class AnnouncementsFragment : Fragment() {
         _binding?.swipeRefresh?.isRefreshing = true
         
         lifecycleScope.launch {
-            // First, try to load from cache
-            val cachedAnnouncements = app.database.announcementDao().getAllAnnouncements().firstOrNull()
-            if (!cachedAnnouncements.isNullOrEmpty()) {
-                val announcements = cachedAnnouncements.map { it.toModel() }
-                announcementAdapter.submitList(announcements)
-                _binding?.let { binding ->
-                    binding.tvEmpty.gone()
-                    binding.rvAnnouncements.visible()
-                }
-            }
+            // Clear cached data first to force fresh load
+            app.database.announcementDao().deleteAllAnnouncements()
             
             // Check network availability
             if (!NetworkUtils.isNetworkAvailable(requireContext())) {
                 _binding?.swipeRefresh?.isRefreshing = false
-                if (!cachedAnnouncements.isNullOrEmpty()) {
-                    requireContext().showToast("ℹ Offline mode - Showing cached announcements")
-                } else {
-                    requireContext().showToast("✗ No internet connection and no cached announcements")
-                    _binding?.let { binding ->
-                        binding.tvEmpty.visible()
-                        binding.rvAnnouncements.gone()
-                    }
+                requireContext().showToast("✗ No internet connection")
+                _binding?.let { binding ->
+                    binding.tvEmpty.visible()
+                    binding.rvAnnouncements.gone()
                 }
                 return@launch
             }
@@ -93,7 +81,6 @@ class AnnouncementsFragment : Fragment() {
                     
                     // Cache the announcements
                     if (announcements.isNotEmpty()) {
-                        app.database.announcementDao().deleteAllAnnouncements()
                         app.database.announcementDao().insertAnnouncements(announcements.map { it.toEntity() })
                     }
                     
@@ -109,19 +96,21 @@ class AnnouncementsFragment : Fragment() {
                         }
                     }
                 } else {
-                    if (cachedAnnouncements.isNullOrEmpty()) {
-                        requireContext().showToast("✗ Failed to load announcements")
+                    requireContext().showToast("✗ Failed to load announcements")
+                    _binding?.let { binding ->
+                        binding.tvEmpty.visible()
+                        binding.rvAnnouncements.gone()
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                if (cachedAnnouncements.isNullOrEmpty()) {
-                    requireContext().showToast("✗ Network error: ${e.message ?: "Unknown error"}")
+                requireContext().showToast("✗ Network error: ${e.message ?: "Unknown error"}")
+                _binding?.let { binding ->
+                    binding.tvEmpty.visible()
+                    binding.rvAnnouncements.gone()
                 }
             } finally {
-                _binding?.let { binding ->
-                    binding.swipeRefresh.isRefreshing = false
-                }
+                _binding?.swipeRefresh?.isRefreshing = false
             }
         }
     }

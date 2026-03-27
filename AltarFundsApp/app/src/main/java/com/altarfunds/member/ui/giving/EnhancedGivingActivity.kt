@@ -11,6 +11,7 @@ import com.altarfunds.member.models.*
 import com.altarfunds.member.utils.TokenManager
 import com.altarfunds.member.utils.ThemeManager
 import com.altarfunds.member.viewmodel.GivingViewModel
+import com.altarfunds.member.viewmodel.Resource
 
 class EnhancedGivingActivity : AppCompatActivity() {
     
@@ -71,42 +72,108 @@ class EnhancedGivingActivity : AppCompatActivity() {
             return
         }
         
-        // For now, use a default category
-        val defaultCategory = GivingCategory(1, "General", "General giving", true, 0, false, null, null)
-        showPaymentOptions(defaultCategory)
-    }
-    
-    private fun initiateCardPayment() {
-        val amount = binding.etAmount.text.toString()
-        if (amount.isEmpty()) {
-            Toast.makeText(this, "Please enter amount first", Toast.LENGTH_SHORT).show()
-            return
-        }
-        
         val amountValue = amount.toDouble()
         val categoryId = selectedCategory?.id ?: 1
         
-        // Create donation through backend
-        viewModel.createDonation(categoryId, amountValue, "card")
+        // Show loading
+        showLoading()
+        binding.tvInfo.text = "Initiating payment..."
         
-        Toast.makeText(this, "Processing payment of KES $amountValue...", Toast.LENGTH_SHORT).show()
+        // Let backend handle payment initiation based on user's preferred method
+        // Backend will determine payment method (M-Pesa, Paystack, etc.) and handle integration
+        viewModel.initiatePayment(
+            amount = amountValue,
+            categoryId = categoryId,
+            paymentMethod = "mpesa", // Backend can override based on user preferences/availability
+            phoneNumber = getUserPhoneNumber(), // Get from user profile
+            email = getUserEmail() // Get from user profile
+        )
         
-        // For now, simulate success - backend will handle actual payment processing
-        showPaymentSuccess()
+        // Observe the result
+        observeDonationResult()
+    }
+    
+    private fun observeDonationResult() {
+        viewModel.donationResult.observe(this) { resource ->
+            when (resource) {
+                is Resource.Loading -> {
+                    showLoading()
+                    binding.tvInfo.text = "Processing payment..."
+                }
+                is Resource.Success -> {
+                    val donation = resource.data
+                    if (donation.paymentStatus == "pending") {
+                        binding.tvInfo.text = "Payment initiated!\nReference: ${donation.paymentReference ?: donation.transactionId}\nPlease complete payment on your device."
+                        
+                        // Start polling for payment status
+                        startPaymentStatusCheck(donation.id)
+                    } else if (donation.paymentStatus == "completed") {
+                        showPaymentSuccess()
+                    } else {
+                        showPaymentError("Payment status: ${donation.paymentStatus}")
+                    }
+                }
+                is Resource.Error -> {
+                    showPaymentError(resource.message)
+                }
+            }
+        }
+    }
+    
+    private fun startPaymentStatusCheck(donationId: Int) {
+        // Poll for payment status every 5 seconds
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                viewModel.checkPaymentStatus(donationId)
+                handler.postDelayed(this, 5000) // Check every 5 seconds
+            }
+        }
+        handler.post(runnable)
+        
+        // Stop polling after 2 minutes
+        handler.postDelayed({
+            handler.removeCallbacks(runnable)
+            if (viewModel.donationResult.value is Resource.Success) {
+                val donation = (viewModel.donationResult.value as Resource.Success).data
+                if (donation.paymentStatus == "pending") {
+                    showPaymentTimeout()
+                }
+            }
+        }, 120000) // 2 minutes timeout
     }
     
     private fun showPaymentSuccess() {
-        // Show success message in info text
+        hideLoading()
         binding.tvInfo.text = "Payment Successful!\nThank you for your giving."
-        
-        // Hide button and show progress
         binding.btnGive.visibility = View.GONE
-        binding.progressBar.visibility = View.VISIBLE
         
         // Reset form after delay
         binding.root.postDelayed({
             finish()
         }, 3000)
+    }
+    
+    private fun showPaymentError(message: String) {
+        hideLoading()
+        binding.tvInfo.text = "Payment Failed: $message\nPlease try again."
+        binding.btnGive.visibility = View.VISIBLE
+    }
+    
+    private fun showPaymentTimeout() {
+        hideLoading()
+        binding.tvInfo.text = "Payment timed out.\nPlease check if payment was completed and contact support if needed."
+        binding.btnGive.visibility = View.VISIBLE
+    }
+    
+    private fun getUserPhoneNumber(): String? {
+        // TODO: Get phone number from user profile
+        return null // Backend can use church member's phone number
+    }
+    
+    private fun getUserEmail(): String? {
+        // TODO: Get email from user profile
+        return null // Backend can use church member's email
     }
     
     private fun showLoading() {

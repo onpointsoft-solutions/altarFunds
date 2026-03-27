@@ -169,7 +169,9 @@ data class GivingTransactionRequest(
     val amount: Double,
     @SerializedName("payment_method") val paymentMethod: String = "mpesa",
     val note: String? = null,
-    @SerializedName("is_anonymous") val isAnonymous: Boolean = false
+    @SerializedName("is_anonymous") val isAnonymous: Boolean = false,
+    @SerializedName("phone_number") val phoneNumber: String? = null,
+    val email: String? = null
 )
 
 data class GivingTransaction(
@@ -179,6 +181,8 @@ data class GivingTransaction(
     @SerializedName("payment_method") val paymentMethod: String,
     @SerializedName("payment_method_display") val paymentMethodDisplay: String,
     val status: String,
+    @SerializedName("payment_status") val paymentStatus: String? = null,
+    @SerializedName("payment_reference") val paymentReference: String? = null,
     @SerializedName("transaction_type") val transactionType: String,
     @SerializedName("transaction_date") val transactionDate: String,
     val note: String?,

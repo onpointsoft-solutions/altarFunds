@@ -33,7 +33,8 @@ interface ApiService {
     @GET("churches/")
     suspend fun getChurches(
         @Query("search") search: String? = null,
-        @Query("page") page: Int = 1
+        @Query("page") page: Int = 1,
+        @Query("include_unverified") includeUnverified: Boolean = true
     ): Response<PaginatedResponse<Church>>
     
     @GET("churches/{id}/")
@@ -88,7 +89,7 @@ interface ApiService {
     suspend fun checkPaymentStatus(@Path("transaction_id") transactionId: String): Response<PaymentStatus>
     
     // Announcements
-    @GET("announcements/")
+    @GET("mobile/announcements/")
     suspend fun getAnnouncements(
         @Query("page") page: Int = 1
     ): Response<PaginatedResponse<Announcement>>
@@ -97,7 +98,7 @@ interface ApiService {
     suspend fun getAnnouncementDetails(@Path("id") announcementId: Int): Response<Announcement>
     
     // Devotionals
-    @GET("devotionals/")
+    @GET("mobile/devotionals/")
     suspend fun getDevotionals(
         @Query("page") page: Int = 1
     ): Response<PaginatedResponse<Devotional>>

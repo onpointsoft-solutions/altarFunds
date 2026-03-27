@@ -116,102 +116,81 @@ class GivingActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun validateInput(): Boolean {
         val amount = binding.etAmount.text.toString()
         val phone = binding.etPhone.text.toString()
         val paymentMethod = binding.spinnerPaymentMethod.selectedItem.toString()
-        
+
         if (amount.isEmpty()) {
             binding.tilAmount.error = "Amount is required"
             return false
         }
-        
+
         if (amount.toDoubleOrNull() == null || amount.toDouble() <= 0) {
             binding.tilAmount.error = "Invalid amount"
             return false
         }
-        
+
         // Phone number only required for M-Pesa
         if (paymentMethod == "M-Pesa" && phone.isEmpty()) {
             binding.tilPhone.error = "Phone number is required for M-Pesa"
             return false
         }
-        
+
         if (paymentMethod == "M-Pesa" && !phone.isValidPhone()) {
             binding.tilPhone.error = "Invalid phone number"
             return false
         }
-        
+
         binding.tilAmount.error = null
         binding.tilPhone.error = null
         return true
     }
-    
+
     private fun initiateMpesaPayment() {
         progressDialog.setMessage("Initiating M-Pesa payment...")
         progressDialog.show()
         
         val amount = binding.etAmount.text.toString()
         val phone = binding.etPhone.text.toString().formatPhoneNumber()
-        val description = binding.etDescription.text.toString().ifEmpty { "Donation" }
-        
-        lifecycleScope.launch {
-            try {
-                val request = MpesaRequest(
-                    phoneNumber = phone,
-                    amount = amount,
-                    donationType = selectedCategoryId.toString(),
-                    description = description
-                )
-                
-                val response = app.apiService.initiateMpesaPayment(request)
-                
-                if (response.isSuccessful && response.body() != null) {
-                    val mpesaResponse = response.body()!!
-                    showToast(mpesaResponse.customerMessage)
-                    
-                    binding.btnGive.animateSuccess {
-                        checkPaymentStatus(mpesaResponse.checkoutRequestId)
-                    ErrorHandler.showError(this@GivingActivity, response.code(), "Failed to initiate M-Pesa payment")
-                    progressDialog.dismiss()
-                }
-            } }
-            catch (e: Exception) {
-                e.printStackTrace()
-                ErrorHandler.showError(this@GivingActivity, e)
-                progressDialog.dismiss()
-            }
-        }
-    }
-    
-    private fun initiatePaystackPayment() {
-        val amount = binding.etAmount.text.toString()
         val selectedCategory = binding.spinnerType.selectedItem as? GivingCategory
         
         if (selectedCategory == null) {
             showToast("Please select a giving category")
+            progressDialog.dismiss()
             return
         }
         
-        viewModel.initializePaystackPayment(
-            amount = amount,
-            givingType = selectedCategory.name,
-            churchId = app.tokenManager.getChurchId() ?: 1,
-            email = app.tokenManager.getUserEmail() ?: ""
+        // Use new backend-only payment initiation
+        viewModel.initiatePayment(
+            amount = amount.toDouble(),
+            categoryId = selectedCategory.id,
+            paymentMethod = "mpesa",
+            phoneNumber = phone,
+            email = app.tokenManager.getUserEmail()
         )
         
-        viewModel.paystackPaymentResult.observe(this) { result ->
+        // Observe donation result
+        viewModel.donationResult.observe(this) { result ->
             when (result) {
                 is Resource.Loading -> {
-                    progressDialog.setMessage("Initializing card payment...")
-                    progressDialog.show()
+                    // Already showing loading
                 }
-                is Resource.Success<*> -> {
+                is Resource.Success -> {
                     progressDialog.dismiss()
-                    binding.btnGive.animateSuccess {
-                        // Open Paystack payment URL in browser
-                        openPaystackPayment(result.data as String)
+                    val donation = result.data
+                    if (donation.paymentStatus == "pending") {
+                        showToast("M-Pesa payment initiated! Check your phone for STK prompt.")
+                        // Start polling for payment status
+                        startPaymentStatusCheck(donation.id)
+                    } else if (donation.paymentStatus == "completed") {
+                        binding.btnGive.animateSuccess {
+                            showToast("Payment successful!")
+                            finish()
+                        }
+                    } else {
+                        showToast("Payment status: ${donation.paymentStatus}")
                     }
                 }
                 is Resource.Error -> {
@@ -221,37 +200,75 @@ class GivingActivity : AppCompatActivity() {
             }
         }
     }
-    
-    private fun openPaystackPayment(authorizationUrl: String) {
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authorizationUrl))
-            startActivity(intent)
-        } catch (e: Exception) {
-            showToast("Could not open payment page")
+
+    private fun initiatePaystackPayment() {
+        val amount = binding.etAmount.text.toString()
+        val selectedCategory = binding.spinnerType.selectedItem as? GivingCategory
+
+        if (selectedCategory == null) {
+            showToast("Please select a giving category")
+            return
         }
-    }
-    
-    private fun checkPaymentStatus(checkoutRequestId: String) {
-        lifecycleScope.launch {
-            delay(15000)
-            
-            try {
-                val response = app.apiService.checkPaymentStatus(checkoutRequestId)
-                
-                if (response.isSuccessful && response.body() != null) {
-                    val status = response.body()!!
-                    showToast(status.message)
-                    
-                    if (status.status == "completed") {
-                        finish()
-                    }
-                } else {
-                    showToast("Could not verify payment status")
+
+        // Use new backend-only payment initiation
+        viewModel.initiatePayment(
+            amount = amount.toDouble(),
+            categoryId = selectedCategory.id,
+            paymentMethod = "mpesa", // Backend will determine best method
+            phoneNumber = null, // Backend will get from user profile
+            email = app.tokenManager.getUserEmail() // Get from user profile
+        )
+
+        // Observe donation result instead of paystack result
+        viewModel.donationResult.observe(this) { result ->
+            when (result) {
+                is Resource.Loading -> {
+                    progressDialog.setMessage("Processing payment...")
+                    progressDialog.show()
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                ErrorHandler.showError(this@GivingActivity, e)
+
+                is Resource.Success -> {
+                    progressDialog.dismiss()
+                    val donation = result.data
+                    if (donation.paymentStatus == "pending") {
+                        showToast("Payment initiated! Reference: ${donation.paymentReference ?: donation.transactionId}")
+                        // Start polling for payment status
+                        startPaymentStatusCheck(donation.id)
+                    } else if (donation.paymentStatus == "completed") {
+                        binding.btnGive.animateSuccess {
+                            showToast("Payment successful!")
+                            finish()
+                        }
+                    } else {
+                        showToast("Payment status: ${donation.paymentStatus}")
+                    }
+                }
+
+                is Resource.Error -> {
+                    progressDialog.dismiss()
+                    showToast(result.message)
+                }
             }
         }
     }
+
+    private fun startPaymentStatusCheck(donationId: Int) {
+        // Poll for payment status every 5 seconds
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                viewModel.checkPaymentStatus(donationId)
+                handler.postDelayed(this, 5000) // Check every 5 seconds
+            }
+        }
+        handler.post(runnable)
+
+        // Stop polling after 2 minutes
+        handler.postDelayed({
+            handler.removeCallbacks(runnable)
+            runOnUiThread {
+                showToast("Payment verification timed out. Please check if payment was completed.")
+            }
+        }, 120000) // 2 minutes timeout
     }
+}
