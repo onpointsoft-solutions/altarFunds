@@ -887,12 +887,23 @@ class MobileAnnouncementListView(generics.ListAPIView):
         user = self.request.user
         from announcements.models import Announcement
         
-        # Start with global announcements (no church filter)
-        queryset = Announcement.objects.filter(
-            is_active=True
-        ).filter(
-            Q(church__isnull=True) | Q(church=user.church if user.church else None)
-        )
+        # Debug: Check user's church
+        print(f"User: {user.id}, Church: {user.church.id if user.church else None}")
+        
+        # Start with all active announcements
+        queryset = Announcement.objects.filter(is_active=True)
+        
+        # Filter by church logic
+        if user.church:
+            # User has church - show global + church announcements
+            queryset = queryset.filter(
+                Q(church__isnull=True) | Q(church=user.church)
+            )
+            print(f"User has church {user.church.id}, showing global + church announcements")
+        else:
+            # User has no church - show only global announcements
+            queryset = queryset.filter(church__isnull=True)
+            print("User has no church, showing only global announcements")
         
         # Filter by target audience based on user role
         if user.role == 'pastor':
@@ -912,6 +923,10 @@ class MobileAnnouncementListView(generics.ListAPIView):
             expires_at__lt=timezone.now()
         )
         
+        # Debug: Count results
+        count = queryset.count()
+        print(f"Final queryset count: {count}")
+        
         return queryset.order_by('-created_at')
     
     def get_serializer_class(self):
@@ -930,12 +945,27 @@ class MobileDevotionalListView(generics.ListAPIView):
         user = self.request.user
         from devotionals.models import Devotional
         
-        # Start with published devotionals
-        queryset = Devotional.objects.filter(
-            is_published=True
-        ).filter(
-            Q(church__isnull=True) | Q(church=user.church if user.church else None)
-        )
+        # Debug: Check user's church
+        print(f"Devotional - User: {user.id}, Church: {user.church.id if user.church else None}")
+        
+        # Start with all published devotionals
+        queryset = Devotional.objects.filter(is_published=True)
+        
+        # Filter by church logic
+        if user.church:
+            # User has church - show global + church devotionals
+            queryset = queryset.filter(
+                Q(church__isnull=True) | Q(church=user.church)
+            )
+            print(f"User has church {user.church.id}, showing global + church devotionals")
+        else:
+            # User has no church - show only global devotionals
+            queryset = queryset.filter(church__isnull=True)
+            print("User has no church, showing only global devotionals")
+        
+        # Debug: Count results
+        count = queryset.count()
+        print(f"Final devotional queryset count: {count}")
         
         return queryset.order_by('-created_at')
     

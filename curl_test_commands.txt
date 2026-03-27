@@ -1,0 +1,36 @@
+# CURL COMMANDS TO TEST MOBILE ENDPOINTS
+# Replace YOUR_ACCESS_TOKEN with actual JWT token from login
+
+# 1. Test Mobile Announcements
+curl -X GET "https://backend.sanctum.co.ke/api/mobile/announcements/?page=1" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json"
+
+# 2. Test Mobile Devotionals  
+curl -X GET "https://backend.sanctum.co.ke/api/mobile/devotionals/?page=1" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json"
+
+# 3. Test with pagination
+curl -X GET "https://backend.sanctum.co.ke/api/mobile/announcements/?page=1&page_size=10" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json"
+
+# 4. Test original endpoints (for comparison)
+curl -X GET "https://backend.sanctum.co.ke/api/announcements/?page=1" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json"
+
+curl -X GET "https://backend.sanctum.co.ke/api/devotionals/?page=1" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json"
+
+# 5. Test without auth (should return 401)
+curl -X GET "https://backend.sanctum.co.ke/api/mobile/announcements/?page=1" \
+  -H "Content-Type: application/json"
+
+# 6. Get detailed response info
+curl -v -X GET "https://backend.sanctum.co.ke/api/mobile/announcements/?page=1" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -w "\nHTTP Status: %{http_code}\nResponse Time: %{time_total}s\n"
