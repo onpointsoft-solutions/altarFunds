@@ -12,6 +12,8 @@ import com.altarfunds.member.models.Devotional
 import com.altarfunds.member.utils.formatDate
 import com.altarfunds.member.databinding.ItemDevotionalBinding
 import com.altarfunds.member.ui.devotionals.DevotionalDetailsActivity
+import com.altarfunds.member.utils.visible
+import com.bumptech.glide.Glide
 
 class DevotionalAdapter : ListAdapter<Devotional, DevotionalAdapter.ViewHolder>(DiffCallback()) {
     
@@ -44,25 +46,21 @@ class DevotionalAdapter : ListAdapter<Devotional, DevotionalAdapter.ViewHolder>(
             
             // Load banner image with better fallback
             if (!devotional.bannerImage.isNullOrEmpty()) {
-                // You can implement image loading logic here
-                // For now, using a gradient background based on title
-                val bannerColors = intArrayOf(
-                    ContextCompat.getColor(binding.root.context, R.color.primary),
-                    ContextCompat.getColor(binding.root.context, R.color.secondary),
-                    ContextCompat.getColor(binding.root.context, R.color.accent)
-                )
-                val gradient = android.graphics.drawable.GradientDrawable(
-                    android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                    bannerColors
-                )
-                gradient.cornerRadius = 16f
-                binding.ivBanner.background = gradient
+                // Load banner image if available
+                Glide.with(binding.root.context)
+                    .load(devotional.bannerImage)
+                    .placeholder(R.drawable.bg_professional_banner)
+                    .error(R.drawable.bg_professional_banner)
+                    .into(binding.ivBanner)
                 
-                // Add title overlay on banner
-                // Note: tvBannerTitle doesn't exist in item_devotional.xml layout
-                // This would need to be added to the layout if needed
+                // Set banner title
+                binding.tvBannerTitle.text = devotional.title.take(30) + if (devotional.title.length > 30) "..." else ""
+                binding.tvBannerTitle.visible()
             } else {
-                binding.ivBanner.setImageResource(R.drawable.ic_devotional_placeholder)
+                // Use professional background when no image
+                binding.ivBanner.setImageResource(R.drawable.bg_professional_banner)
+                binding.tvBannerTitle.text = devotional.title.take(30) + if (devotional.title.length > 30) "..." else ""
+                binding.tvBannerTitle.visible()
             }
             
             // Set real reaction counts (remove mock data)

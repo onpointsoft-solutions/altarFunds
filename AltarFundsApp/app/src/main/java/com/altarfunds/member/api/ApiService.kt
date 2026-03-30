@@ -128,6 +128,9 @@ interface ApiService {
     @GET("devotionals/{id}/comments/")
     suspend fun getDevotionalComments(@Path("id") devotionalId: Int): Response<List<Comment>>
     
+    @POST("devotionals/{id}/comment/")
+    suspend fun postComment(@Path("id") devotionalId: Int, @Body request: Map<String, String>): Response<Comment>
+    
     @GET("devotionals/{id}/reactions/")
     suspend fun getDevotionalReactions(@Path("id") devotionalId: Int): Response<List<Reaction>>
     

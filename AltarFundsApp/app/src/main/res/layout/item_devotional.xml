@@ -12,26 +12,82 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Banner Image -->
-        <ImageView
-            android:id="@+id/ivBanner"
+        <!-- Professional Banner Container -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/bannerContainer"
             android:layout_width="0dp"
             android:layout_height="120dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_devotional_placeholder"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Overlay gradient for better text readability -->
-        <View
-            android:id="@+id/bannerOverlay"
-            android:layout_width="0dp"
-            android:layout_height="60dp"
-            android:background="@drawable/gradient_overlay"
-            app:layout_constraintBottom_toBottomOf="@id/ivBanner"
-            app:layout_constraintEnd_toEndOf="@id/ivBanner"
-            app:layout_constraintStart_toStartOf="@id/ivBanner" />
+            <!-- Banner Background -->
+            <ImageView
+                android:id="@+id/ivBannerBackground"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/bg_professional_banner"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Banner Image (if available) -->
+            <ImageView
+                android:id="@+id/ivBanner"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:scaleType="centerCrop"
+                android:alpha="0.7"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Professional overlay gradient -->
+            <View
+                android:id="@+id/bannerOverlay"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:background="@drawable/gradient_professional_overlay"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Banner Icon -->
+            <ImageView
+                android:id="@+id/ivBannerIcon"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:src="@drawable/ic_devotional_banner"
+                app:tint="#FFFFFF"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Banner Title -->
+            <TextView
+                android:id="@+id/tvBannerTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
+                android:text="Daily Devotional"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/dm_sans_medium"
+                android:maxLines="2"
+                android:ellipsize="end"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/ivBannerIcon" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <!-- Content Container -->
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -40,7 +96,7 @@
             android:padding="16dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/ivBanner">
+            app:layout_constraintTop_toBottomOf="@id/bannerContainer">
 
             <TextView
                 android:id="@+id/tvTitle"

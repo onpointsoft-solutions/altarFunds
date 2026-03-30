@@ -1,6 +1,8 @@
 package com.altarfunds.member.ui.devotionals
 
+import android.content.Context
 import android.os.Bundle
+import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.core.content.ContextCompat
@@ -115,8 +117,7 @@ class DevotionalDetailsActivity : AppCompatActivity() {
         
         // Metadata
         binding.tvDate.text = devotional.date.formatDate()
-        binding.tvAuthor.text = "By ${devotional.author}"
-        
+        binding.tvBannerSubtitle.text = "By ${devotional.author}"
         // Reactions
         updateReactionCounts(devotional)
         
@@ -136,7 +137,16 @@ class DevotionalDetailsActivity : AppCompatActivity() {
         
         // Comment button
         binding.btnComment.setOnClickListener {
-            // Open comment dialog or navigate to comment section
+            // Focus on comment input
+            binding.etComment.requestFocus()
+            // Show keyboard
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.etComment, InputMethodManager.SHOW_IMPLICIT)
+        }
+        
+        // Send comment button
+        binding.btnSendComment.setOnClickListener {
+            postComment(devotional.id ?: -1)
         }
         
         // Bookmark button
@@ -257,6 +267,42 @@ class DevotionalDetailsActivity : AppCompatActivity() {
         }
         
         startActivity(android.content.Intent.createChooser(shareIntent, "Share Devotional"))
+    }
+    
+    private fun postComment(devotionalId: Int) {
+        if (devotionalId == -1) return
+        
+        val commentText = binding.etComment.text.toString().trim()
+        if (commentText.isEmpty()) {
+            showToast("Please enter a comment")
+            return
+        }
+        
+        lifecycleScope.launch {
+            try {
+                val request = mapOf("content" to commentText)
+                val response = app.apiService.postComment(devotionalId, request)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    // Clear comment input
+                    binding.etComment.text.clear()
+                    
+                    // Reload comments to show the new one
+                    loadComments()
+                    
+                    // Update comment count
+                    val currentCount = binding.tvCommentCount.text.toString().toIntOrNull() ?: 0
+                    binding.tvCommentCount.text = (currentCount + 1).toString()
+                    
+                    showToast("✓ Comment posted successfully")
+                } else {
+                    showToast("✗ Failed to post comment")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showToast("✗ Network error: ${e.message ?: "Unknown error"}")
+            }
+        }
     }
     
     override fun onSupportNavigateUp(): Boolean {

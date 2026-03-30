@@ -19,7 +19,7 @@ class DevotionalShare(models.Model):
 
 class PushNotification(models.Model):
     """Push notifications for mobile app"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_notifications')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_notification_records')
     title = models.CharField(max_length=200)
     message = models.TextField()
     notification_type = models.CharField(max_length=50, choices=[
