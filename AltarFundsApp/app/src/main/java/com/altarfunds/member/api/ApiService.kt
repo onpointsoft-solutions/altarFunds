@@ -89,7 +89,7 @@ interface ApiService {
     suspend fun checkPaymentStatus(@Path("transaction_id") transactionId: String): Response<PaymentStatus>
     
     // Announcements
-    @GET("mobile/announcements/")
+    @GET("announcements/")
     suspend fun getAnnouncements(
         @Query("page") page: Int = 1
     ): Response<PaginatedResponse<Announcement>>
@@ -98,7 +98,7 @@ interface ApiService {
     suspend fun getAnnouncementDetails(@Path("id") announcementId: Int): Response<Announcement>
     
     // Devotionals
-    @GET("mobile/devotionals/")
+    @GET("devotionals/")
     suspend fun getDevotionals(
         @Query("page") page: Int = 1
     ): Response<PaginatedResponse<Devotional>>
@@ -109,6 +109,33 @@ interface ApiService {
     // Dashboard Stats
     @GET("dashboard/stats/")
     suspend fun getDashboardStats(): Response<DashboardStats>
+    
+    // Notifications
+    @GET("notifications/push/")
+    suspend fun getNotifications(): Response<NotificationResponse>
+    
+    @POST("notifications/preferences/")
+    suspend fun updateNotificationPreferences(@Body preferences: NotificationPreferenceRequest): Response<NotificationPreferenceResponse>
+    
+    // Devotional Sharing
+    @GET("notifications/shares/")
+    suspend fun getDevotionalShares(): Response<DevotionalShareResponse>
+    
+    @POST("notifications/share/")
+    suspend fun shareDevotional(@Body request: DevotionalShareRequest): Response<DevotionalShareResponse>
+    
+    // Devotional Comments and Reactions
+    @GET("devotionals/{id}/comments/")
+    suspend fun getDevotionalComments(@Path("id") devotionalId: Int): Response<List<Comment>>
+    
+    @GET("devotionals/{id}/reactions/")
+    suspend fun getDevotionalReactions(@Path("id") devotionalId: Int): Response<List<Reaction>>
+    
+    @POST("devotionals/{id}/react/")
+    suspend fun likeDevotional(@Path("id") devotionalId: Int, @Body request: Map<String, String>): Response<LikeResponse>
+    
+    @POST("devotionals/{id}/bookmark/")
+    suspend fun bookmarkDevotional(@Path("id") devotionalId: Int): Response<BookmarkResponse>
     
     // Suggestions
     @GET("suggestions/")

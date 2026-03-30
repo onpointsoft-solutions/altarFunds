@@ -4,6 +4,7 @@ agp = "8.13.2"
 datastorePreferences = "1.2.0"
 glideVersion = "5.0.5"
 kotlin = "2.0.21"
+googleServices = "4.4.1"
 
 # Core AndroidX
 coreKtx = "1.17.0"
@@ -46,6 +47,11 @@ swiperefreshlayout = "1.1.0"
 glide = "4.16.0"
 shimmer = "0.5.0"
 workRuntimeKtx = "2.11.1"
+firebaseMessagingKtx = "23.4.1"
+firebaseBom = "32.7.4"
+firebaseAnalyticsKtx = "21.5.1"
+firebaseCore = "21.1.0"
+firebaseMessaging = "25.0.1"
 
 
 [libraries]
@@ -104,8 +110,16 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
 androidx-espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 
+# Firebase
+firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx", version.ref = "firebaseMessagingKtx" }
+firebase-analytics-ktx = { group = "com.google.firebase", name = "firebase-analytics-ktx", version.ref = "firebaseAnalyticsKtx" }
+firebase-core = { group = "com.google.firebase", name = "firebase-core", version.ref = "firebaseCore" }
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

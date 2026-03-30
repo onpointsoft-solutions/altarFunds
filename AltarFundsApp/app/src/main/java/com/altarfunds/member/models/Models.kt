@@ -280,8 +280,13 @@ data class Devotional(
     val title: String,
     val content: String,
     @SerializedName("scripture_reference") val scriptureReference: String?,
-    val author: String,
-    val date: String,
+    @SerializedName("author") val author: String,
+    @SerializedName("date") val date: String,
+    @SerializedName("banner_image") val bannerImage: String?,
+    @SerializedName("like_count") val likeCount: Int?,
+    @SerializedName("comment_count") val commentCount: Int?,
+    @SerializedName("is_bookmarked") val isBookmarked: Boolean = false,
+    @SerializedName("is_liked") val isLiked: Boolean = false,
     @SerializedName("created_at") val createdAt: String
 )
 
@@ -292,6 +297,100 @@ data class DashboardStats(
     @SerializedName("recent_donations") val recentDonations: List<Donation>,
     @SerializedName("announcements_count") val announcementsCount: Int,
     @SerializedName("devotionals_count") val devotionalsCount: Int
+)
+
+// Notification Models
+data class NotificationResponse(
+    val success: Boolean,
+    val count: Int,
+    val results: List<PushNotification>
+)
+
+data class PushNotification(
+    val id: Int,
+    val title: String,
+    val message: String,
+    @SerializedName("notification_type") val notificationType: String,
+    val data: Map<String, Any>? = null,
+    @SerializedName("target_url") val targetUrl: String?,
+    @SerializedName("is_read") val isRead: Boolean,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("expires_at") val expiresAt: String?
+)
+
+data class NotificationPreferenceResponse(
+    val success: Boolean,
+    val message: String,
+    val preferences: NotificationPreference
+)
+
+data class NotificationPreference(
+    @SerializedName("push_enabled") val pushEnabled: Boolean,
+    @SerializedName("email_enabled") val emailEnabled: Boolean,
+    @SerializedName("devotional_notifications") val devotionalNotifications: Boolean,
+    @SerializedName("announcement_notifications") val announcementNotifications: Boolean
+)
+
+// Devotional Sharing Models
+data class DevotionalShareResponse(
+    val success: Boolean,
+    val message: String,
+    val results: List<DevotionalShare>
+)
+
+data class DevotionalShare(
+    val id: Int,
+    @SerializedName("devotional_id") val devotionalId: Int,
+    @SerializedName("devotional_title") val devotionalTitle: String,
+    @SerializedName("shared_by") val sharedBy: User,
+    @SerializedName("shared_at") val sharedAt: String,
+    @SerializedName("message") val message: String?,
+    @SerializedName("is_read") val isRead: Boolean
+)
+
+data class DevotionalShareRequest(
+    @SerializedName("devotional_id") val devotionalId: Int,
+    @SerializedName("message") val message: String
+)
+
+data class NotificationPreferenceRequest(
+    @SerializedName("push_enabled") val pushEnabled: Boolean,
+    @SerializedName("email_enabled") val emailEnabled: Boolean,
+    @SerializedName("devotional_notifications") val devotionalNotifications: Boolean,
+    @SerializedName("announcement_notifications") val announcementNotifications: Boolean
+)
+
+// Comment and Reaction Models
+data class Comment(
+    val id: Int,
+    @SerializedName("user_name") val userName: String,
+    @SerializedName("user_avatar") val userAvatar: String?,
+    val content: String,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("like_count") val likeCount: Int = 0,
+    @SerializedName("is_liked") val isLiked: Boolean = false
+)
+
+data class Reaction(
+    val id: Int,
+    @SerializedName("user_name") val userName: String,
+    @SerializedName("user_avatar") val userAvatar: String?,
+    @SerializedName("reaction_type") val reactionType: String,
+    @SerializedName("emoji") val emoji: String,
+    @SerializedName("created_at") val createdAt: String
+)
+
+data class LikeResponse(
+    val success: Boolean,
+    val message: String,
+    @SerializedName("is_liked") val isLiked: Boolean,
+    @SerializedName("like_count") val likeCount: Int
+)
+
+data class BookmarkResponse(
+    val success: Boolean,
+    val message: String,
+    @SerializedName("is_bookmarked") val isBookmarked: Boolean
 )
 
 // Suggestion Models

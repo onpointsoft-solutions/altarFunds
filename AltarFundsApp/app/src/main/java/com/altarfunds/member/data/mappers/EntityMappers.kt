@@ -172,6 +172,10 @@ fun DevotionalEntity.toModel(): Devotional {
         scriptureReference = scriptureReference.ifEmpty { null },
         author = author,
         date = date,
+        bannerImage = null, // Entity doesn't have bannerImage, set to null
+        likeCount = 0, // Entity doesn't have likeCount, set to 0
+        commentCount = 0, // Entity doesn't have commentCount, set to 0
+        isBookmarked = false, // Entity doesn't have isBookmarked, set to false
         createdAt = createdAt
     )
 }

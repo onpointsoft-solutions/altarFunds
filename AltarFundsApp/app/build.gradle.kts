@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -82,8 +83,12 @@ dependencies {
     // Room Database for offline caching
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.firebase.messaging)
     ksp(libs.androidx.room.compiler)
-
+    
+    // Firebase
+    implementation(libs.firebase.messaging.ktx)
+    
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

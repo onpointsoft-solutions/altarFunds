@@ -41,19 +41,12 @@ class ProfileFragment : Fragment() {
     
     private fun loadProfile() {
         lifecycleScope.launch {
-            // First, try to load from cache
-            val cachedUser = app.database.userDao().getCurrentUser().firstOrNull()
-            if (cachedUser != null) {
-                displayProfile(cachedUser.toModel())
-            }
+            // Clear cache first to ensure fresh data
+            app.database.userDao().deleteAllUsers()
             
             // Check network availability
             if (!NetworkUtils.isNetworkAvailable(requireContext())) {
-                if (cachedUser != null) {
-                    requireContext().showToast("ℹ Offline mode - Showing cached data")
-                } else {
-                    requireContext().showToast("✗ No internet connection and no cached data available")
-                }
+                requireContext().showToast("✗ No internet connection")
                 return@launch
             }
             
@@ -63,7 +56,7 @@ class ProfileFragment : Fragment() {
                 
                 if (response.isSuccessful && response.body() != null) {
                     val user = response.body()!!
-                    // Cache the user data
+                    // Cache user data
                     app.database.userDao().insertUser(user.toEntity())
                     displayProfile(user)
                 } else {
@@ -78,19 +71,13 @@ class ProfileFragment : Fragment() {
                 }
             } catch (e: java.net.UnknownHostException) {
                 e.printStackTrace()
-                if (cachedUser == null) {
-                    requireContext().showToast("✗ No internet connection. Please check your network.")
-                }
+                requireContext().showToast("✗ No internet connection. Please check your network.")
             } catch (e: java.net.SocketTimeoutException) {
                 e.printStackTrace()
-                if (cachedUser == null) {
-                    requireContext().showToast("✗ Connection timeout. Please try again.")
-                }
+                requireContext().showToast("✗ Connection timeout. Please try again.")
             } catch (e: Exception) {
                 e.printStackTrace()
-                if (cachedUser == null) {
-                    requireContext().showToast("✗ Error loading profile: ${e.message ?: "Network error"}")
-                }
+                requireContext().showToast("✗ Error loading profile: ${e.message ?: "Network error"}")
             }
         }
     }
@@ -146,11 +133,6 @@ class ProfileFragment : Fragment() {
             startActivity(intent)
             requireActivity().finish()
         }
-    }
-    
-    override fun onResume() {
-        super.onResume()
-        loadProfile()
     }
     
     override fun onDestroyView() {

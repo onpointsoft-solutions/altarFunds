@@ -92,43 +92,31 @@ class GivingFragment : Fragment() {
                 
                 if (response.isSuccessful && response.body() != null) {
                     val transactions = response.body()!!.results
-                    
-                    givingAdapter.submitList(transactions)
-                    
                     if (transactions.isEmpty()) {
-                        emptyStateHelper.show(
-                            title = "No Giving History",
-                            description = "You haven't made any donations yet. Tap the button below to give.",
-                            actionText = "Give Now"
-                        )
-                        binding.rvDonations.gone()
-                        binding.tvEmpty.gone()
+                        //emptyStateHelper.showEmptyState()
                     } else {
-                        emptyStateHelper.hide()
-                        binding.rvDonations.visible()
-                        binding.tvEmpty.gone()
+                        //emptyStateHelper.hideEmptyState()
+                        givingAdapter.submitList(transactions)
                     }
                 } else {
-                    ErrorHandler.showError(requireContext(), response.code())
-                    EmptyStateHelper.forNetworkError(binding.root) {
-                        loadGivingTransactions()
-                    }
+                    requireContext().showToast("✗ Failed to load giving transactions")
+                   // emptyStateHelper.showErrorState()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 ErrorHandler.showError(requireContext(), e)
-                EmptyStateHelper.forNetworkError(binding.root) {
-                    loadGivingTransactions()
-                }
+                //emptyStateHelper.showErrorState()
             } finally {
-                binding.swipeRefresh.isRefreshing = false
+                _binding?.swipeRefresh?.isRefreshing = false
             }
         }
     }
     
     override fun onResume() {
         super.onResume()
-        loadGivingTransactions()
+        if (_binding != null) {
+            loadGivingTransactions()
+        }
     }
     
     override fun onDestroyView() {

@@ -40,6 +40,14 @@ class DevotionalViewSet(viewsets.ModelViewSet):
             church=self.request.user.church
         )
     
+    @action(detail=True, methods=['get'])
+    def comments(self, request, pk=None):
+        """Get all comments for a devotional"""
+        devotional = self.get_object()
+        comments = DevotionalComment.objects.filter(devotional=devotional).order_by('-created_at')
+        serializer = DevotionalCommentSerializer(comments, many=True)
+        return Response(serializer.data)
+    
     @action(detail=True, methods=['post'])
     def comment(self, request, pk=None):
         """Add a comment to a devotional"""
@@ -53,6 +61,14 @@ class DevotionalViewSet(viewsets.ModelViewSet):
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'])
+    def reactions(self, request, pk=None):
+        """Get all reactions for a devotional"""
+        devotional = self.get_object()
+        reactions = DevotionalReaction.objects.filter(devotional=devotional).order_by('-created_at')
+        serializer = DevotionalReactionSerializer(reactions, many=True)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def react(self, request, pk=None):

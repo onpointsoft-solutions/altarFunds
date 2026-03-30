@@ -93,25 +93,22 @@ class DashboardFragment : Fragment() {
         binding.swipeRefresh.isRefreshing = true
         
         lifecycleScope.launch {
-            // Load cached data first
-            val cachedStats = app.database.dashboardStatsDao().getDashboardStats().firstOrNull()
-            if (cachedStats != null) {
-                updateUI(cachedStats.toModel())
-            }
+            // Clear stale cache first to ensure fresh data
+            app.database.announcementDao().deleteAllAnnouncements()
+            app.database.devotionalDao().deleteAllDevotionals()
+            app.database.dashboardStatsDao().deleteDashboardStats()
             
             // Check network availability
             val isOnline = NetworkUtils.isNetworkAvailable(requireContext())
             
             if (!isOnline) {
                 binding.swipeRefresh.isRefreshing = false
-                if (cachedStats != null) {
-                    requireContext().showToast("ℹ Offline mode - Showing cached dashboard data")
-                } else {
-                    requireContext().showToast("✗ No internet connection and no cached data")
-                }
-                // Still load cached announcements and devotionals
-                loadRecentAnnouncements(false)
-                loadRecentDevotionals(false)
+                requireContext().showToast("✗ No internet connection")
+                // Show empty state when offline and no cached data
+                _binding?.rvRecentAnnouncements?.gone()
+                _binding?.tvEmptyAnnouncements?.visible()
+                _binding?.rvRecentDevotionals?.gone()
+                _binding?.tvEmptyDevotionals?.visible()
                 return@launch
             }
             
@@ -125,16 +122,7 @@ class DashboardFragment : Fragment() {
                     app.database.dashboardStatsDao().insertDashboardStats(stats.toEntity())
                     updateUI(stats)
                 } else {
-                    if (cachedStats == null) {
-                        val errorMessage = when (statsResponse.code()) {
-                            404 -> "✗ Dashboard stats not available"
-                            401 -> "✗ Session expired. Please login again."
-                            403 -> "✗ Access denied"
-                            500 -> "✗ Server error. Please try again later."
-                            else -> "✗ Failed to load dashboard: ${statsResponse.message()}"
-                        }
-                        requireContext().showToast(errorMessage)
-                    }
+                    requireContext().showToast("✗ Failed to load dashboard stats")
                 }
                 
                 // Load announcements and devotionals in parallel for better performance
@@ -143,12 +131,7 @@ class DashboardFragment : Fragment() {
                 
             } catch (e: Exception) {
                 e.printStackTrace()
-                if (cachedStats == null) {
-                    requireContext().showToast("✗ Network error: ${e.message ?: "Unknown error"}")
-                }
-                // Load cached data as fallback
-                loadRecentAnnouncements(false)
-                loadRecentDevotionals(false)
+                requireContext().showToast("✗ Network error: ${e.message ?: "Unknown error"}")
             } finally {
                 _binding?.swipeRefresh?.isRefreshing = false
             }
@@ -157,20 +140,9 @@ class DashboardFragment : Fragment() {
     
     private fun loadRecentAnnouncements(fetchFromNetwork: Boolean = true) {
         lifecycleScope.launch {
-            // Load from cache first
-            val cachedAnnouncements = app.database.announcementDao().getRecentAnnouncements(3).firstOrNull()
-            if (!cachedAnnouncements.isNullOrEmpty()) {
-                val announcements = cachedAnnouncements.map { it.toModel() }
-                _binding?.rvRecentAnnouncements?.visible()
-                _binding?.tvEmptyAnnouncements?.gone()
-                announcementAdapter.submitList(announcements)
-            }
-            
-            if (!fetchFromNetwork || !NetworkUtils.isNetworkAvailable(requireContext())) {
-                if (cachedAnnouncements.isNullOrEmpty()) {
-                    _binding?.rvRecentAnnouncements?.gone()
-                    _binding?.tvEmptyAnnouncements?.visible()
-                }
+            if (!NetworkUtils.isNetworkAvailable(requireContext())) {
+                _binding?.rvRecentAnnouncements?.gone()
+                _binding?.tvEmptyAnnouncements?.visible()
                 return@launch
             }
             
@@ -182,10 +154,8 @@ class DashboardFragment : Fragment() {
                     val announcements = response.body()!!.results.take(3) // Take only first 3
                     
                     // Cache the announcements
-                    if (announcements.isNotEmpty()) {
-                        app.database.announcementDao().deleteAllAnnouncements()
-                        app.database.announcementDao().insertAnnouncements(announcements.map { it.toEntity() })
-                    }
+                    app.database.announcementDao().deleteAllAnnouncements()
+                    app.database.announcementDao().insertAnnouncements(announcements.map { it.toEntity() })
                     
                     if (announcements.isEmpty()) {
                         _binding?.rvRecentAnnouncements?.gone()
@@ -195,30 +165,25 @@ class DashboardFragment : Fragment() {
                         _binding?.tvEmptyAnnouncements?.gone()
                         announcementAdapter.submitList(announcements)
                     }
+                } else {
+                    _binding?.rvRecentAnnouncements?.gone()
+                    _binding?.tvEmptyAnnouncements?.visible()
+                    requireContext().showToast("✗ Failed to load announcements")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                // Keep cached data if available
+                _binding?.rvRecentAnnouncements?.gone()
+                _binding?.tvEmptyAnnouncements?.visible()
+                requireContext().showToast("✗ Network error loading announcements")
             }
         }
     }
     
     private fun loadRecentDevotionals(fetchFromNetwork: Boolean = true) {
         lifecycleScope.launch {
-            // Load from cache first
-            val cachedDevotionals = app.database.devotionalDao().getRecentDevotionals(3).firstOrNull()
-            if (!cachedDevotionals.isNullOrEmpty()) {
-                val devotionals = cachedDevotionals.map { it.toModel() }
-                binding.rvRecentDevotionals.visible()
-                binding.tvEmptyDevotionals.gone()
-                devotionalAdapter.submitList(devotionals)
-            }
-            
-            if (!fetchFromNetwork || !NetworkUtils.isNetworkAvailable(requireContext())) {
-                if (cachedDevotionals.isNullOrEmpty()) {
-                    binding.rvRecentDevotionals.gone()
-                    binding.tvEmptyDevotionals.visible()
-                }
+            if (!NetworkUtils.isNetworkAvailable(requireContext())) {
+                binding.rvRecentDevotionals.gone()
+                binding.tvEmptyDevotionals.visible()
                 return@launch
             }
             
@@ -230,10 +195,8 @@ class DashboardFragment : Fragment() {
                     val devotionals = response.body()!!.results.take(3) // Take only first 3
                     
                     // Cache the devotionals
-                    if (devotionals.isNotEmpty()) {
-                        app.database.devotionalDao().deleteAllDevotionals()
-                        app.database.devotionalDao().insertDevotionals(devotionals.map { it.toEntity() })
-                    }
+                    app.database.devotionalDao().deleteAllDevotionals()
+                    app.database.devotionalDao().insertDevotionals(devotionals.map { it.toEntity() })
                     
                     if (devotionals.isEmpty()) {
                         binding.rvRecentDevotionals.gone()
@@ -243,10 +206,16 @@ class DashboardFragment : Fragment() {
                         binding.tvEmptyDevotionals.gone()
                         devotionalAdapter.submitList(devotionals)
                     }
+                } else {
+                    binding.rvRecentDevotionals.gone()
+                    binding.tvEmptyDevotionals.visible()
+                    requireContext().showToast("✗ Failed to load devotionals")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                // Keep cached data if available
+                binding.rvRecentDevotionals.gone()
+                binding.tvEmptyDevotionals.visible()
+                requireContext().showToast("✗ Network error loading devotionals")
             }
         }
     }

@@ -10,4 +10,7 @@ router.register(r'comments', DevotionalCommentViewSet, basename='devotional-comm
 
 urlpatterns = [
     path('', include(router.urls)),
+    # Additional endpoints for devotional-specific comments and reactions
+    path('devotionals/<int:pk>/comments/', DevotionalViewSet.as_view({'get': 'comments'}), name='devotional-comments'),
+    path('devotionals/<int:pk>/reactions/', DevotionalViewSet.as_view({'get': 'reactions'}), name='devotional-reactions'),
 ]
