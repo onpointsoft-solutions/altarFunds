@@ -140,6 +140,7 @@ class DashboardFragment : Fragment() {
     
     private fun loadRecentAnnouncements(fetchFromNetwork: Boolean = true) {
         lifecycleScope.launch {
+            if (!isAdded || context == null) return@launch
             if (!NetworkUtils.isNetworkAvailable(requireContext())) {
                 _binding?.rvRecentAnnouncements?.gone()
                 _binding?.tvEmptyAnnouncements?.visible()
@@ -168,22 +169,27 @@ class DashboardFragment : Fragment() {
                 } else {
                     _binding?.rvRecentAnnouncements?.gone()
                     _binding?.tvEmptyAnnouncements?.visible()
-                    requireContext().showToast("✗ Failed to load announcements")
+                    if (isAdded && context != null) {
+                        requireContext().showToast("✗ Failed to load announcements")
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 _binding?.rvRecentAnnouncements?.gone()
                 _binding?.tvEmptyAnnouncements?.visible()
-                requireContext().showToast("✗ Network error loading announcements")
+                if (isAdded && context != null) {
+                    requireContext().showToast("✗ Network error loading announcements")
+                }
             }
         }
     }
     
     private fun loadRecentDevotionals(fetchFromNetwork: Boolean = true) {
         lifecycleScope.launch {
+            if (!isAdded || context == null) return@launch
             if (!NetworkUtils.isNetworkAvailable(requireContext())) {
-                binding.rvRecentDevotionals.gone()
-                binding.tvEmptyDevotionals.visible()
+                _binding?.rvRecentDevotionals?.gone()
+                _binding?.tvEmptyDevotionals?.visible()
                 return@launch
             }
             
@@ -199,32 +205,36 @@ class DashboardFragment : Fragment() {
                     app.database.devotionalDao().insertDevotionals(devotionals.map { it.toEntity() })
                     
                     if (devotionals.isEmpty()) {
-                        binding.rvRecentDevotionals.gone()
-                        binding.tvEmptyDevotionals.visible()
+                        _binding?.rvRecentDevotionals?.gone()
+                        _binding?.tvEmptyDevotionals?.visible()
                     } else {
-                        binding.rvRecentDevotionals.visible()
-                        binding.tvEmptyDevotionals.gone()
+                        _binding?.rvRecentDevotionals?.visible()
+                        _binding?.tvEmptyDevotionals?.gone()
                         devotionalAdapter.submitList(devotionals)
                     }
                 } else {
-                    binding.rvRecentDevotionals.gone()
-                    binding.tvEmptyDevotionals.visible()
-                    requireContext().showToast("✗ Failed to load devotionals")
+                    _binding?.rvRecentDevotionals?.gone()
+                    _binding?.tvEmptyDevotionals?.visible()
+                    if (isAdded && context != null) {
+                        requireContext().showToast("✗ Failed to load devotionals")
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                binding.rvRecentDevotionals.gone()
-                binding.tvEmptyDevotionals.visible()
-                requireContext().showToast("✗ Network error loading devotionals")
+                _binding?.rvRecentDevotionals?.gone()
+                _binding?.tvEmptyDevotionals?.visible()
+                if (isAdded && context != null) {
+                    requireContext().showToast("✗ Network error loading devotionals")
+                }
             }
         }
     }
     
     private fun updateUI(stats: com.altarfunds.member.models.DashboardStats) {
-        binding.tvTotalGiven.text = stats.totalDonations.formatCurrency()
-        binding.tvDonationCount.text = stats.donationCount.toString()
-        binding.tvAnnouncementsCount.text = stats.announcementsCount.toString()
-        binding.tvDevotionalsCount.text = stats.devotionalsCount.toString()
+        _binding?.tvTotalGiven?.text = stats.totalDonations.formatCurrency()
+        _binding?.tvDonationCount?.text = stats.donationCount.toString()
+        _binding?.tvAnnouncementsCount?.text = stats.announcementsCount.toString()
+        _binding?.tvDevotionalsCount?.text = stats.devotionalsCount.toString()
     }
     
     override fun onDestroyView() {

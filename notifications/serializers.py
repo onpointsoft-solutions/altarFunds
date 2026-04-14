@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DevotionalShare, PushNotification, NotificationPreference
+from .models import DevotionalShare, PushNotification, NotificationPreference, FCMToken
 
 class DevotionalShareSerializer(serializers.ModelSerializer):
     """Serializer for devotional sharing"""
@@ -32,3 +32,21 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
             'push_enabled', 'email_enabled', 
             'devotional_notifications', 'announcement_notifications'
         ]
+
+
+class FCMTokenSerializer(serializers.ModelSerializer):
+    """Serializer for FCM tokens"""
+    
+    class Meta:
+        model = FCMToken
+        fields = ['token', 'device_id', 'is_active']
+        extra_kwargs = {
+            'token': {'write_only': True},
+            'device_id': {'write_only': True}
+        }
+    
+    def validate_token(self, value):
+        """Validate FCM token format"""
+        if not value or len(value) < 100:
+            raise serializers.ValidationError("Invalid FCM token format")
+        return value

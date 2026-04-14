@@ -49,3 +49,19 @@ class NotificationPreference(models.Model):
     
     class Meta:
         db_table = 'notification_preferences'
+
+class FCMToken(models.Model):
+    """Firebase Cloud Messaging tokens for push notifications"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='fcm_tokens')
+    token = models.CharField(max_length=255, unique=True)
+    device_id = models.CharField(max_length=255, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'fcm_tokens'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.token[:20]}..."

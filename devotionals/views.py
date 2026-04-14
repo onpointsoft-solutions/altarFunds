@@ -11,6 +11,7 @@ from .serializers import (
     DevotionalReactionSerializer
 )
 from common.permissions import IsChurchAdmin
+from notifications.firebase_service import FirebaseNotificationService
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -35,10 +36,21 @@ class DevotionalViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Set author and church when creating devotional"""
-        serializer.save(
+        devotional = serializer.save(
             author=self.request.user,
             church=self.request.user.church
         )
+        
+        # Send Firebase push notification to church members
+        try:
+            FirebaseNotificationService.send_devotional_notification(devotional)
+        except Exception as e:
+            # Log error but don't fail the creation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send Firebase notification: {e}")
+        
+        return devotional
     
     @action(detail=True, methods=['get'])
     def comments(self, request, pk=None):

@@ -243,6 +243,7 @@ FIREBASE_CREDENTIALS_PATH = config(
     default=str(BASE_DIR / 'serviceAccountKey.json')
 )
 FIREBASE_PROJECT_ID = config('FIREBASE_PROJECT_ID', default='altar-funds')
+FCM_SERVER_KEY = config('FCM_SERVER_KEY', default='')
 
 # --------------------------------------------------
 # MPESA
