@@ -37,6 +37,10 @@ wheels/
 *.egg
 MANIFEST
 
+# Firebase service account credentials
+service-account.json
+serviceAccountKey.json
+
 # Mobile app build
 mobileapp/app/build/
 mobileapp/app/release/
