@@ -8,6 +8,7 @@ import com.sanctum.member.MemberApp
 import com.sanctum.member.api.ApiService
 import com.sanctum.member.api.RetrofitClient
 import com.sanctum.member.models.*
+import com.sanctum.member.utils.OptimizedTokenManager
 import com.sanctum.member.utils.TokenManager
 import kotlinx.coroutines.launch
 
@@ -15,7 +16,7 @@ class GivingViewModel : ViewModel() {
     
     private var apiService: ApiService? = null
     private val app by lazy { MemberApp.getInstance() }
-    fun initializeApiService(tokenManager: TokenManager) {
+    fun initializeApiService(tokenManager: OptimizedTokenManager) {
         apiService = RetrofitClient.create(tokenManager)
     }
     

@@ -58,13 +58,6 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds" />
 
-        <!-- Reset Password Activity -->
-        <activity
-            android:name=".ui.auth.ChangePasswordActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.AltarFunds" />
-
         <!-- Reset Password Confirmation Activity -->
         <activity
             android:name=".ui.auth.ResetPasswordActivity"

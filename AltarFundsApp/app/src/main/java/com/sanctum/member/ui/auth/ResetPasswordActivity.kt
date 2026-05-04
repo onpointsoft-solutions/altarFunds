@@ -1,5 +1,6 @@
 package com.sanctum.member.ui.auth
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.method.PasswordTransformationMethod
 import androidx.appcompat.app.AppCompatActivity

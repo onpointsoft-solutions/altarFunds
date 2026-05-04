@@ -9,11 +9,12 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.sanctum.member.api.ApiService
 import com.sanctum.member.api.RetrofitClient
 import com.sanctum.member.data.local.AppDatabase
+import com.sanctum.member.utils.OptimizedTokenManager
 import com.sanctum.member.utils.TokenManager
 
 class MemberApp : Application() {
     
-    lateinit var tokenManager: TokenManager
+    lateinit var tokenManager: OptimizedTokenManager
     lateinit var apiService: ApiService
     lateinit var database: AppDatabase
     private lateinit var userPrefs: SharedPreferences
@@ -29,7 +30,7 @@ class MemberApp : Application() {
         userPrefs = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         
         // Initialize TokenManager
-        tokenManager = TokenManager(this)
+        tokenManager = OptimizedTokenManager(this)
         
         // Initialize API Service
         apiService = RetrofitClient.create(tokenManager)
@@ -52,7 +53,7 @@ class MemberApp : Application() {
                     // Save token locally
                     userPrefs.edit().putString("fcm_token", token).apply()
                     // Send token to server if user is logged in
-                    if (tokenManager.isLoggedIn()) {
+                    if (tokenManager.isLoggedIn.value) {
                         sendTokenToServer(token)
                     }
                 } else {

@@ -16,7 +16,7 @@ class NotificationSyncWorker(appContext: Context, workerParams: WorkerParameters
             
             // Check if user is logged in
             val app = applicationContext as MemberApp
-            if (!app.tokenManager.isLoggedIn()) {
+            if (!app.tokenManager.isLoggedIn.value) {
                 Log.d("NotificationSyncWorker", "User not logged in, skipping sync")
                 return Result.success()
             }

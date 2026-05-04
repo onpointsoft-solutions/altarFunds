@@ -35,7 +35,9 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
             }
             
             // Show actual notification
-            showBackgroundNotification(title, message, notificationType, devotionalId, targetUrl)
+            showBackgroundNotification(
+                title as String,
+                message as String, notificationType as String, devotionalId, targetUrl)
             
             Result.success()
         } catch (e: Exception) {

@@ -26,7 +26,7 @@ class SplashActivity : AppCompatActivity() {
     }
     
     private fun checkAuthenticationAndNavigate() {
-        if (app.tokenManager.isLoggedIn()) {
+        if (app.tokenManager.isLoggedIn.value) {
             // User is logged in, navigate to main app
             startActivity(Intent(this, MainActivity::class.java))
         } else {

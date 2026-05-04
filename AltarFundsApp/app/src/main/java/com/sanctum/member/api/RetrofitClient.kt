@@ -1,6 +1,6 @@
 package com.sanctum.member.api
 
-import com.sanctum.member.utils.TokenManager
+import com.sanctum.member.utils.OptimizedTokenManager
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -12,7 +12,7 @@ object RetrofitClient {
     
     private const val BASE_URL = "https://backend.sanctum.co.ke/api/"
     
-    fun create(tokenManager: TokenManager): ApiService {
+    fun create(tokenManager: OptimizedTokenManager): ApiService {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }

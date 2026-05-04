@@ -1,8 +1,8 @@
 package com.sanctum.member.ui
 
-import android.content.Intent
 import android.os.Bundle
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity() {
         checkNotificationPermission()
         
         // Check if user is still authenticated
-        if (!app.tokenManager.isLoggedIn()) {
+        if (!app.tokenManager.isLoggedIn.value) {
             navigateToLogin()
             return
         }
@@ -332,9 +332,9 @@ class MainActivity : AppCompatActivity() {
         // Observe theme changes
         viewModel.themeColors.observe(this) { result ->
             when (result) {
-                is com.sanctum.member.utils.ThemeManager-> {
+                is Resource.Success -> {
                     // Apply theme to the entire app
-                    ThemeManager.applyChurchTheme(this, result.getCurrentTheme())
+                    ThemeManager.applyChurchTheme(this, result.data)
                 }
                 is Resource.Error -> {
                     // Continue with default theme
