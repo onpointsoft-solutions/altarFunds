@@ -199,6 +199,37 @@
 
                 </LinearLayout>
 
+                <!-- Reactions Display -->
+                <LinearLayout
+                    android:id="@+id/llReactions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/reaction_button_background"
+                    android:orientation="horizontal"
+                    android:padding="8dp"
+                    android:gravity="center_vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tvReactions"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:layout_marginEnd="4dp" />
+
+                    <TextView
+                        android:id="@+id/tvReactionEmoji"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
+
                 <!-- Comment Button -->
                 <LinearLayout
                     android:id="@+id/btnComment"

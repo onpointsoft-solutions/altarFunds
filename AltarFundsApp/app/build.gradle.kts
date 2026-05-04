@@ -6,13 +6,13 @@ plugins {
 }
 
 android {
-    namespace = "com.altarfunds.member"
+    namespace = "com.sanctum.member"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.altarfunds.member"
+        applicationId = "com.sanctum.member"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

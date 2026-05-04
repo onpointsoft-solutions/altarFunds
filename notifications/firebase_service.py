@@ -6,7 +6,7 @@ import logging
 from django.conf import settings
 from firebase_admin import credentials, initialize_app, messaging
 from notifications.models import PushNotification, FCMToken
-from accounts.models import get_user_model
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

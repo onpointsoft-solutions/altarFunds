@@ -725,6 +725,62 @@ public class SanctumApiClient {
         });
     }
 
+    public static CompletableFuture<List<Map<String,Object>>> getDevotionalReactions(int devotionalId) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.<Map<String,Object>>of();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL+"/api/devotionals/"+devotionalId+"/reactions/")
+                    .addHeader("Authorization","Bearer "+authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("REACTIONS ["+resp.code()+"]: "+rb);
+                    if (!resp.isSuccessful()) return List.<Map<String,Object>>of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) { System.err.println("getDevotionalReactions error: "+e.getMessage()); return List.<Map<String,Object>>of(); }
+        });
+    }
+
+    public static CompletableFuture<Boolean> reactToDevotional(int devotionalId, String reactionType) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return false;
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("reaction_type", reactionType);
+                Request req = new Request.Builder()
+                    .url(BASE_URL+"/api/devotionals/"+devotionalId+"/react/")
+                    .addHeader("Authorization","Bearer "+authToken)
+                    .addHeader("Content-Type","application/json")
+                    .post(RequestBody.create(body.toString(), MediaType.get("application/json")))
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("REACT ["+resp.code()+"]: "+rb);
+                    return resp.isSuccessful();
+                }
+            } catch (Exception e) { System.err.println("reactToDevotional error: "+e.getMessage()); return false; }
+        });
+    }
+
+    public static CompletableFuture<Boolean> removeDevotionalReaction(int devotionalId, String reactionType) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return false;
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL+"/api/devotionals/"+devotionalId+"/react/?reaction_type="+reactionType)
+                    .addHeader("Authorization","Bearer "+authToken)
+                    .delete()
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("REMOVE REACT ["+resp.code()+"]: "+rb);
+                    return resp.isSuccessful();
+                }
+            } catch (Exception e) { System.err.println("removeDevotionalReaction error: "+e.getMessage()); return false; }
+        });
+    }
+
     public static CompletableFuture<Boolean> createDevotional(String title, String content, String scriptureRef) {
         return CompletableFuture.supplyAsync(() -> {
             if (!isAuthenticated()) return false;
@@ -745,6 +801,25 @@ public class SanctumApiClient {
                     return resp.isSuccessful();
                 }
             } catch (Exception e) { System.err.println("createDevotional error: "+e.getMessage()); return false; }
+        });
+    }
+
+    public static CompletableFuture<List<Map<String,Object>>> getDevotionalComments(int devotionalId) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.<Map<String,Object>>of();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL+"/api/devotionals/"+devotionalId+"/comments/")
+                    .addHeader("Authorization","Bearer "+authToken)
+                    .get()
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("DEVOTIONAL COMMENTS ["+resp.code()+"]: "+rb);
+                    if (!resp.isSuccessful()) return List.<Map<String,Object>>of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) { System.err.println("getDevotionalComments error: "+e.getMessage()); return List.<Map<String,Object>>of(); }
         });
     }
 

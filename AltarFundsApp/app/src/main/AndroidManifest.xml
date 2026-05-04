@@ -5,9 +5,13 @@
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
+    
+    <!-- Background Work Permissions -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".MemberApp"
@@ -22,9 +26,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         tools:targetApi="31">
 
-        <!-- Splash/Login Activity (Launcher) -->
+        <!-- Splash Activity (Launcher) -->
         <activity
-            android:name=".ui.auth.LoginActivity"
+            android:name=".ui.splash.SplashActivity"
             android:exported="true"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds">
@@ -33,6 +37,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Login Activity -->
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds" />
 
         <!-- Register Activity -->
         <activity
@@ -47,12 +58,44 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds" />
 
-        <!-- Main Activity (with bottom navigation) -->
+        <!-- Reset Password Activity -->
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.auth.ChangePasswordActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds" />
+
+        <!-- Reset Password Confirmation Activity -->
+        <activity
+            android:name=".ui.auth.ResetPasswordActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" 
+                      android:host="backend.sanctum.co.ke" 
+                      android:pathPrefix="/reset-password/" />
+            </intent-filter>
+        </activity>
+
+        <!-- Main Activity (with bottom navigation) -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AltarFunds">
+            
+            <!-- Deep link handling for shared devotionals -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="altarfunds" android:host="devotional" />
+            </intent-filter>
+        </activity>
 
         <!-- Church Activities -->
         <activity
@@ -118,6 +161,28 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds" />
+
+        <!-- Firebase Cloud Messaging Service -->
+        <service
+            android:name=".notification.NotificationService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Boot Receiver for background notifications -->
+        <receiver
+            android:name=".notification.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

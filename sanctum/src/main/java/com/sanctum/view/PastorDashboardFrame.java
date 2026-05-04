@@ -42,6 +42,25 @@ public class PastorDashboardFrame extends JFrame {
     private static final Font F_MONO_SM = new Font("JetBrains Mono",Font.PLAIN, 11);
     private static final Font F_MONO_LG = new Font("JetBrains Mono",Font.BOLD, 20);
 
+    // ─── Emoji Font Helper ────────────────────────────────────────────
+    private static Font getEmojiFont(int size) {
+        String[] emojiFonts = {
+            "Segoe UI Emoji",
+            "Segoe UI Symbol",
+            "Apple Color Emoji",
+            "Noto Color Emoji",
+            "Android Emoji",
+            "EmojiOne"
+        };
+        for (String fontName : emojiFonts) {
+            Font font = new Font(fontName, Font.PLAIN, size);
+            if (font.getFamily().equals(fontName) || font.canDisplay('\u263a')) {
+                return font;
+            }
+        }
+        return new Font("Dialog", Font.PLAIN, size);
+    }
+
     // ─── Navigation ───────────────────────────────────────────────────
     private static final String[][] MENU_ITEMS = {
         {"🏠", "Overview"},
@@ -145,7 +164,7 @@ public class PastorDashboardFrame extends JFrame {
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         left.setOpaque(false);
         JLabel icon  = new JLabel("⛪");
-        icon.setFont(new Font("Arial", Font.PLAIN, 15));
+        icon.setFont(getEmojiFont(16));
         JLabel title = new JLabel("Sanctum  ·  Pastor Dashboard");
         title.setFont(F_MONO_SM);
         title.setForeground(C_TEXT_MID);
@@ -275,7 +294,7 @@ public class PastorDashboardFrame extends JFrame {
         item.setBorder(new EmptyBorder(0, 16, 0, 16));
 
         JLabel iconLabel = new JLabel(icon + "  ");
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        iconLabel.setFont(getEmojiFont(14));
         iconLabel.setForeground(text.equals(activeMenu) ? C_BG : C_TEXT_MID);
 
         JLabel textLabel = new JLabel(text) {
@@ -384,10 +403,8 @@ public class PastorDashboardFrame extends JFrame {
         content.setOpaque(false);
         
         String[][] actions = {
-            {"📢", "New Announcement", "announcement"},
-            {"📅", "Schedule Event", "event"},
             {"🙏", "Add Devotional", "devotional"},
-            {"👥", "Add Member", "member"}
+
         };
         
         for (String[] action : actions) {
@@ -842,7 +859,7 @@ public class PastorDashboardFrame extends JFrame {
         row.setOpaque(false);
         
         JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
+        iconLabel.setFont(getEmojiFont(16));
         
         JLabel nameLabel = new JLabel(label);
         nameLabel.setFont(F_LABEL);
@@ -1046,7 +1063,7 @@ public class PastorDashboardFrame extends JFrame {
         titleLabel.setForeground(C_TEXT_MID);
 
         JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
+        iconLabel.setFont(getEmojiFont(20));
         iconLabel.setForeground(accent);
         top.add(titleLabel, BorderLayout.WEST);
         top.add(iconLabel,  BorderLayout.EAST);
@@ -1470,7 +1487,7 @@ public class PastorDashboardFrame extends JFrame {
             reactionBtn.setForeground(C_TEXT);
             reactionBtn.setFocusPainted(false);
             reactionBtn.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
-            reactionBtn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+            reactionBtn.setFont(getEmojiFont(14));
             reactionBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             
             // Highlight if user has reacted
@@ -1664,7 +1681,7 @@ public class PastorDashboardFrame extends JFrame {
         panel.setBorder(new EmptyBorder(40, 20, 40, 20));
         
         JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
+        iconLabel.setFont(getEmojiFont(48));
         iconLabel.setForeground(C_TEXT_DIM);
         iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
         
@@ -1698,7 +1715,7 @@ public class PastorDashboardFrame extends JFrame {
         panel.setBorder(new EmptyBorder(40, 20, 40, 20));
         
         JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
+        iconLabel.setFont(getEmojiFont(48));
         iconLabel.setForeground(C_DANGER);
         iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
         

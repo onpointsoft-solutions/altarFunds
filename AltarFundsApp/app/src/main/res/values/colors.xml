@@ -4,6 +4,7 @@
     <color name="primary">#260E68</color>
     <color name="primary_dark">#3700B3</color>
     <color name="primary_light">#BB86FC</color>
+    <color name="primary_color">#260E68</color>
     <color name="gold_primary">#B8935A</color>
     <color name="gold_light">#F5EDD8</color>
     <color name="gold_pale">#FBF7F0</color>
@@ -61,4 +62,6 @@
     <color name="surface_variant">#F3F3F3</color>
     <color name="on_surface">#1C1B1F</color>
     <color name="on_surface_variant">#49454F</color>
+    <color name="chip_unselected">#F5F5F5</color>
+    <color name="chip_selected">#E8D5B5</color>
 </resources>

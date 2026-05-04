@@ -366,7 +366,104 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- Emoji reaction chips -->
+                    <!-- Total reactions count -->
+                    <TextView
+                        android:id="@+id/tvReactionCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 reactions"
+                        android:textColor="@color/ink_muted"
+                        android:textSize="12sp"
+                        android:fontFamily="sans-serif"
+                        android:layout_marginBottom="8dp"
+                        android:visibility="gone" />
+
+                    <!-- Emoji reaction chips for adding reactions -->
+                    <LinearLayout
+                        android:id="@+id/llEmojiReactions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:id="@+id/tvAddReaction"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="React:"
+                            android:textColor="@color/ink_muted"
+                            android:textSize="12sp"
+                            android:fontFamily="sans-serif"
+                            android:layout_marginEnd="8dp" />
+
+                        <com.google.android.material.chip.ChipGroup
+                            android:id="@+id/chipGroupReactions"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:singleSelection="false"
+                            app:chipSpacingHorizontal="4dp">
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipLove"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="❤️"
+                                android:textSize="18sp"
+                                app:chipBackgroundColor="@color/chip_unselected"
+                                app:chipStrokeWidth="1dp"
+                                app:chipStrokeColor="@color/card_border"
+                                app:chipMinHeight="36dp" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPray"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🙏"
+                                android:textSize="18sp"
+                                app:chipBackgroundColor="@color/chip_unselected"
+                                app:chipStrokeWidth="1dp"
+                                app:chipStrokeColor="@color/card_border"
+                                app:chipMinHeight="36dp" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipThumbsUp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="👍"
+                                android:textSize="18sp"
+                                app:chipBackgroundColor="@color/chip_unselected"
+                                app:chipStrokeWidth="1dp"
+                                app:chipStrokeColor="@color/card_border"
+                                app:chipMinHeight="36dp" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipFire"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🔥"
+                                android:textSize="18sp"
+                                app:chipBackgroundColor="@color/chip_unselected"
+                                app:chipStrokeWidth="1dp"
+                                app:chipStrokeColor="@color/card_border"
+                                app:chipMinHeight="36dp" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipCelebrate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🎉"
+                                android:textSize="18sp"
+                                app:chipBackgroundColor="@color/chip_unselected"
+                                app:chipStrokeWidth="1dp"
+                                app:chipStrokeColor="@color/card_border"
+                                app:chipMinHeight="36dp" />
+
+                        </com.google.android.material.chip.ChipGroup>
+
+                    </LinearLayout>
+
+                    <!-- Existing reactions display -->
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvReactions"
                         android:layout_width="match_parent"
