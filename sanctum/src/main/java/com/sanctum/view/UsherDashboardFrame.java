@@ -62,6 +62,45 @@ public class UsherDashboardFrame extends JFrame {
     private JLabel lblActiveServices;
     private JLabel lblNewVisitors;
 
+    // ═══════════════════════════════════════════════════════════════════
+    //  EMOJI FONT UTILITIES  (Matching PastorDashboardFrame)
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Returns the first available color-emoji font at {@code size}.
+     */
+    private static Font getEmojiFont(int size) {
+        String[] candidates = {
+            "Segoe UI Emoji",
+            "Segoe UI Symbol",
+            "Apple Color Emoji",
+            "Noto Color Emoji",
+            "Android Emoji",
+            "EmojiOne"
+        };
+        // SMP probe — only a real emoji font handles this
+        String probe = "\uD83D\uDE00"; // 😀
+        for (String name : candidates) {
+            Font f = new Font(name, Font.PLAIN, size);
+            // getFamily() check guards against silent substitution;
+            // canDisplayUpTo == -1 means every code point is covered.
+            if (f.getFamily().equalsIgnoreCase(name)
+                    || f.canDisplayUpTo(probe) == -1) {
+                return f;
+            }
+        }
+        // Last resort — Dialog on modern JDKs delegates to system emoji font
+        return new Font("Dialog", Font.PLAIN, size);
+    }
+
+    /**
+     * Derives an emoji-capable font that matches the size and style of {@code base}.
+     */
+    private static Font withEmojiFont(Font base) {
+        Font emoji = getEmojiFont(base.getSize());
+        return emoji.deriveFont(base.getStyle(), base.getSize2D());
+    }
+
     // ─── Constructor ──────────────────────────────────────────────────
     public UsherDashboardFrame() {
         try {
@@ -141,7 +180,7 @@ public class UsherDashboardFrame extends JFrame {
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         left.setOpaque(false);
         JLabel icon  = new JLabel("⛪");
-        icon.setFont(new Font("Arial", Font.PLAIN, 15));
+        icon.setFont(getEmojiFont(16));
         JLabel title = new JLabel("Sanctum  ·  Usher Dashboard");
         title.setFont(F_MONO_SM);
         title.setForeground(C_TEXT_MID);
@@ -270,7 +309,7 @@ public class UsherDashboardFrame extends JFrame {
         item.setBorder(new EmptyBorder(0, 16, 0, 16));
 
         JLabel iconLabel = new JLabel(icon + "  ");
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        iconLabel.setFont(getEmojiFont(14));
         iconLabel.setForeground(text.equals(activeMenu) ? C_BG : C_TEXT_MID);
 
         JLabel textLabel = new JLabel(text) {
@@ -342,7 +381,19 @@ public class UsherDashboardFrame extends JFrame {
         north.add(header, BorderLayout.NORTH);
         north.add(kpiRow,  BorderLayout.CENTER);
 
-        main.add(north, BorderLayout.NORTH);
+        JPanel contentGrid = new JPanel(new GridLayout(1, 2, 20, 20));
+        contentGrid.setOpaque(false);
+        contentGrid.add(createQuickActionsCard());
+        contentGrid.add(createRecentActivityCard());
+
+        JPanel center = new JPanel(new BorderLayout(0, 20));
+        center.setOpaque(false);
+        center.add(north, BorderLayout.NORTH);
+        center.add(contentGrid, BorderLayout.CENTER);
+
+        main.add(center, BorderLayout.CENTER);
+
+        loadDashboardCardsData();
         return main;
     }
 
@@ -417,7 +468,7 @@ public class UsherDashboardFrame extends JFrame {
         titleLabel.setForeground(C_TEXT_MID);
 
         JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
+        iconLabel.setFont(getEmojiFont(22));
         iconLabel.setForeground(accent);
         top.add(titleLabel, BorderLayout.WEST);
         top.add(iconLabel,  BorderLayout.EAST);
@@ -454,6 +505,71 @@ public class UsherDashboardFrame extends JFrame {
         return card;
     }
 
+    private JPanel createQuickActionsCard() {
+        JPanel card = createCard("Quick Actions", "⚡", C_GOLD);
+        JPanel content = new JPanel(new GridLayout(2, 2, 10, 10));
+        content.setOpaque(false);
+
+        String[][] actions = {
+            {"✅", "Check In Member", "checkin"},
+            {"👋", "Add Visitor", "visitor"},
+            {"📥", "Bulk Check In", "bulk"},
+            {"🚪", "Check Out", "checkout"}
+        };
+
+        for (String[] action : actions) {
+            content.add(createActionButton(action[0] + " " + action[1], C_SUCCESS));
+        }
+
+        card.add(content, BorderLayout.CENTER);
+        return card;
+    }
+
+    private JPanel createRecentActivityCard() {
+        JPanel card = createCard("Recent Activity", "📋", C_GOLD);
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setOpaque(false);
+        content.setName("activityContent");
+        card.add(content, BorderLayout.CENTER);
+        return card;
+    }
+
+    private JPanel createCard(String title, String icon, Color accentColor) {
+        JPanel card = new JPanel(new BorderLayout(0, 10)) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setPaint(new GradientPaint(0, 0, C_CARD, 0, getHeight(), C_SURFACE));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                g2.setColor(accentColor);
+                g2.fillRoundRect(0, 0, getWidth(), 4,  4,  4);
+                g2.fillRoundRect(0, 0, 4,  getHeight(), 4, 4);
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(new EmptyBorder(15, 20, 15, 20));
+
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(F_LABEL);
+        titleLabel.setForeground(C_TEXT);
+
+        JLabel iconLabel = new JLabel(icon);
+        iconLabel.setFont(getEmojiFont(16));
+        iconLabel.setForeground(accentColor);
+
+        header.add(titleLabel, BorderLayout.WEST);
+        header.add(iconLabel, BorderLayout.EAST);
+
+        card.add(header, BorderLayout.NORTH);
+        return card;
+    }
+
     // ─── Sub-pages ────────────────────────────────────────────────────
     private JPanel buildAttendancePage() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -467,7 +583,7 @@ public class UsherDashboardFrame extends JFrame {
 
         // Create tabbed interface for attendance functions
         JTabbedPane tabs = new JTabbedPane();
-        tabs.setFont(F_LABEL);
+        tabs.setFont(withEmojiFont(F_LABEL));
         tabs.setBackground(C_SURFACE);
         tabs.setForeground(C_TEXT);
 
@@ -522,16 +638,31 @@ public class UsherDashboardFrame extends JFrame {
         activityTitle.setFont(F_LABEL);
         activityTitle.setForeground(C_TEXT);
 
-        // Simple activity log
+        // Activity log with real data
         String[] columns = {"Time", "Member", "Action", "Status"};
-        Object[][] data = {
-            {"9:15 AM", "John Doe", "Check In", "✅ Success"},
-            {"9:30 AM", "Jane Smith", "Check In", "✅ Success"},
-            {"9:45 AM", "Mike Johnson", "Late Arrival", "⚠️ Late"},
-            {"10:00 AM", "Sarah Wilson", "Check Out", "🚪 Completed"}
+        DefaultTableModel model = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
         };
 
-        DefaultTableModel model = new DefaultTableModel(data, columns);
+        // Load real activity data
+        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
+            if (records != null && !records.isEmpty()) {
+                model.setRowCount(0); // Clear existing data
+                for (Map<String, Object> record : records) {
+                    String time = record.getOrDefault("check_in_time", "").toString();
+                    String member = record.getOrDefault("member_name", "").toString();
+                    String action = record.getOrDefault("status", "Check In").toString();
+                    String status = record.getOrDefault("attendance_status", "✅ Success").toString();
+                    model.addRow(new Object[]{time, member, action, status});
+                }
+            }
+        })).exceptionally(ex -> {
+            System.err.println("Failed to load activity data: " + ex.getMessage());
+            return null;
+        });
         JTable table = new JTable(model);
         table.setOpaque(false);
         table.getTableHeader().setOpaque(false);
@@ -603,15 +734,29 @@ public class UsherDashboardFrame extends JFrame {
         tableTitle.setForeground(C_TEXT);
 
         String[] columns = {"Name", "Check In", "Status", "Notes"};
-        Object[][] data = {
-            {"John Doe", "9:15 AM", "On Time", ""},
-            {"Jane Smith", "9:30 AM", "On Time", ""},
-            {"Mike Johnson", "9:45 AM", "Late", "15 min"},
-            {"Sarah Wilson", "8:50 AM", "On Time", ""},
-            {"Tom Brown", "9:00 AM", "On Time", ""}
+        DefaultTableModel model = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
         };
 
-        DefaultTableModel model = new DefaultTableModel(data, columns);
+        // Load real attendance data
+        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
+            if (records != null && !records.isEmpty()) {
+                model.setRowCount(0); // Clear existing data
+                for (Map<String, Object> record : records) {
+                    String name = record.getOrDefault("member_name", "").toString();
+                    String checkIn = record.getOrDefault("check_in_time", "").toString();
+                    String status = record.getOrDefault("attendance_status", "").toString();
+                    String notes = record.getOrDefault("notes", "").toString();
+                    model.addRow(new Object[]{name, checkIn, status, notes});
+                }
+            }
+        })).exceptionally(ex -> {
+            System.err.println("Failed to load attendance records: " + ex.getMessage());
+            return null;
+        });
         JTable table = new JTable(model);
         table.setOpaque(false);
         table.getTableHeader().setOpaque(false);
@@ -686,13 +831,29 @@ public class UsherDashboardFrame extends JFrame {
         visitorsTitle.setForeground(C_TEXT);
 
         String[] columns = {"Name", "Check In Time", "Purpose", "Host"};
-        Object[][] data = {
-            {"Mary Johnson", "9:15 AM", "First Time Visit", "Usher Team"},
-            {"David Smith", "9:30 AM", "Family Service", "Pastor Smith"},
-            {"Lisa Brown", "10:00 AM", "Business Meeting", "Admin Office"}
+        DefaultTableModel model = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
         };
 
-        DefaultTableModel model = new DefaultTableModel(data, columns);
+        // Load real visitor data (using attendance records as visitor data)
+        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
+            if (records != null && !records.isEmpty()) {
+                model.setRowCount(0); // Clear existing data
+                for (Map<String, Object> record : records) {
+                    String name = record.getOrDefault("member_name", "").toString();
+                    String checkInTime = record.getOrDefault("check_in_time", "").toString();
+                    String purpose = record.getOrDefault("service_type", "Sunday Service").toString();
+                    String host = record.getOrDefault("notes", "Usher Team").toString();
+                    model.addRow(new Object[]{name, checkInTime, purpose, host});
+                }
+            }
+        })).exceptionally(ex -> {
+            System.err.println("Failed to load visitor data: " + ex.getMessage());
+            return null;
+        });
         JTable table = new JTable(model);
         table.setOpaque(false);
         table.getTableHeader().setOpaque(false);
@@ -846,8 +1007,12 @@ public class UsherDashboardFrame extends JFrame {
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
 
-        panel.add(title, BorderLayout.NORTH);
-        panel.add(searchPanel, BorderLayout.NORTH);
+        JPanel headerPanel = new JPanel(new BorderLayout(0, 10));
+        headerPanel.setOpaque(false);
+        headerPanel.add(title, BorderLayout.NORTH);
+        headerPanel.add(searchPanel, BorderLayout.CENTER);
+        
+        panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
@@ -929,7 +1094,7 @@ public class UsherDashboardFrame extends JFrame {
     // ─── Helpers ──────────────────────────────────────────────────────
     private JButton createStyledButton(String text, Color bg) {
         JButton btn = new JButton(text);
-        btn.setFont(F_LABEL);
+        btn.setFont(withEmojiFont(F_LABEL));
         btn.setForeground(C_TEXT);
         btn.setBackground(bg);
         btn.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
@@ -975,7 +1140,7 @@ public class UsherDashboardFrame extends JFrame {
             }
         };
         
-        btn.setFont(F_LABEL);
+        btn.setFont(withEmojiFont(F_LABEL));
         btn.setForeground(C_TEXT);
         btn.setContentAreaFilled(false);
         btn.setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
@@ -1125,6 +1290,95 @@ public class UsherDashboardFrame extends JFrame {
         });
     }
     
+    private void loadDashboardCardsData() {
+        // Load recent activity for the dashboard
+        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
+            JPanel activityContent = findNamedComponent("activityContent", JPanel.class);
+            if (activityContent != null) {
+                activityContent.removeAll();
+                
+                if (records != null && !records.isEmpty()) {
+                    for (Map<String, Object> record : records) {
+                        JPanel activityItem = createActivityItem(record);
+                        activityContent.add(activityItem);
+                        activityContent.add(Box.createVerticalStrut(8));
+                    }
+                } else {
+                    JLabel noActivity = new JLabel("No recent activity");
+                    noActivity.setForeground(C_TEXT_DIM);
+                    noActivity.setFont(F_MONO_SM);
+                    activityContent.add(noActivity);
+                }
+                
+                activityContent.revalidate();
+                activityContent.repaint();
+            }
+        })).exceptionally(ex -> {
+            System.err.println("Failed to load recent activity: " + ex.getMessage());
+            return null;
+        });
+    }
+    
+    private JPanel createActivityItem(Map<String, Object> record) {
+        JPanel panel = new JPanel(new BorderLayout(10, 0));
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(8, 12, 8, 12));
+        panel.setBackground(C_CARD.darker());
+        
+        String memberName = record.getOrDefault("member_name", "Unknown").toString();
+        String checkInTime = record.getOrDefault("check_in_time", "").toString();
+        String serviceType = record.getOrDefault("service_type", "Service").toString();
+        String status = record.getOrDefault("status", "present").toString();
+        
+        String type = status.equals("present") ? "Check In" : "Check Out";
+        String description = memberName + " - " + serviceType;
+        
+        JLabel typeLabel = new JLabel(getActivityIcon(type) + " " + type);
+        typeLabel.setFont(withEmojiFont(F_MONO_SM));
+        typeLabel.setForeground(C_GOLD);
+        
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(F_MONO_SM);
+        descLabel.setForeground(C_TEXT_MID);
+        
+        JLabel timeLabel = new JLabel(checkInTime);
+        timeLabel.setFont(F_MONO_SM);
+        timeLabel.setForeground(C_TEXT_DIM);
+        
+        panel.add(typeLabel, BorderLayout.WEST);
+        panel.add(timeLabel, BorderLayout.EAST);
+        
+        return panel;
+    }
+    
+    private String getActivityIcon(String type) {
+        switch (type.toLowerCase()) {
+            case "checkin": return "✅";
+            case "checkout": return "🚪";
+            case "visitor": return "👋";
+            case "bulk": return "📥";
+            default: return "📋";
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private <T> T findNamedComponent(String name, Class<T> type) {
+        return (T) findComponentByName(this, name);
+    }
+    
+    private Component findComponentByName(Container container, String name) {
+        for (Component comp : container.getComponents()) {
+            if (name.equals(comp.getName())) {
+                return comp;
+            }
+            if (comp instanceof Container) {
+                Component found = findComponentByName((Container) comp, name);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+    
     /** Format numbers with proper styling */
     private String formatNumber(Object value) {
         try {
@@ -1183,7 +1437,7 @@ public class UsherDashboardFrame extends JFrame {
         panel.setBorder(new EmptyBorder(20, 20, 20, 20));
         
         JLabel title = new JLabel("✅ Member Check-In");
-        title.setFont(F_TITLE);
+        title.setFont(withEmojiFont(F_TITLE));
         title.setForeground(C_TEXT);
         
         // Input fields
@@ -1503,7 +1757,7 @@ public class UsherDashboardFrame extends JFrame {
         panel.setBorder(new EmptyBorder(20, 20, 20, 20));
         
         JLabel title = new JLabel("👋 Add New Visitor");
-        title.setFont(F_TITLE);
+        title.setFont(withEmojiFont(F_TITLE));
         title.setForeground(C_TEXT);
         
         JPanel inputPanel = new JPanel(new GridLayout(5, 2, 10, 10));
@@ -1744,8 +1998,12 @@ public class UsherDashboardFrame extends JFrame {
         centerPanel.add(recentTitle, BorderLayout.NORTH);
         centerPanel.add(scroll, BorderLayout.CENTER);
         
-        panel.add(title, BorderLayout.NORTH);
-        panel.add(statsPanel, BorderLayout.NORTH);
+        JPanel headerPanel = new JPanel(new BorderLayout(0, 15));
+        headerPanel.setOpaque(false);
+        headerPanel.add(title, BorderLayout.NORTH);
+        headerPanel.add(statsPanel, BorderLayout.CENTER);
+        
+        panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(centerPanel, BorderLayout.CENTER);
         panel.add(buttonPanel, BorderLayout.SOUTH);
         
@@ -1859,6 +2117,61 @@ public class UsherDashboardFrame extends JFrame {
         
         dialog.add(panel);
         dialog.setVisible(true);
+    }
+
+    // ─── Dialog Field Factories (DRY helpers) ─────────────────────────
+    /** Themed text field used in all dialogs. */
+    private JTextField styledTextField() {
+        JTextField f = new JTextField(20);
+        f.setBackground(C_SURFACE);
+        f.setForeground(C_TEXT);
+        f.setCaretColor(C_TEXT);
+        f.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(C_BORDER),
+            new EmptyBorder(5, 8, 5, 8)
+        ));
+        return f;
+    }
+
+    /** Themed text area used in all dialogs. */
+    private JTextArea styledTextArea(int rows) {
+        JTextArea a = new JTextArea(rows, 20);
+        a.setBackground(C_SURFACE);
+        a.setForeground(C_TEXT);
+        a.setCaretColor(C_TEXT);
+        a.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(C_BORDER),
+            new EmptyBorder(5, 8, 5, 8)
+        ));
+        a.setLineWrap(true);
+        a.setWrapStyleWord(true);
+        return a;
+    }
+
+    /** Themed combo box used in all dialogs. */
+    private JComboBox<String> styledComboBox(String... items) {
+        JComboBox<String> cb = new JComboBox<>(items);
+        cb.setBackground(C_SURFACE);
+        cb.setForeground(C_TEXT);
+        return cb;
+    }
+
+    /** Themed dialog button (no emoji prefix — plain label). */
+    private JButton styledDialogButton(String text, Color bg) {
+        JButton btn = new JButton(text);
+        btn.setBackground(bg);
+        btn.setForeground(C_TEXT);
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        return btn;
+    }
+
+    /** Themed bold label used as a form field label in dialogs. */
+    private JLabel dialogLabel(String text) {
+        JLabel lbl = new JLabel(text);
+        lbl.setForeground(C_TEXT);
+        lbl.setFont(F_LABEL);  // no emoji — safe to use F_LABEL directly
+        return lbl;
     }
 
     // ─── Entry Point ──────────────────────────────────────────────────
