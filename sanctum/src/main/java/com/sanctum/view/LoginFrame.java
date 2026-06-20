@@ -549,8 +549,44 @@ public class LoginFrame extends JFrame {
         cardGbc.insets = new Insets(0, 8, 8, 8);
         loginCard.add(passwordField, cardGbc);
         
-        // Remember me checkbox
+        // Forgot password link (right-aligned, below password field)
         cardGbc.gridy = 6;
+        cardGbc.insets = new Insets(0, 8, 4, 8);
+        JPanel forgotRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        forgotRow.setOpaque(false);
+        JButton forgotBtn = new JButton("Forgot password?") {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                Color c = getModel().isRollover() ? C_GOLD_HOVER : C_GOLD;
+                g2.setFont(FONT_SMALL);
+                g2.setColor(c);
+                FontMetrics fm = g2.getFontMetrics();
+                int tx = (getWidth() - fm.stringWidth("Forgot password?")) / 2;
+                int ty = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+                g2.drawString("Forgot password?", tx, ty);
+                // underline
+                g2.drawLine(tx, ty + 2, tx + fm.stringWidth("Forgot password?"), ty + 2);
+                g2.dispose();
+            }
+        };
+        forgotBtn.setContentAreaFilled(false);
+        forgotBtn.setBorderPainted(false);
+        forgotBtn.setFocusPainted(false);
+        forgotBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        forgotBtn.setFont(FONT_SMALL);
+        forgotBtn.setForeground(C_GOLD);
+        forgotBtn.setPreferredSize(new Dimension(130, 18));
+        forgotBtn.addActionListener(e -> {
+            dispose();
+            new ForgotPasswordFrame().setVisible(true);
+        });
+        forgotRow.add(forgotBtn);
+        loginCard.add(forgotRow, cardGbc);
+
+        // Remember me checkbox
+        cardGbc.gridy = 7;
+        cardGbc.insets = new Insets(8, 8, 8, 8);
         rememberMeCheckBox = new JCheckBox("Remember me");
         rememberMeCheckBox.setFont(FONT_SMALL);
         rememberMeCheckBox.setForeground(C_TEXT_MID);
@@ -559,23 +595,23 @@ public class LoginFrame extends JFrame {
         loginCard.add(rememberMeCheckBox, cardGbc);
         
         // Login button
-        cardGbc.gridy = 7;
+        cardGbc.gridy = 8;
         cardGbc.insets = new Insets(5, 8, 8, 8);
         loginCard.add(loginButton, cardGbc);
         
         // Status label
-        cardGbc.gridy = 8;
+        cardGbc.gridy = 9;
         cardGbc.insets = new Insets(3, 8, 8, 8);
         loginCard.add(statusLabel, cardGbc);
         
         // Loading panel (initially hidden)
-        cardGbc.gridy = 9;
+        cardGbc.gridy = 10;
         cardGbc.insets = new Insets(5, 8, 8, 8);
         loginCard.add(loadingPanel, cardGbc);
         loadingPanel.setVisible(false);
         
         // Registration link
-        cardGbc.gridy = 10;
+        cardGbc.gridy = 11;
         cardGbc.insets = new Insets(15, 8, 8, 8);
         JPanel registerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         registerPanel.setOpaque(false);

@@ -254,17 +254,39 @@ public class ChurchAdminFrame extends JFrame {
 
         card.add(avatar, BorderLayout.WEST);
         card.add(info,   BorderLayout.CENTER);
+
+        // Change Password shortcut
+        JButton pwBtn = new JButton("🔑") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isRollover()) {
+                    g2.setColor(new Color(212, 175, 55, 35));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                }
+                g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+                g2.setColor(C_TEXT_DIM);
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString("🔑", (getWidth()-fm.stringWidth("🔑"))/2,
+                    (getHeight()+fm.getAscent()-fm.getDescent())/2);
+                g2.dispose();
+            }
+        };
+        pwBtn.setContentAreaFilled(false); pwBtn.setBorderPainted(false);
+        pwBtn.setFocusPainted(false);
+        pwBtn.setPreferredSize(new Dimension(30, 30));
+        pwBtn.setToolTipText("Change Password");
+        pwBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        pwBtn.addActionListener(e -> ChangePasswordDialog.show(
+            SwingUtilities.getWindowAncestor(card) instanceof Frame
+                ? (Frame) SwingUtilities.getWindowAncestor(card) : null));
+        card.add(pwBtn, BorderLayout.EAST);
+
         return card;
     }
 
     // ─── Sidebar ──────────────────────────────────────────────────────
     private JPanel buildSidebar() {
-        JPanel side = new JPanel() {
-            @Override protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setColor(C_SURFACE);
-                g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setColor(C_BORDER);
                 g2.fillRect(getWidth() - 1, 0, 1, getHeight());
                 g2.dispose();
@@ -2405,6 +2427,10 @@ public class ChurchAdminFrame extends JFrame {
                 settingsContent.add(systemCard);
                 settingsContent.add(contactCard);
                 settingsContent.add(brandingCard);
+
+                // Security card — change password
+                JPanel securityCard = createSecuritySettingsCard();
+                settingsContent.add(securityCard);
                 
                 settingsContent.revalidate();
                 settingsContent.repaint();
@@ -2487,6 +2513,61 @@ public class ChurchAdminFrame extends JFrame {
         return card;
     }
     
+    private JPanel createSecuritySettingsCard() {
+        // Outer card with same dark rounded style as other settings cards
+        JPanel card = new JPanel(new BorderLayout(0, 14)) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(0, 0, C_CARD, 0, getHeight(), C_SURFACE);
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(C_BORDER);
+                g2.setStroke(new BasicStroke(1));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(new EmptyBorder(18, 18, 18, 18));
+
+        // Header
+        JPanel header = new JPanel(new BorderLayout(10, 0));
+        header.setOpaque(false);
+
+        JLabel iconLbl = new JLabel("🔒");
+        iconLbl.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 24));
+        iconLbl.setPreferredSize(new Dimension(40, 40));
+
+        JLabel titleLbl = new JLabel("Security");
+        titleLbl.setFont(F_HEADING);
+        titleLbl.setForeground(C_TEXT);
+
+        header.add(iconLbl,  BorderLayout.WEST);
+        header.add(titleLbl, BorderLayout.CENTER);
+
+        // Description
+        JLabel desc = new JLabel("Keep your account secure by using a strong, unique password.");
+        desc.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        desc.setForeground(C_TEXT_DIM);
+
+        // Change Password button
+        JButton changePwBtn = createStyledButton("🔑  Change Password", new Color(212, 175, 55));
+        changePwBtn.addActionListener(e ->
+            ChangePasswordDialog.show(SwingUtilities.getWindowAncestor(card) instanceof Frame
+                ? (Frame) SwingUtilities.getWindowAncestor(card) : null));
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        btnRow.setOpaque(false);
+        btnRow.add(changePwBtn);
+
+        card.add(header,  BorderLayout.NORTH);
+        card.add(desc,    BorderLayout.CENTER);
+        card.add(btnRow,  BorderLayout.SOUTH);
+
+        return card;
+    }
+
     private JPanel createBrandingSettingsCard(Map<String, Object> churchData) {
         // Get church ID for API calls
         final int churchId = churchData.get("id") instanceof Number 

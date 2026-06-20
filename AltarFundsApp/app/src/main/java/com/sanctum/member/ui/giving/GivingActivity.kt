@@ -118,8 +118,8 @@ class GivingActivity : AppCompatActivity() {
     }
 
     private fun validateInput(): Boolean {
-        val amount = binding.etAmount.text.toString()
-        val phone = binding.etPhone.text.toString()
+        val amount = binding.etAmount.text.toString().trim()
+        val phone = binding.etPhone.text.toString().trim()
         val paymentMethod = binding.spinnerPaymentMethod.selectedItem.toString()
 
         if (amount.isEmpty()) {
@@ -132,6 +132,8 @@ class GivingActivity : AppCompatActivity() {
             return false
         }
 
+        binding.tilAmount.error = null
+
         // Phone number only required for M-Pesa
         if (paymentMethod == "M-Pesa" && phone.isEmpty()) {
             binding.tilPhone.error = "Phone number is required for M-Pesa"
@@ -143,54 +145,61 @@ class GivingActivity : AppCompatActivity() {
             return false
         }
 
-        binding.tilAmount.error = null
         binding.tilPhone.error = null
+
+        // Category check — selectedCategoryId is set by onItemSelected
+        // and will be > 0 when the API categories loaded successfully.
+        // When using default string categories (API fallback), position 0
+        // is still a valid choice so we skip the ID check in that case.
+        if (categories.isNotEmpty() && selectedCategoryId <= 0) {
+            showToast("Please select a giving category")
+            return false
+        }
+
         return true
     }
 
     private fun initiateMpesaPayment() {
         progressDialog.setMessage("Initiating M-Pesa payment...")
         progressDialog.show()
-        
-        val amount = binding.etAmount.text.toString()
-        val phone = binding.etPhone.text.toString().formatPhoneNumber()
-        val selectedCategory = binding.spinnerType.selectedItem as? GivingCategory
-        
-        if (selectedCategory == null) {
-            showToast("Please select a giving category")
-            progressDialog.dismiss()
-            return
+
+        val amount = binding.etAmount.text.toString().trim()
+        val phone  = binding.etPhone.text.toString().trim().formatPhoneNumber()
+
+        // selectedCategoryId is set by onItemSelected — safe to use directly
+        // For default (fallback) string categories, use position-based ID
+        val categoryId = if (categories.isNotEmpty()) {
+            selectedCategoryId
+        } else {
+            binding.spinnerType.selectedItemPosition + 1  // 1-based fallback
         }
-        
-        // Use new backend-only payment initiation
+
         viewModel.initiatePayment(
-            amount = amount.toDouble(),
-            categoryId = selectedCategory.id,
+            amount        = amount.toDouble(),
+            categoryId    = categoryId,
             paymentMethod = "mpesa",
-            phoneNumber = phone,
-            email = app.tokenManager.getUserEmail()
+            phoneNumber   = phone,
+            email         = app.tokenManager.getUserEmail()
         )
-        
-        // Observe donation result
+
         viewModel.donationResult.observe(this) { result ->
             when (result) {
-                is Resource.Loading -> {
-                    // Already showing loading
-                }
+                is Resource.Loading -> { /* already showing progress */ }
                 is Resource.Success -> {
                     progressDialog.dismiss()
                     val donation = result.data
-                    if (donation.paymentStatus == "pending") {
-                        showToast("M-Pesa payment initiated! Check your phone for STK prompt.")
-                        // Start polling for payment status
-                        startPaymentStatusCheck(donation.id)
-                    } else if (donation.paymentStatus == "completed") {
-                        binding.btnGive.animateSuccess {
-                            showToast("Payment successful!")
-                            finish()
+                    when (donation.paymentStatus) {
+                        "pending"   -> {
+                            showToast("M-Pesa payment initiated! Check your phone for STK prompt.")
+                            startPaymentStatusCheck(donation.id)
                         }
-                    } else {
-                        showToast("Payment status: ${donation.paymentStatus}")
+                        "completed" -> {
+                            binding.btnGive.animateSuccess {
+                                showToast("✓ Payment successful!")
+                                finish()
+                            }
+                        }
+                        else -> showToast("Payment status: ${donation.paymentStatus}")
                     }
                 }
                 is Resource.Error -> {
@@ -202,48 +211,45 @@ class GivingActivity : AppCompatActivity() {
     }
 
     private fun initiatePaystackPayment() {
-        val amount = binding.etAmount.text.toString()
-        val selectedCategory = binding.spinnerType.selectedItem as? GivingCategory
+        val amount = binding.etAmount.text.toString().trim()
 
-        if (selectedCategory == null) {
-            showToast("Please select a giving category")
-            return
+        val categoryId = if (categories.isNotEmpty()) {
+            selectedCategoryId
+        } else {
+            binding.spinnerType.selectedItemPosition + 1
         }
 
-        // Use new backend-only payment initiation
         viewModel.initiatePayment(
-            amount = amount.toDouble(),
-            categoryId = selectedCategory.id,
-            paymentMethod = "mpesa", // Backend will determine best method
-            phoneNumber = null, // Backend will get from user profile
-            email = app.tokenManager.getUserEmail() // Get from user profile
+            amount        = amount.toDouble(),
+            categoryId    = categoryId,
+            paymentMethod = "card",
+            phoneNumber   = null,
+            email         = app.tokenManager.getUserEmail()
         )
 
-        // Observe donation result instead of paystack result
         viewModel.donationResult.observe(this) { result ->
             when (result) {
                 is Resource.Loading -> {
                     progressDialog.setMessage("Processing payment...")
                     progressDialog.show()
                 }
-
                 is Resource.Success -> {
                     progressDialog.dismiss()
                     val donation = result.data
-                    if (donation.paymentStatus == "pending") {
-                        showToast("Payment initiated! Reference: ${donation.paymentReference ?: donation.transactionId}")
-                        // Start polling for payment status
-                        startPaymentStatusCheck(donation.id)
-                    } else if (donation.paymentStatus == "completed") {
-                        binding.btnGive.animateSuccess {
-                            showToast("Payment successful!")
-                            finish()
+                    when (donation.paymentStatus) {
+                        "pending"   -> {
+                            showToast("Payment initiated! Reference: ${donation.paymentReference ?: donation.transactionId}")
+                            startPaymentStatusCheck(donation.id)
                         }
-                    } else {
-                        showToast("Payment status: ${donation.paymentStatus}")
+                        "completed" -> {
+                            binding.btnGive.animateSuccess {
+                                showToast("✓ Payment successful!")
+                                finish()
+                            }
+                        }
+                        else -> showToast("Payment status: ${donation.paymentStatus}")
                     }
                 }
-
                 is Resource.Error -> {
                     progressDialog.dismiss()
                     showToast(result.message)

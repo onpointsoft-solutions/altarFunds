@@ -429,7 +429,7 @@ public class SecretaryDashboardFrame extends JFrame {
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 30, 0));
         
         // Navigation buttons
-        JPanel navContainer = new JPanel(new GridLayout(6, 1, 0, 15));
+        JPanel navContainer = new JPanel(new GridLayout(7, 1, 0, 15));
         navContainer.setOpaque(false);
         
         // Navigation buttons
@@ -438,6 +438,7 @@ public class SecretaryDashboardFrame extends JFrame {
         JButton communicationBtn = createNavButton("📧 COMMUNICATION", C_GOLD_HOVER);
         JButton eventsBtn = createNavButton("📅 EVENTS", C_TEXT_MID);
         JButton documentsBtn = createNavButton("📄 DOCUMENTS", C_GOLD);
+        JButton changePwBtn = createNavButton("🔑 CHANGE PASSWORD", C_GOLD_HOVER);
         JButton backBtn = createNavButton("🔙 BACK TO LOGIN", C_GOLD_HOVER);
         
         // Add action listeners
@@ -450,12 +451,17 @@ public class SecretaryDashboardFrame extends JFrame {
             dispose();
             new LoginFrame().setVisible(true);
         });
+
+        changePwBtn.addActionListener(e ->
+            ChangePasswordDialog.show(SwingUtilities.getWindowAncestor(sideNav) instanceof Frame
+                ? (Frame) SwingUtilities.getWindowAncestor(sideNav) : null));
         
         navContainer.add(homeBtn);
         navContainer.add(membersBtn);
         navContainer.add(communicationBtn);
         navContainer.add(eventsBtn);
         navContainer.add(documentsBtn);
+        navContainer.add(changePwBtn);
         navContainer.add(backBtn);
         
         // Add components to side nav

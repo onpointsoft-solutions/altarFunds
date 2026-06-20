@@ -102,12 +102,12 @@ class GivingTransaction(FinancialModel):
     ]
     
     PAYMENT_METHOD_CHOICES = [
-        ('mpesa', _('M-Pesa')),
+        ('paystack', _('Paystack')),
+        ('card', _('Credit/Debit Card')),
         ('bank_transfer', _('Bank Transfer')),
         ('cash', _('Cash')),
-        ('check', _('Check')),
         ('mobile_money', _('Mobile Money')),
-        ('card', _('Card')),
+        ('check', _('Check')),
         ('other', _('Other')),
     ]
     
@@ -154,13 +154,21 @@ class GivingTransaction(FinancialModel):
         _('Payment Method'),
         max_length=20,
         choices=PAYMENT_METHOD_CHOICES,
-        default='mpesa'
+        default='paystack'
     )
     payment_reference = models.CharField(
         _('Payment Reference'),
         max_length=100,
         blank=True,
-        help_text=_('M-Pesa transaction ID, bank reference, etc.')
+        help_text=_('Paystack transaction ID, bank reference, etc.')
+    )
+    paystack_account = models.ForeignKey(
+        'payments.PaystackAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='giving_transactions',
+        help_text=_('Paystack account for routing this transaction')
     )
     
     # Transaction Status

@@ -152,21 +152,21 @@ class MainActivity : AppCompatActivity() {
     
     private fun requestBatteryOptimizationWhitelist() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             val packageName = packageName
             
             if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
                 Log.d("MainActivity", "Requesting battery optimization whitelist")
                 
-                val intent = Intent().apply {
-                    action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                    data = Uri.parse("package:$packageName")
+                try {
+                    val intent = Intent().apply {
+                        action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Failed to launch battery optimization settings", e)
                 }
-                
-                // You might want to show a dialog to the user before launching this intent
-                // For now, we'll just log it
-                Log.d("MainActivity", "Battery optimization whitelist intent prepared")
-                // startActivity(intent) // Uncomment if you want to automatically request
             } else {
                 Log.d("MainActivity", "App is already whitelisted from battery optimization")
             }

@@ -260,10 +260,26 @@ MPESA_ENVIRONMENT = config('MPESA_ENVIRONMENT', default='sandbox')
 # PAYSTACK
 # --------------------------------------------------
 
-PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
-PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
-PAYSTACK_CALLBACK_URL = config('PAYSTACK_CALLBACK_URL', default='https://altarfunds.pythonanywhere.com/api/payments/paystack/callback/')
-PAYSTACK_WEBHOOK_URL = config('PAYSTACK_WEBHOOK_URL', default='https://altarfunds.pythonanywhere.com/api/payments/paystack/webhook/')
+PAYSTACK_SECRET_KEY    = config('PAYSTACK_SECRET_KEY')
+PAYSTACK_PUBLIC_KEY    = config('PAYSTACK_PUBLIC_KEY')
+PAYSTACK_CALLBACK_URL  = config('PAYSTACK_CALLBACK_URL',  default='https://altarfunds.pythonanywhere.com/api/payments/paystack/callback/')
+PAYSTACK_WEBHOOK_URL   = config('PAYSTACK_WEBHOOK_URL',   default='https://altarfunds.pythonanywhere.com/api/payments/paystack/webhook/')
+
+# Percentage of each donation kept by AltarFunds before disbursing to the church.
+# E.g. 1.5 = 1.5%.  Set to 0 to pass the full amount.
+PLATFORM_FEE_PERCENTAGE = config('PLATFORM_FEE_PERCENTAGE', default=1.5, cast=float)
+
+# --------------------------------------------------
+# FIREBASE / FCM
+# --------------------------------------------------
+# Path to the service-account JSON downloaded from the Firebase console.
+# NEVER commit the real file — reference it via an env variable pointing
+# to a path outside the repo, or store the JSON content in an env var.
+FIREBASE_CREDENTIALS_PATH = config(
+    'FIREBASE_CREDENTIALS_PATH',
+    default='service-account.json'          # fallback for local dev only
+)
+FIREBASE_PROJECT_ID = config('FIREBASE_PROJECT_ID', default='sanctum-cf7e7')
 
 # --------------------------------------------------
 # EMAIL

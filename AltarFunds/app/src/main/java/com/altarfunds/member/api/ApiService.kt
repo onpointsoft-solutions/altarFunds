@@ -16,7 +16,7 @@ interface ApiService {
     @POST("auth/token/refresh/")
     suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<TokenResponse>
     
-    @POST("accounts/forgot-password/")
+    @POST("accounts/password/reset/")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<MessageResponse>
     
     // User Profile

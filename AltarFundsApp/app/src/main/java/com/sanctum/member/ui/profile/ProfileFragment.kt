@@ -125,11 +125,31 @@ class ProfileFragment : Fragment() {
     
     private fun logout() {
         lifecycleScope.launch {
+            try {
+                // Deregister FCM token from backend so no notifications
+                // are sent to this device after logout
+                app.apiService.deregisterFcmToken()
+            } catch (e: Exception) {
+                // Non-fatal — proceed with local logout regardless
+            }
+
+            // Clear auth tokens from DataStore
             app.tokenManager.clearTokens()
+
+            // Clear user/church identity from SharedPreferences so
+            // notification relevance checks start clean on next login
+            app.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE)
+                .edit()
+                .remove("user_id")
+                .remove("church_id")
+                .remove("fcm_token")
+                .apply()
+
             requireContext().showToast("✓ Logged out successfully")
-            
-            val intent = Intent(requireContext(), LoginActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+
+            val intent = android.content.Intent(requireContext(), LoginActivity::class.java)
+            intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                           android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
             requireActivity().finish()
         }

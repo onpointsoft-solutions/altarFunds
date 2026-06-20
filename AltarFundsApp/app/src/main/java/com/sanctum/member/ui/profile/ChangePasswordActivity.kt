@@ -54,8 +54,8 @@ class ChangePasswordActivity : AppCompatActivity() {
             return false
         }
         
-        if (newPassword.length < 8) {
-            binding.tilNewPassword.error = "Password must be at least 8 characters"
+        if (newPassword.length < 12) {
+            binding.tilNewPassword.error = "Password must be at least 12 characters"
             return false
         }
         
@@ -77,28 +77,44 @@ class ChangePasswordActivity : AppCompatActivity() {
     
     private fun changePassword() {
         showLoading(true)
-        
-        val oldPassword = binding.etOldPassword.text.toString()
-        val newPassword = binding.etNewPassword.text.toString()
-        
+
+        val currentPassword = binding.etOldPassword.text.toString()
+        val newPassword     = binding.etNewPassword.text.toString()
+        val confirmPassword = binding.etConfirmPassword.text.toString()
+
         lifecycleScope.launch {
             try {
                 val request = ChangePasswordRequest(
-                    oldPassword = oldPassword,
-                    newPassword = newPassword
+                    currentPassword    = currentPassword,
+                    newPassword        = newPassword,
+                    newPasswordConfirm = confirmPassword
                 )
-                
+
                 val response = app.apiService.changePassword(request)
-                
+
                 if (response.isSuccessful) {
-                    showToast("Password changed successfully")
+                    showToast("✓ Password changed successfully")
                     finish()
                 } else {
-                    showToast("Failed to change password")
+                    val errorBody = response.errorBody()?.string()
+                    val msg = when {
+                        errorBody?.contains("current_password", ignoreCase = true) == true ->
+                            "✗ Current password is incorrect"
+                        errorBody?.contains("new_password", ignoreCase = true) == true ->
+                            "✗ New password does not meet requirements"
+                        response.code() == 400 -> "✗ Invalid request. Please check your inputs."
+                        response.code() == 401 -> "✗ Session expired. Please log in again."
+                        else -> "✗ Failed to change password (${response.code()})"
+                    }
+                    showToast(msg)
                 }
+            } catch (e: java.net.UnknownHostException) {
+                showToast("✗ No internet connection")
+            } catch (e: java.net.SocketTimeoutException) {
+                showToast("✗ Connection timed out. Please try again.")
             } catch (e: Exception) {
                 e.printStackTrace()
-                showToast(getString(R.string.network_error))
+                showToast("✗ ${e.message ?: "Network error"}")
             } finally {
                 showLoading(false)
             }

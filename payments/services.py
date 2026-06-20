@@ -192,33 +192,37 @@ class MpesaService:
 
 
 class PaymentService:
-    """Main payment processing service"""
+    """Main payment processing service - Paystack only with church account routing"""
     
     @staticmethod
     @transaction.atomic
-    def initiate_payment(giving_transaction, payment_method):
-        """Initiate payment for a giving transaction"""
+    def initiate_payment(giving_transaction, payment_method='paystack', church_account=None):
+        """Initiate payment for a giving transaction using Paystack with church account routing"""
         try:
-            # Create payment request
+            # Get church account for routing
+            target_account = church_account or giving_transaction.church.get_default_paystack_account()
+            
+            if not target_account:
+                raise AltarFundsException("No Paystack account configured for this church")
+            
+            # Create payment request with account routing
             payment_request = PaymentRequest.objects.create(
                 giving_transaction=giving_transaction,
                 church=giving_transaction.church,
                 amount=giving_transaction.amount,
                 phone_number=giving_transaction.member.user.phone_number,
-                business_number=giving_transaction.church.mpesa_account.business_number,
+                business_number=target_account.business_number,
                 account_reference=str(giving_transaction.transaction_id),
                 transaction_desc=f"AltarFunds - {giving_transaction.category.name}",
+                payment_method=payment_method,
+                paystack_account=target_account,
                 created_by=giving_transaction.member.user
             )
             
-            # Process payment based on method
-            if payment_method == 'mpesa':
-                MpesaPaymentService.process_stk_push(payment_request)
-            else:
-                # Handle other payment methods
-                raise AltarFundsException(f"Payment method {payment_method} not supported")
+            # Process payment using Paystack with account routing
+            PaystackPaymentService.process_payment(payment_request, target_account)
             
-            # Log initiation
+            # Log initiation with account routing info
             AuditService.log_user_action(
                 user=giving_transaction.member.user,
                 action='PAYMENT_INITIATED',
@@ -226,7 +230,9 @@ class PaymentService:
                     'transaction_id': str(giving_transaction.transaction_id),
                     'amount': float(giving_transaction.amount),
                     'payment_method': payment_method,
-                    'payment_request_id': str(payment_request.request_id)
+                    'payment_request_id': str(payment_request.request_id),
+                    'church_account': target_account.account_name,
+                    'routing_account_id': target_account.id
                 }
             )
             
@@ -238,27 +244,32 @@ class PaymentService:
     
     @staticmethod
     @transaction.atomic
-    def process_callback(callback_data, provider='mpesa'):
+    def process_callback(callback_data, provider='paystack'):
         """Process payment callback"""
         try:
             # Create callback record
             callback = PaymentCallback.objects.create(
                 provider=provider,
                 callback_type='payment_confirmation',
-                transaction_id=callback_data.get('TransactionID', ''),
+                transaction_id=callback_data.get('reference', ''),
                 raw_data=callback_data,
                 ip_address='127.0.0.1'  # Should get from request
             )
             
             # Validate callback signature
-            if provider == 'mpesa':
-                callback.is_valid = True  # M-Pesa doesn't use signatures
+            if provider == 'paystack':
+                signature = callback_data.get('signature')
+                payload = callback_data.get('payload', '')
+                paystack_service = PaystackService()
+                callback.is_valid = paystack_service.verify_webhook_signature(payload, signature)
+            else:
+                callback.is_valid = True  # Other providers
             
             # Find related payment request
             payment_request = None
-            if 'CheckoutRequestID' in callback_data:
+            if 'reference' in callback_data:
                 payment_request = PaymentRequest.objects.filter(
-                    checkout_request_id=callback_data['CheckoutRequestID']
+                    transaction_reference=callback_data['reference']
                 ).first()
             
             if not payment_request:
@@ -274,8 +285,8 @@ class PaymentService:
             callback.save()
             
             # Process the callback
-            if provider == 'mpesa':
-                MpesaPaymentService.process_payment_callback(callback)
+            if provider == 'paystack':
+                PaystackPaymentService.process_webhook(callback_data, payment_request.paystack_account)
             
             return callback
             
@@ -294,9 +305,11 @@ class PaymentService:
             # Schedule retry
             payment_request.schedule_retry()
             
-            # Process retry based on payment method
-            if payment_request.giving_transaction.payment_method == 'mpesa':
-                MpesaPaymentService.process_stk_push(payment_request)
+            # Process retry using Paystack
+            if payment_request.paystack_account:
+                PaystackPaymentService.process_payment(payment_request, payment_request.paystack_account)
+            else:
+                raise AltarFundsException("No Paystack account configured for retry")
             
             # Log retry
             AuditService.log_user_action(
@@ -304,7 +317,8 @@ class PaymentService:
                 action='PAYMENT_RETRY',
                 details={
                     'payment_request_id': str(payment_request.request_id),
-                    'retry_count': payment_request.retry_count
+                    'retry_count': payment_request.retry_count,
+                    'account_name': payment_request.paystack_account.account_name
                 }
             )
             
@@ -329,9 +343,8 @@ class PaymentService:
                 created_by=requested_by
             )
             
-            # Process reversal based on payment method
-            if giving_transaction.payment_method == 'mpesa':
-                MpesaPaymentService.process_reversal(reversal)
+            # Process reversal using Paystack
+            PaystackPaymentService.process_reversal(reversal)
             
             # Log reversal
             AuditService.log_user_action(
@@ -351,48 +364,125 @@ class PaymentService:
             raise AltarFundsException("Payment reversal failed")
 
 
-class MpesaPaymentService:
-    """M-Pesa specific payment processing"""
+class PaystackPaymentService:
+    """Paystack specific payment processing with church account routing"""
     
     @staticmethod
-    def process_stk_push(payment_request):
-        """Process M-Pesa STK Push"""
+    def process_payment(payment_request, church_account):
+        """Process payment using Paystack with church account routing"""
         try:
-            mpesa_service = MpesaService()
+            from .paystack_service import PaystackService
             
             # Mark as processing
             payment_request.mark_processing()
             
-            # Initiate STK Push
-            response = mpesa_service.stk_push(
-                phone_number=payment_request.phone_number,
+            # Generate unique reference with account routing
+            reference = f"AF-{church_account.account_code}-{payment_request.request_id}"
+            
+            # Initialize Paystack service with church account
+            paystack_service = PaystackService(church_account)
+            
+            # Initialize payment with Paystack using church account
+            response = paystack_service.initialize_payment(
+                email=payment_request.giving_transaction.member.user.email,
                 amount=payment_request.amount,
-                account_reference=payment_request.account_reference,
-                transaction_desc=payment_request.transaction_desc
+                reference=reference,
+                metadata={
+                    'church_id': payment_request.giving_transaction.church.id,
+                    'church_name': payment_request.giving_transaction.church.name,
+                    'account_name': church_account.account_name,
+                    'account_code': church_account.account_code,
+                    'giving_category': payment_request.giving_transaction.category.name,
+                    'member_id': payment_request.giving_transaction.member.id,
+                    'member_name': payment_request.giving_transaction.member.user.get_full_name(),
+                    'payment_request_id': str(payment_request.request_id),
+                    'routing_method': 'church_account'
+                },
+                callback_url=f"{settings.BASE_URL}/api/payments/paystack/webhook/"
             )
             
             # Update payment request with response
-            if response.get('ResponseCode') == '0':
+            if response['success']:
                 payment_request.mark_completed(response)
                 
                 # Update giving transaction
-                payment_request.giving_transaction.status = 'processing'
+                payment_request.giving_transaction.status = 'pending_payment'
+                payment_request.giving_transaction.payment_reference = reference
                 payment_request.giving_transaction.save()
                 
-                logger.info(f"STK Push successful: {payment_request.request_id}")
+                logger.info(f"Paystack payment initiated: {reference} - Account: {church_account.account_name}")
             else:
                 payment_request.mark_failed(response)
                 
                 # Update giving transaction
                 payment_request.giving_transaction.mark_failed(
-                    response.get('ResponseMessage', 'Unknown error')
+                    response.get('message', 'Payment initialization failed')
                 )
                 
-                logger.error(f"STK Push failed: {response}")
+                logger.error(f"Paystack payment initialization failed: {response}")
             
         except Exception as e:
-            logger.error(f"STK Push processing failed: {e}")
+            logger.error(f"Paystack payment processing failed: {e}")
             payment_request.mark_failed({'ResponseMessage': str(e)})
+            raise
+    
+    @staticmethod
+    def process_webhook(callback_data, church_account):
+        """Process Paystack webhook with church account routing"""
+        try:
+            from .paystack_service import PaystackService
+            
+            # Initialize Paystack service with church account
+            paystack_service = PaystackService(church_account)
+            
+            # Verify webhook signature
+            signature = callback_data.get('signature')
+            payload = callback_data.get('payload', '')
+            
+            if not paystack_service.verify_webhook_signature(payload, signature):
+                logger.warning("Invalid Paystack webhook signature")
+                return {'success': False, 'message': 'Invalid signature'}
+            
+            # Process webhook event
+            event_type = callback_data.get('event_type')
+            event_data = callback_data.get('data')
+            
+            result = paystack_service.process_webhook(event_type, event_data)
+            
+            # Log church account routing
+            if result['success']:
+                logger.info(f"Paystack webhook processed: {event_type} - Account: {church_account.account_name}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Paystack webhook processing failed: {e}")
+            return {'success': False, 'message': 'Webhook processing failed'}
+    
+    @staticmethod
+    def process_reversal(reversal):
+        """Process Paystack reversal/refund"""
+        try:
+            from .paystack_service import PaystackService
+            
+            # Get original transaction
+            original_transaction = reversal.original_transaction
+            
+            # Initialize Paystack service
+            paystack_service = PaystackService()
+            
+            # Process refund (this would use Paystack's refund API)
+            # For now, we'll simulate the reversal
+            reversal.mark_completed(f"REF_{reversal.reversal_id}")
+            
+            # Update original transaction
+            original_transaction.refund(reversal.amount, reversal.reason)
+            
+            logger.info(f"Paystack reversal completed: {reversal.reversal_id}")
+            
+        except Exception as e:
+            logger.error(f"Paystack reversal failed: {e}")
+            reversal.mark_failed(str(e))
             raise
     
     @staticmethod

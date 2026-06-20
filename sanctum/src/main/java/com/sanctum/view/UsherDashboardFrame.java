@@ -257,6 +257,34 @@ public class UsherDashboardFrame extends JFrame {
 
         card.add(avatar, BorderLayout.WEST);
         card.add(info,   BorderLayout.CENTER);
+
+        // Change Password shortcut
+        JButton pwBtn = new JButton("🔑") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isRollover()) {
+                    g2.setColor(new Color(212, 175, 55, 35));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                }
+                g2.setFont(withEmojiFont(F_LABEL));
+                g2.setColor(C_TEXT_DIM);
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString("🔑", (getWidth()-fm.stringWidth("🔑"))/2,
+                    (getHeight()+fm.getAscent()-fm.getDescent())/2);
+                g2.dispose();
+            }
+        };
+        pwBtn.setContentAreaFilled(false); pwBtn.setBorderPainted(false);
+        pwBtn.setFocusPainted(false);
+        pwBtn.setPreferredSize(new Dimension(30, 30));
+        pwBtn.setToolTipText("Change Password");
+        pwBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        pwBtn.addActionListener(e -> ChangePasswordDialog.show(
+            SwingUtilities.getWindowAncestor(card) instanceof Frame
+                ? (Frame) SwingUtilities.getWindowAncestor(card) : null));
+        card.add(pwBtn, BorderLayout.EAST);
+
         return card;
     }
 

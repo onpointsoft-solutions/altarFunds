@@ -319,6 +319,23 @@ class Church(TimeStampedModel, SoftDeleteModel):
         self.status = 'suspended'
         self.is_active = False
         self.save()
+    
+    def get_default_paystack_account(self):
+        """Get the default Paystack account for this church"""
+        from payments.models import PaystackAccount
+        return PaystackAccount.objects.filter(
+            church=self,
+            is_active=True,
+            is_default=True
+        ).first()
+    
+    def get_paystack_accounts(self):
+        """Get all active Paystack accounts for this church"""
+        from payments.models import PaystackAccount
+        return PaystackAccount.objects.filter(
+            church=self,
+            is_active=True
+        ).order_by('-is_default', 'account_name')
 
 
 class Campus(TimeStampedModel, SoftDeleteModel):
@@ -595,6 +612,25 @@ class ChurchBankAccount(FinancialModel):
     # Status
     is_active = models.BooleanField(_('Active'), default=True)
     is_primary = models.BooleanField(_('Primary Account'), default=False)
+
+    # Paystack Transfer Recipient
+    # Populated automatically when the admin registers this account
+    # with Paystack via POST /api/payments/create-transfer-recipient/
+    paystack_recipient_code = models.CharField(
+        _('Paystack Recipient Code'),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_(
+            'Paystack Transfer Recipient code (e.g. RCP_xxxxx). '
+            'Set automatically when the account is registered with Paystack.'
+        )
+    )
+    paystack_recipient_id = models.PositiveIntegerField(
+        _('Paystack Recipient ID'),
+        null=True,
+        blank=True
+    )
     
     class Meta:
         db_table = 'churches_bank_accounts'

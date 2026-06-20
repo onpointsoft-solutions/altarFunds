@@ -52,6 +52,8 @@ firebaseBom = "32.7.4"
 firebaseAnalyticsKtx = "21.5.1"
 firebaseCore = "21.1.0"
 firebaseMessaging = "25.0.1"
+firebaseAuth = "23.2.0"
+playServicesAuth = "21.3.0"
 
 
 [libraries]
@@ -116,6 +118,8 @@ firebase-analytics-ktx = { group = "com.google.firebase", name = "firebase-analy
 firebase-core = { group = "com.google.firebase", name = "firebase-core", version.ref = "firebaseCore" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
+firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuth" }
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 
 
 [plugins]

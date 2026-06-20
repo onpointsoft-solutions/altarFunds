@@ -9,16 +9,19 @@ interface ApiService {
     // Authentication
     @POST("auth/token/")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
-    
+
+    @POST("auth/firebase/")
+    suspend fun loginWithFirebase(@Body request: FirebaseLoginRequest): Response<LoginResponse>
+
     @POST("accounts/register/")
     suspend fun register(@Body request: RegisterRequest): Response<RegisterResponse>
     
     @POST("auth/token/refresh/")
     suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<TokenResponse>
     
-    @POST("accounts/forgot-password/")
+    @POST("accounts/password/reset/")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<MessageResponse>
-    
+
     @POST("accounts/password/reset/confirm/")
     suspend fun confirmPasswordReset(@Body request: PasswordResetConfirmRequest): Response<MessageResponse>
     
@@ -29,8 +32,16 @@ interface ApiService {
     @PUT("accounts/profile/")
     suspend fun updateProfile(@Body request: UpdateProfileRequest): Response<User>
     
-    @POST("accounts/change-password/")
+    @POST("accounts/password/change/")
     suspend fun changePassword(@Body request: ChangePasswordRequest): Response<MessageResponse>
+
+    // FCM Token Registration
+    @POST("notifications/fcm-tokens/")
+    suspend fun registerFcmToken(@Body request: FcmTokenRequest): Response<MessageResponse>
+
+    // FCM Token Deregistration (on logout)
+    @DELETE("notifications/fcm-tokens/unregister/")
+    suspend fun deregisterFcmToken(): Response<MessageResponse>
     
     // Churches
     @GET("churches/")

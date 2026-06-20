@@ -20,6 +20,10 @@ data class LoginRequest(
     val password: String
 )
 
+data class FirebaseLoginRequest(
+    @SerializedName("id_token") val idToken: String
+)
+
 data class LoginResponse(
     val access: String,
     val refresh: String,
@@ -32,7 +36,8 @@ data class RegisterRequest(
     @SerializedName("password_confirm") val passwordConfirm: String,
     @SerializedName("first_name") val firstName: String,
     @SerializedName("last_name") val lastName: String,
-    @SerializedName("phone_number") val phoneNumber: String
+    @SerializedName("phone_number") val phoneNumber: String,
+    @SerializedName("firebase_token") val firebaseToken: String? = null
 )
 
 data class RegisterResponse(
@@ -142,8 +147,14 @@ data class UpdateProfileRequest(
 )
 
 data class ChangePasswordRequest(
-    @SerializedName("old_password") val oldPassword: String,
-    @SerializedName("new_password") val newPassword: String
+    @SerializedName("current_password") val currentPassword: String,
+    @SerializedName("new_password") val newPassword: String,
+    @SerializedName("new_password_confirm") val newPasswordConfirm: String
+)
+
+data class FcmTokenRequest(
+    val token: String,
+    @SerializedName("device_id") val deviceId: String? = null
 )
 
 data class ChurchTransferRequest(

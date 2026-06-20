@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.firebase.auth.FirebaseAuth
 import com.sanctum.member.MemberApp
 import com.sanctum.member.R
 import com.sanctum.member.data.mappers.toEntity
@@ -20,7 +21,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private val app by lazy { MemberApp.getInstance() }
     private lateinit var progressDialog: ProgressDialog
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityLoginBinding.inflate(layoutInflater)
@@ -60,6 +61,7 @@ class LoginActivity : AppCompatActivity() {
     }
     
     private fun login() {
+        val firebaseauth= FirebaseAuth.getInstance()
         val email = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString().trim()
         
@@ -70,24 +72,30 @@ class LoginActivity : AppCompatActivity() {
             try {
                 val request = LoginRequest(email, password)
                 val response = app.apiService.login(request)
-                
+                firebaseauth.signInWithEmailAndPassword(email, password).addOnCompleteListener {
+
+                }
                 if (response.isSuccessful && response.body() != null) {
                     val loginResponse = response.body()!!
-                    
+
                     // Save tokens
                     app.tokenManager.saveTokens(
                         loginResponse.access,
                         loginResponse.refresh
                     )
-                    
+
                     // Fetch user profile if not included in login response
                     if (loginResponse.user != null) {
+                        val user = loginResponse.user
                         app.tokenManager.saveUserInfo(
-                            loginResponse.user.id.toString(),
-                            loginResponse.user.email
+                            user.id.toString(),
+                            user.email,
+                            user.churchInfo?.id?.toString() ?: user.church?.toString()
                         )
+                        // Save church_id to user_prefs for notification filtering
+                        app.saveUserInfo(user.id.toString(), user.churchInfo?.id?.toString() ?: user.church?.toString())
                         // Cache user data
-                        app.database.userDao().insertUser(loginResponse.user.toEntity())
+                        app.database.userDao().insertUser(user.toEntity())
                     } else {
                         // Fetch profile from API
                         try {
@@ -96,8 +104,11 @@ class LoginActivity : AppCompatActivity() {
                                 val user = profileResponse.body()!!
                                 app.tokenManager.saveUserInfo(
                                     user.id.toString(),
-                                    user.email
+                                    user.email,
+                                    user.churchInfo?.id?.toString() ?: user.church?.toString()
                                 )
+                                // Save church_id to user_prefs for notification filtering
+                                app.saveUserInfo(user.id.toString(), user.churchInfo?.id?.toString() ?: user.church?.toString())
                                 // Cache user data
                                 app.database.userDao().insertUser(user.toEntity())
                             } else {
@@ -110,7 +121,10 @@ class LoginActivity : AppCompatActivity() {
                             return@launch
                         }
                     }
-                    
+
+                    // Register FCM token with backend now that user is authenticated
+                    app.registerFcmTokenWithServer()
+
                     showToast("✓ Welcome back! Login successful")
                     binding.btnLogin.animateSuccess {
                         navigateToMain()
@@ -140,7 +154,7 @@ class LoginActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun navigateToMain() {
         startActivity(Intent(this, MainActivity::class.java))
         finish()

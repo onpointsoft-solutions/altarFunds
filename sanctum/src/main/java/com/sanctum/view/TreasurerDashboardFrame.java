@@ -38,6 +38,7 @@ public class TreasurerDashboardFrame extends JFrame {
     private static final Color C_BORDER_LT  = new Color(66, 115, 107);
     private static final Color C_GOLD       = new Color(212, 175,  55);
     private static final Color C_GOLD_HOVER = new Color(230, 199, 102);
+    private static final Color C_GOLD_DIM    = new Color(170, 140, 90);
     private static final Color C_SUCCESS    = new Color(76,  175,  80);
     private static final Color C_WARNING    = new Color(255, 152,   0);
     private static final Color C_DANGER     = new Color(244,  67,  54);
@@ -84,6 +85,73 @@ public class TreasurerDashboardFrame extends JFrame {
     private int[] reportDonations = {210, 245, 290, 380, 260, 284};
     private int[] reportExpenses  = { 90, 105, 120, 140, 110,  95};
     private String[] reportMonths = {"SEP","OCT","NOV","DEC","JAN","FEB"};
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  EMOJI FONT UTILITIES  (Matching other dashboards)
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Returns the first available color-emoji font at {@code size}.
+     */
+    private static Font getEmojiFont(int size) {
+        String[] candidates = {
+            "Segoe UI Emoji",
+            "Segoe UI Symbol",
+            "Apple Color Emoji",
+            "Noto Color Emoji",
+            "Android Emoji",
+            "EmojiOne"
+        };
+        // SMP probe — only a real emoji font handles this
+        String probe = "\uD83D\uDE00"; // 😀
+        for (String name : candidates) {
+            Font f = new Font(name, Font.PLAIN, size);
+            // getFamily() check guards against silent substitution;
+            // canDisplayUpTo == -1 means every code point is covered.
+            if (f.getFamily().equalsIgnoreCase(name)
+                    || f.canDisplayUpTo(probe) == -1) {
+                return f;
+            }
+        }
+        // Last resort — Dialog on modern JDKs delegates to system emoji font
+        return new Font("Dialog", Font.PLAIN, size);
+    }
+
+    /**
+     * Derives an emoji-capable font that matches the size and style of {@code base}.
+     */
+    private static Font withEmojiFont(Font base) {
+        Font emoji = getEmojiFont(base.getSize());
+        return emoji.deriveFont(base.getStyle(), base.getSize2D());
+    }
+
+    // ─── Helper Methods ───────────────────────────────────────
+    private JTextField styledField(String placeholder) {
+        JTextField f = new JTextField(20);
+        f.setBackground(C_CARD);
+        f.setForeground(C_TEXT);
+        f.setCaretColor(C_GOLD);
+        f.setFont(F_BODY);
+        f.setBorder(BorderFactory.createCompoundBorder(
+            new MatteBorder(1,1,1,1,C_BORDER),
+            new EmptyBorder(6,10,6,10)));
+        return f;
+    }
+
+    private void styleCombo(JComboBox<?> cb) {
+        cb.setBackground(C_CARD);
+        cb.setForeground(C_TEXT);
+        cb.setFont(F_BODY);
+        cb.setBorder(new MatteBorder(1,1,1,1,C_BORDER));
+    }
+
+   /* private void addFormRow(JPanel p, GridBagConstraints g, int row, String label, JComponent field) {
+        g.gridx=0; g.gridy=row; g.gridwidth=1; g.weightx=0; g.insets=new Insets(6,0,6,12);
+        JLabel lbl = new JLabel(label); lbl.setFont(F_LABEL); lbl.setForeground(C_TEXT_MID);
+        p.add(lbl, g);
+        g.gridx=1; g.weightx=1.0; g.insets=new Insets(6,0,6,0);
+        p.add(field, g);
+    }*/
 
     // ─── Constructor ────────────────────────────────────────────────────────
     public TreasurerDashboardFrame() {
@@ -156,7 +224,7 @@ public class TreasurerDashboardFrame extends JFrame {
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         left.setOpaque(false);
-        JLabel icon  = new JLabel("⛪"); icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 15));
+        JLabel icon  = new JLabel("⛪"); icon.setFont(getEmojiFont(15));
         JLabel title = new JLabel("Sanctum  ·  Treasurer Dashboard");
         title.setFont(F_MONO_SM); title.setForeground(C_TEXT_MID);
         left.add(icon); left.add(title);
@@ -308,7 +376,7 @@ public class TreasurerDashboardFrame extends JFrame {
                     g2.setColor(new Color(255,255,255,6));
                     g2.fillRoundRect(0,0,getWidth(),getHeight(),8,8);
                 }
-                g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+                g2.setFont(getEmojiFont(14));
                 g2.setColor(isActive ? accent : C_TEXT_MID);
                 g2.drawString(icon, 10, getHeight()/2+5);
                 g2.setFont(F_LABEL);
@@ -357,7 +425,34 @@ public class TreasurerDashboardFrame extends JFrame {
         JLabel name = new JLabel(displayName); name.setFont(F_LABEL); name.setForeground(C_TEXT);
         JLabel role = new JLabel("Treasurer"); role.setFont(F_MONO_SM); role.setForeground(C_TEXT_DIM);
         info.add(name); info.add(role);
-        card.add(avatar); card.add(info);
+
+        // Change Password shortcut
+        JButton pwBtn = new JButton("🔑") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isRollover()) {
+                    g2.setColor(new Color(212, 175, 55, 35));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                }
+                g2.setFont(withEmojiFont(F_LABEL));
+                g2.setColor(new Color(156, 163, 175));
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString("🔑", (getWidth()-fm.stringWidth("🔑"))/2,
+                    (getHeight()+fm.getAscent()-fm.getDescent())/2);
+                g2.dispose();
+            }
+        };
+        pwBtn.setContentAreaFilled(false); pwBtn.setBorderPainted(false);
+        pwBtn.setFocusPainted(false);
+        pwBtn.setPreferredSize(new Dimension(30, 30));
+        pwBtn.setToolTipText("Change Password");
+        pwBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        pwBtn.addActionListener(e -> ChangePasswordDialog.show(
+            SwingUtilities.getWindowAncestor(card) instanceof Frame
+                ? (Frame) SwingUtilities.getWindowAncestor(card) : null));
+
+        card.add(avatar); card.add(info); card.add(pwBtn);
         return card;
     }
 
@@ -501,7 +596,7 @@ public class TreasurerDashboardFrame extends JFrame {
     }
 
     // ─── Form helpers ────────────────────────────────────────────────────────
-    private JTextField styledField(String placeholder) {
+    private JTextField styledTextField(String placeholder) {
         JTextField f = new JTextField(20);
         f.setBackground(C_CARD); f.setForeground(C_TEXT); f.setCaretColor(C_GOLD);
         f.setFont(F_BODY);
@@ -510,10 +605,10 @@ public class TreasurerDashboardFrame extends JFrame {
         return f;
     }
 
-    private void styleCombo(JComboBox<?> cb) {
+    /*private void styleCombo(JComboBox<?> cb) {
         cb.setBackground(C_CARD); cb.setForeground(C_TEXT); cb.setFont(F_BODY);
         cb.setBorder(new MatteBorder(1,1,1,1,C_BORDER));
-    }
+    }*/
 
     private void addFormRow(JPanel p, GridBagConstraints g, int row, String label, JComponent field) {
         g.gridx=0; g.gridy=row; g.gridwidth=1; g.weightx=0; g.insets=new Insets(6,0,6,12);
@@ -601,7 +696,7 @@ public class TreasurerDashboardFrame extends JFrame {
             }
             @Override public Dimension getPreferredSize() { return new Dimension(0,110); }
         };
-        JLabel iconLbl = new JLabel(emoji); iconLbl.setFont(new Font("Segoe UI Emoji",Font.PLAIN,15));
+        JLabel iconLbl = new JLabel(emoji); iconLbl.setFont(getEmojiFont(15));
         JLabel titleLbl = new JLabel(title.toUpperCase()); titleLbl.setFont(F_MONO_SM); titleLbl.setForeground(C_TEXT_DIM);
         JLabel valueLbl = new JLabel(value); valueLbl.setFont(F_MONO_LG); valueLbl.setForeground(accent);
         valueLbl.putClientProperty("kpiValue", Boolean.TRUE);
@@ -795,7 +890,7 @@ public class TreasurerDashboardFrame extends JFrame {
                 if (getModel().isRollover()) {
                     g2.setColor(C_CARD_HOVER); g2.fillRoundRect(0,0,getWidth(),getHeight(),6,6);
                 }
-                g2.setFont(new Font("Segoe UI Emoji",Font.PLAIN,13));
+                g2.setFont(getEmojiFont(13));
                 g2.setColor(C_TEXT_MID); g2.drawString(emoji, 8, 20);
                 g2.setFont(F_SMALL); g2.setColor(getModel().isRollover() ? C_TEXT : C_TEXT_MID);
                 g2.drawString(label, 26, 20);
@@ -1182,13 +1277,6 @@ public class TreasurerDashboardFrame extends JFrame {
         JButton reset = buildTopBtn("Reset", C_TEXT_MID); reset.setPreferredSize(new Dimension(80,34));
         reset.addActionListener(e -> loadTransactionsPageData());
 
-        for (JLabel l : new JLabel[]{ new JLabel("Search:"){{setFont(F_LABEL);setForeground(C_TEXT_MID);}},
-                new JLabel("Status:"){{setFont(F_LABEL);setForeground(C_TEXT_MID);}},
-                new JLabel("Type:"){{setFont(F_LABEL);setForeground(C_TEXT_MID);}},
-                new JLabel("From:"){{setFont(F_LABEL);setForeground(C_TEXT_MID);}},
-                new JLabel("To:"){{setFont(F_LABEL);setForeground(C_TEXT_MID);}}}) {
-            // labels added inline below
-        }
         bar.add(new JLabel("Search:"){{setFont(F_LABEL);setForeground(C_TEXT_MID);}}); bar.add(searchField);
         bar.add(new JLabel("Status:"){{setFont(F_LABEL);setForeground(C_TEXT_MID);}}); bar.add(statusFilter);
         bar.add(new JLabel("Type:"){{setFont(F_LABEL);setForeground(C_TEXT_MID);}}); bar.add(typeFilter);
@@ -1318,7 +1406,7 @@ public class TreasurerDashboardFrame extends JFrame {
         hdr.add(title, BorderLayout.WEST);
         JPanel hBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT,8,0)); hBtns.setOpaque(false);
         hBtns.add(buildTopBtn("📤 Export", C_TEXT_MID));
-        hBtns.add(buildPrimaryBtn("➕ Add Budget", e -> showAddBudgetDialog()));
+        hBtns.add(buildTopBtn("🔄 Refresh", C_TEXT_MID) {{ addActionListener(e -> loadMembersPageData()); }});
         hdr.add(hBtns, BorderLayout.EAST);
 
         JPanel content = new JPanel(); content.setOpaque(false);
@@ -1429,17 +1517,12 @@ public class TreasurerDashboardFrame extends JFrame {
     //  DATA LOADING — all pages
     // ════════════════════════════════════════════════════════════════════════
     private void loadData() {
+        // Only load Overview data eagerly — other pages load on navigation
         loadKpiData();
         loadRecentDonationsData();
         loadBudgetSummaryData();
         loadFundSummaryData();
         loadOverviewTransactionsData();
-        loadDonationsPageData();
-        loadReportsPageData();
-        loadBudgetPageData();
-        loadTransactionsPageData();
-        loadAccountsPageData();
-        loadExpensesPageData();
     }
 
     private void loadKpiData() {
@@ -1497,44 +1580,45 @@ public class TreasurerDashboardFrame extends JFrame {
     }
     
     private void loadIndividualKpiData() {
-        // Load each KPI individually as final fallback (like Pastor Dashboard)
+        // Load donations total
         SanctumApiClient.getDonations().thenAccept(donations -> SwingUtilities.invokeLater(() -> {
             double totalIncome = donations.stream()
                 .mapToDouble(d -> parseSafelyDouble(d.getOrDefault("amount", "0")))
                 .sum();
+
+            // Monthly — filter by current month
+            String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            double monthlyIncome = donations.stream()
+                .filter(d -> d.getOrDefault("created_at", "").toString().startsWith(currentMonth))
+                .mapToDouble(d -> parseSafelyDouble(d.getOrDefault("amount", "0")))
+                .sum();
+
             if (lblTotalDonations != null) {
                 lblTotalDonations.setText("KES " + fmt(String.valueOf(totalIncome)));
-                lblTotalDonations.revalidate();
-                lblTotalDonations.repaint();
+                lblTotalDonations.revalidate(); lblTotalDonations.repaint();
             }
-        }));
-        
-        SanctumApiClient.getExpenses().thenAccept(expenses -> SwingUtilities.invokeLater(() -> {
-            double totalExpenses = expenses.stream()
-                .mapToDouble(e -> parseSafelyDouble(e.getOrDefault("amount", "0")))
-                .sum();
-            if (lblTotalExpenses != null) {
-                lblTotalExpenses.setText("KES " + fmt(String.valueOf(totalExpenses)));
-                lblTotalExpenses.revalidate();
-                lblTotalExpenses.repaint();
-            }
-        }));
-        
-        // For monthly donations and net balance, use the total income as fallback
-        SanctumApiClient.getDonations().thenAccept(donations -> SwingUtilities.invokeLater(() -> {
-            double totalIncome = donations.stream()
-                .mapToDouble(d -> parseSafelyDouble(d.getOrDefault("amount", "0")))
-                .sum();
             if (lblMonthlyDonations != null) {
-                lblMonthlyDonations.setText("KES " + fmt(String.valueOf(totalIncome)));
-                lblMonthlyDonations.revalidate();
-                lblMonthlyDonations.repaint();
+                lblMonthlyDonations.setText("KES " + fmt(String.valueOf(monthlyIncome)));
+                lblMonthlyDonations.revalidate(); lblMonthlyDonations.repaint();
             }
-            if (lblNetBalance != null) {
-                lblNetBalance.setText("KES " + fmt(String.valueOf(totalIncome)));
-                lblNetBalance.revalidate();
-                lblNetBalance.repaint();
-            }
+
+            // Net balance needs expenses — chain the call
+            SanctumApiClient.getExpenses().thenAccept(expenses -> SwingUtilities.invokeLater(() -> {
+                double totalExpenses = expenses.stream()
+                    .mapToDouble(e -> parseSafelyDouble(e.getOrDefault("amount", "0")))
+                    .sum();
+                double netBalance = totalIncome - totalExpenses;
+
+                if (lblTotalExpenses != null) {
+                    lblTotalExpenses.setText("KES " + fmt(String.valueOf(totalExpenses)));
+                    lblTotalExpenses.revalidate(); lblTotalExpenses.repaint();
+                }
+                if (lblNetBalance != null) {
+                    lblNetBalance.setText("KES " + fmt(String.valueOf(netBalance)));
+                    lblNetBalance.revalidate(); lblNetBalance.repaint();
+                }
+                if (contentArea != null) { contentArea.revalidate(); contentArea.repaint(); }
+            }));
         }));
     }
     
@@ -1723,7 +1807,7 @@ public class TreasurerDashboardFrame extends JFrame {
                 fundSummaryContainer.add(buildFundRow(C_GOLD,      "TOTAL INCOME",   "KES "+fmt(overview.getOrDefault("total_income","0").toString())));
                 fundSummaryContainer.add(buildFundRow(C_WARNING,   "TOTAL EXPENSES", "KES "+fmt(overview.getOrDefault("total_expenses","0").toString())));
                 fundSummaryContainer.add(buildFundRow(C_SUCCESS,   "NET BALANCE",    "KES "+fmt(overview.getOrDefault("net_income","0").toString())));
-                fundSummaryContainer.add(buildFundRow(C_GOLD_HOVER,"THIS MONTH",     "KES "+fmt(overview.getOrDefault("total_income","0").toString())));
+                fundSummaryContainer.add(buildFundRow(C_GOLD_HOVER,"THIS MONTH",     "KES "+fmt(overview.getOrDefault("monthly_income", overview.getOrDefault("total_income","0")).toString())));
             }
             fundSummaryContainer.revalidate(); fundSummaryContainer.repaint();
         })).exceptionally(ex -> null);
@@ -1806,17 +1890,114 @@ public class TreasurerDashboardFrame extends JFrame {
 
     private void loadReportsPageData() {
         SanctumApiClient.getFinancialReport().thenAccept(report -> SwingUtilities.invokeLater(() -> {
-            if (report.containsKey("monthly_donations")) {
-                // Update chart data from API if available
-                System.out.println("Reports data loaded");
+            if (report == null || report.isEmpty()) return;
+
+            // Update chart data if the API returns monthly breakdown
+            Object rawMonthly = report.get("monthly_donations");
+            if (rawMonthly instanceof java.util.List) {
+                java.util.List<?> monthly = (java.util.List<?>) rawMonthly;
+                int len = Math.min(monthly.size(), 6);
+                for (int i = 0; i < len; i++) {
+                    Object entry = monthly.get(i);
+                    if (entry instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> m = (Map<String, Object>) entry;
+                        reportDonations[i] = (int) parseSafelyDouble(m.getOrDefault("total", "0"));
+                        String label = m.getOrDefault("month", "").toString();
+                        if (label.length() >= 3) reportMonths[i] = label.substring(0, 3).toUpperCase();
+                    }
+                }
             }
-        })).exceptionally(ex -> null);
+
+            Object rawExpMonthly = report.get("monthly_expenses");
+            if (rawExpMonthly instanceof java.util.List) {
+                java.util.List<?> monthly = (java.util.List<?>) rawExpMonthly;
+                int len = Math.min(monthly.size(), 6);
+                for (int i = 0; i < len; i++) {
+                    Object entry = monthly.get(i);
+                    if (entry instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> m = (Map<String, Object>) entry;
+                        reportExpenses[i] = (int) parseSafelyDouble(m.getOrDefault("total", "0"));
+                    }
+                }
+            }
+
+            // Repaint the whole content area so the chart picks up new data
+            if (contentArea != null) { contentArea.revalidate(); contentArea.repaint(); }
+        })).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() ->
+                System.err.println("Failed to load reports page data: " + ex.getMessage()));
+            return null;
+        });
     }
 
     private void loadBudgetPageData() {
         SanctumApiClient.getBudgets().thenAccept(budgets -> SwingUtilities.invokeLater(() -> {
-            System.out.println("Budget page: loaded "+budgets.size()+" budgets");
-        })).exceptionally(ex -> null);
+            // Find the budget page's table by searching the "budget" card panel
+            java.awt.Component budgetPage = null;
+            for (int i = 0; i < contentArea.getComponentCount(); i++) {
+                java.awt.Component c = contentArea.getComponent(i);
+                if (c instanceof JPanel) {
+                    budgetPage = c;
+                    break;
+                }
+            }
+
+            // Find JTable inside the budget card
+            JTable budgetTable = findTableInContainer(contentArea, "budget");
+            if (budgetTable == null) return;
+
+            DefaultTableModel m = (DefaultTableModel) budgetTable.getModel();
+            m.setRowCount(0);
+
+            if (budgets.isEmpty()) {
+                m.addRow(new Object[]{"No budgets", "", "", "", "", "", ""});
+            } else {
+                double totalAlloc = 0, totalSpent = 0;
+                for (Map<String, Object> b : budgets) {
+                    double alloc = parseSafelyDouble(b.getOrDefault("allocated_amount", "0"));
+                    double spent = parseSafelyDouble(b.getOrDefault("spent_amount", "0"));
+                    double pct   = alloc > 0 ? (spent / alloc) * 100 : 0;
+                    totalAlloc += alloc;
+                    totalSpent += spent;
+                    m.addRow(new Object[]{
+                        b.getOrDefault("department", b.getOrDefault("name", "")),
+                        b.getOrDefault("name", ""),
+                        fmt(String.valueOf(alloc)),
+                        fmt(String.valueOf(spent)),
+                        fmt(String.valueOf(alloc - spent)),
+                        b.getOrDefault("period", ""),
+                        String.format("%.1f%%", pct)
+                    });
+                }
+                // Totals row
+                double remaining = totalAlloc - totalSpent;
+                double totalPct  = totalAlloc > 0 ? (totalSpent / totalAlloc) * 100 : 0;
+                m.addRow(new Object[]{
+                    "TOTAL", "", fmt(String.valueOf(totalAlloc)),
+                    fmt(String.valueOf(totalSpent)), fmt(String.valueOf(remaining)),
+                    "", String.format("%.1f%%", totalPct)
+                });
+            }
+        })).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() ->
+                System.err.println("Failed to load budget page data: " + ex.getMessage()));
+            return null;
+        });
+    }
+
+    /** Walk the contentArea card layout to find a JTable inside the named card. */
+    private JTable findTableInContainer(java.awt.Container root, String cardHint) {
+        for (int i = 0; i < root.getComponentCount(); i++) {
+            java.awt.Component c = root.getComponent(i);
+            if (c instanceof JTable) return (JTable) c;
+            if (c instanceof java.awt.Container) {
+                JTable found = findTableInContainer((java.awt.Container) c, cardHint);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private void loadTransactionsPageData() {
@@ -1889,17 +2070,108 @@ public class TreasurerDashboardFrame extends JFrame {
     }
 
     private void loadMembersPageData() {
-        // Load members with their donation data using the robust pattern
-        SanctumApiClient.getMembers().thenAccept(members -> SwingUtilities.invokeLater(() -> {
-            System.out.println("Members page: loaded " + members.size() + " members");
-            // TODO: Update the members table with real data
-            // This would involve calculating donation totals per member from the donations API
+        // Load members and donations in parallel, then join on EDT
+        CompletableFuture<java.util.List<Map<String,Object>>> membersFuture  = SanctumApiClient.getMembers();
+        CompletableFuture<java.util.List<Map<String,Object>>> donationsFuture = SanctumApiClient.getDonations();
+
+        membersFuture.thenCombine(donationsFuture, (members, donations) -> {
+            // Build a per-member donation summary
+            java.util.Map<String, Double> totalByMember   = new java.util.LinkedHashMap<>();
+            java.util.Map<String, Double> monthlyByMember = new java.util.LinkedHashMap<>();
+            java.util.Map<String, String> lastDonation    = new java.util.LinkedHashMap<>();
+
+            String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+
+            for (Map<String,Object> d : donations) {
+                String memberKey = d.getOrDefault("member", "Unknown").toString();
+                double amount    = parseSafelyDouble(d.getOrDefault("amount", "0"));
+                String date      = d.getOrDefault("created_at", "").toString();
+
+                totalByMember.merge(memberKey, amount, Double::sum);
+                if (date.startsWith(currentMonth))
+                    monthlyByMember.merge(memberKey, amount, Double::sum);
+                if (!lastDonation.containsKey(memberKey) || date.compareTo(lastDonation.getOrDefault(memberKey,"")) > 0)
+                    lastDonation.put(memberKey, date.length() > 10 ? date.substring(0,10) : date);
+            }
+
+            return new Object[]{members, totalByMember, monthlyByMember, lastDonation};
+        }).thenAccept(result -> SwingUtilities.invokeLater(() -> {
+            @SuppressWarnings("unchecked")
+            java.util.List<Map<String,Object>> members =
+                (java.util.List<Map<String,Object>>) result[0];
+            @SuppressWarnings("unchecked")
+            java.util.Map<String,Double> totalByMember =
+                (java.util.Map<String,Double>) result[1];
+            @SuppressWarnings("unchecked")
+            java.util.Map<String,Double> monthlyByMember =
+                (java.util.Map<String,Double>) result[2];
+            @SuppressWarnings("unchecked")
+            java.util.Map<String,String> lastDonation =
+                (java.util.Map<String,String>) result[3];
+
+            // Find the members page table — it's the JTable in the "members" card
+            // We stored it as a local variable in buildMembersPage, so we search for it
+            JTable table = findMembersTable();
+            if (table == null) return;
+
+            DefaultTableModel m = (DefaultTableModel) table.getModel();
+            m.setRowCount(0);
+
+            if (members.isEmpty()) {
+                m.addRow(new Object[]{"No members found","","","","","","",""});
+                return;
+            }
+
+            for (Map<String,Object> mem : members) {
+                String firstName = mem.getOrDefault("first_name", mem.getOrDefault("user_first_name","")).toString();
+                String lastName  = mem.getOrDefault("last_name",  mem.getOrDefault("user_last_name", "")).toString();
+                String name      = (firstName + " " + lastName).trim();
+                if (name.isEmpty()) name = mem.getOrDefault("email", mem.getOrDefault("user_email","Unknown")).toString();
+
+                String email   = mem.getOrDefault("email", mem.getOrDefault("user_email","")).toString();
+                String phone   = mem.getOrDefault("phone", mem.getOrDefault("phone_number","")).toString();
+                String joined  = mem.getOrDefault("date_joined","").toString();
+                if (joined.length() > 10) joined = joined.substring(0,10);
+
+                double totalGiven   = totalByMember.getOrDefault(name, 0.0);
+                double monthlyGiven = monthlyByMember.getOrDefault(name, 0.0);
+                String lastGiven    = lastDonation.getOrDefault(name, "—");
+                String status       = mem.getOrDefault("is_active","true").toString().equalsIgnoreCase("true") ? "Active" : "Inactive";
+
+                m.addRow(new Object[]{
+                    name, email, phone, joined,
+                    fmt(String.valueOf(totalGiven)),
+                    fmt(String.valueOf(monthlyGiven)),
+                    status, lastGiven
+                });
+            }
         })).exceptionally(ex -> {
-            SwingUtilities.invokeLater(() -> {
-                System.err.println("Failed to load members: " + ex.getMessage());
-            });
+            SwingUtilities.invokeLater(() ->
+                System.err.println("Failed to load members page data: " + ex.getMessage()));
             return null;
         });
+    }
+
+    /**
+     * The members table is a local variable in buildMembersPage(), so we need
+     * to find it by walking the component tree of the "members" card.
+     * We identify it by its column count (8 columns).
+     */
+    private JTable findMembersTable() {
+        return findTableByColumns(contentArea, 8);
+    }
+
+    private JTable findTableByColumns(java.awt.Container root, int colCount) {
+        for (int i = 0; i < root.getComponentCount(); i++) {
+            java.awt.Component c = root.getComponent(i);
+            if (c instanceof JTable && ((JTable)c).getColumnCount() == colCount)
+                return (JTable) c;
+            if (c instanceof java.awt.Container) {
+                JTable found = findTableByColumns((java.awt.Container) c, colCount);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     // ─── Dialogs ─────────────────────────────────────────────────────────────
@@ -1932,17 +2204,38 @@ public class TreasurerDashboardFrame extends JFrame {
         JButton save   = buildPrimaryBtn("Save Donation", null);
         cancel.addActionListener(e -> dlg.dispose());
         save.addActionListener(e -> {
-            String amt  = fAmount.getText().trim();
-            String donor= fDonor.getText().trim();
+            String amt   = fAmount.getText().trim();
+            String donor = fDonor.getText().trim();
             if (amt.isEmpty() || donor.isEmpty()) {
-                DialogManager.showMessageDialog(dlg,"Amount and Donor are required.","Validation",JOptionPane.WARNING_MESSAGE);
+                DialogManager.showMessageDialog(dlg, "Amount and Donor are required.", "Validation", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            SanctumApiClient.addDonation(amt, donor, fType.getSelectedItem().toString(), fDesc.getText().trim())
+            try { Double.parseDouble(amt.replaceAll("[^\\d.]","")); }
+            catch (NumberFormatException ex) {
+                DialogManager.showMessageDialog(dlg, "Invalid amount.", "Validation", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            save.setEnabled(false);
+            SanctumApiClient.addDonation(amt, donor,
+                    fType.getSelectedItem().toString(),
+                    fDesc.getText().trim())
                 .thenAccept(ok -> SwingUtilities.invokeLater(() -> {
-                    if (ok) { DialogManager.showMessageDialog(dlg,"Donation saved!","Success",JOptionPane.INFORMATION_MESSAGE); dlg.dispose(); loadData(); }
-                    else    { DialogManager.showMessageDialog(dlg,"Failed to save donation.","Error",JOptionPane.ERROR_MESSAGE); }
-                }));
+                    save.setEnabled(true);
+                    if (ok) {
+                        DialogManager.showMessageDialog(dlg, "Donation saved!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        dlg.dispose();
+                        loadData();
+                    } else {
+                        DialogManager.showMessageDialog(dlg, "Failed to save donation.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }))
+                .exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        save.setEnabled(true);
+                        DialogManager.showMessageDialog(dlg, "Network error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    });
+                    return null;
+                });
         });
         btns.add(cancel); btns.add(save);
         gc.gridx=0; gc.gridy=5; gc.gridwidth=2; gc.insets=new Insets(18,0,0,0);
@@ -1980,15 +2273,46 @@ public class TreasurerDashboardFrame extends JFrame {
         JButton save   = buildPrimaryBtn("Save Budget", null);
         cancel.addActionListener(e -> dlg.dispose());
         save.addActionListener(e -> {
-            String name = fName.getText().trim();
+            String name  = fName.getText().trim();
             String alloc = fAlloc.getText().trim();
             if (name.isEmpty() || alloc.isEmpty()) {
-                DialogManager.showMessageDialog(dlg,"Budget name and amount are required.","Validation",JOptionPane.WARNING_MESSAGE);
+                DialogManager.showMessageDialog(dlg, "Budget name and amount are required.", "Validation", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            // TODO: Implement addBudget API call
-            DialogManager.showMessageDialog(dlg,"Budget creation feature coming soon!","Info",JOptionPane.INFORMATION_MESSAGE);
-            dlg.dispose();
+            double allocAmt = 0;
+            try { allocAmt = Double.parseDouble(alloc.replaceAll("[^\\d.]","")); }
+            catch (NumberFormatException ex) {
+                DialogManager.showMessageDialog(dlg, "Invalid amount.", "Validation", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Map period selector to API values
+            String periodStr = fPeriod.getSelectedItem().toString().toLowerCase().replace("-","").replace(" ","_");
+            int year  = LocalDate.now().getYear();
+            Integer month = periodStr.equals("monthly") ? LocalDate.now().getMonthValue() : null;
+
+            final double finalAlloc = allocAmt;
+            save.setEnabled(false);
+            SanctumApiClient.addBudget(name, fCategory.getSelectedItem().toString(), finalAlloc, periodStr, year, month)
+                .thenAccept(ok -> SwingUtilities.invokeLater(() -> {
+                    save.setEnabled(true);
+                    if (ok) {
+                        DialogManager.showMessageDialog(dlg, "Budget saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        dlg.dispose();
+                        loadBudgetSummaryData();
+                        loadBudgetPageData();
+                        loadKpiData();
+                    } else {
+                        DialogManager.showMessageDialog(dlg, "Failed to save budget. Please try again.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }))
+                .exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        save.setEnabled(true);
+                        DialogManager.showMessageDialog(dlg, "Network error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    });
+                    return null;
+                });
         });
         btns.add(cancel); btns.add(save);
         gc.gridx=0; gc.gridy=5; gc.gridwidth=2; gc.insets=new Insets(18,0,0,0);
@@ -1999,44 +2323,72 @@ public class TreasurerDashboardFrame extends JFrame {
 
     private void showAddExpenseDialog() {
         JDialog dlg = new JDialog(this, "Add Expense", true);
-        dlg.setSize(440, 360); dlg.setLocationRelativeTo(this);
+        dlg.setSize(460, 400); dlg.setLocationRelativeTo(this);
         JPanel panel = new JPanel(new GridBagLayout()) {
             @Override protected void paintComponent(Graphics g) { g.setColor(C_SURFACE); g.fillRect(0,0,getWidth(),getHeight()); }
         };
         panel.setBorder(new EmptyBorder(24,28,24,28));
         GridBagConstraints gc = new GridBagConstraints();
-        gc.fill=GridBagConstraints.HORIZONTAL; gc.insets=new Insets(6,0,6,0);
+        gc.fill = GridBagConstraints.HORIZONTAL; gc.insets = new Insets(6,0,6,0);
 
         JTextField fAmount  = styledField("e.g. 5000");
         JTextField fTitle   = styledField("Title of expense");
         JTextField fVendor  = styledField("Vendor / supplier name");
         JTextField fDate    = styledField(LocalDate.now().toString());
-        JComboBox<String> fCat = new JComboBox<>(new String[]{"1","2","3","4","5","6"});
-        styleCombo(fCat);
-        fCat.setPrototypeDisplayValue("Category ID");
 
-        addFormRow(panel, gc, 0, "Amount (KES)",  fAmount);
-        addFormRow(panel, gc, 1, "Title",         fTitle);
-        addFormRow(panel, gc, 2, "Category ID",   fCat);
-        addFormRow(panel, gc, 3, "Vendor",        fVendor);
-        addFormRow(panel, gc, 4, "Date",          fDate);
+        // Use human-readable category names instead of raw integer IDs
+        String[] categoryNames = {"Ministry","Utilities","Salaries","Maintenance","Events","Other"};
+        JComboBox<String> fCat = new JComboBox<>(categoryNames);
+        styleCombo(fCat);
+
+        addFormRow(panel, gc, 0, "Amount (KES)", fAmount);
+        addFormRow(panel, gc, 1, "Title",        fTitle);
+        addFormRow(panel, gc, 2, "Category",     fCat);
+        addFormRow(panel, gc, 3, "Vendor",       fVendor);
+        addFormRow(panel, gc, 4, "Date",         fDate);
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT,10,0)); btns.setOpaque(false);
         JButton cancel = buildTopBtn("Cancel", C_TEXT_MID);
         JButton save   = buildPrimaryBtn("Save Expense", null);
         cancel.addActionListener(e -> dlg.dispose());
         save.addActionListener(e -> {
-            String amt  = fAmount.getText().trim();
+            String amt   = fAmount.getText().trim();
             String title = fTitle.getText().trim();
             if (amt.isEmpty() || title.isEmpty()) {
-                DialogManager.showMessageDialog(dlg,"Amount and Title are required.","Validation",JOptionPane.WARNING_MESSAGE);
+                DialogManager.showMessageDialog(dlg, "Amount and Title are required.", "Validation", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            SanctumApiClient.addExpense(amt, title, fCat.getSelectedItem().toString(), fVendor.getText().trim(), fDate.getText().trim())
+            try { Double.parseDouble(amt.replaceAll("[^\\d.]","")); }
+            catch (NumberFormatException ex) {
+                DialogManager.showMessageDialog(dlg, "Invalid amount.", "Validation", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            // Map position → numeric category ID expected by the backend
+            int catId = fCat.getSelectedIndex() + 1;
+            save.setEnabled(false);
+            SanctumApiClient.addExpense(
+                    amt, title,
+                    String.valueOf(catId),
+                    fVendor.getText().trim(),
+                    fDate.getText().trim())
                 .thenAccept(ok -> SwingUtilities.invokeLater(() -> {
-                    if (ok) { DialogManager.showMessageDialog(dlg,"Expense saved!","Success",JOptionPane.INFORMATION_MESSAGE); dlg.dispose(); loadExpensesPageData(); }
-                    else    { DialogManager.showMessageDialog(dlg,"Failed to save expense.","Error",JOptionPane.ERROR_MESSAGE); }
-                }));
+                    save.setEnabled(true);
+                    if (ok) {
+                        DialogManager.showMessageDialog(dlg, "Expense saved!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        dlg.dispose();
+                        loadExpensesPageData();
+                        loadKpiData();
+                    } else {
+                        DialogManager.showMessageDialog(dlg, "Failed to save expense.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }))
+                .exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        save.setEnabled(true);
+                        DialogManager.showMessageDialog(dlg, "Network error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    });
+                    return null;
+                });
         });
         btns.add(cancel); btns.add(save);
         gc.gridx=0; gc.gridy=5; gc.gridwidth=2; gc.insets=new Insets(18,0,0,0);
@@ -2074,15 +2426,33 @@ public class TreasurerDashboardFrame extends JFrame {
         cancel.addActionListener(e -> dlg.dispose());
         save.addActionListener(e -> {
             if (fName.getText().trim().isEmpty()) {
-                DialogManager.showMessageDialog(dlg,"Account name is required.","Validation",JOptionPane.WARNING_MESSAGE);
+                DialogManager.showMessageDialog(dlg, "Account name is required.", "Validation", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            SanctumApiClient.addAccount(fName.getText().trim(), fType.getSelectedItem().toString(),
-                    fBank.getText().trim(), fAccNo.getText().trim(), fBalance.getText().trim())
+            save.setEnabled(false);
+            SanctumApiClient.addAccount(
+                    fName.getText().trim(),
+                    fType.getSelectedItem().toString(),
+                    fBank.getText().trim(),
+                    fAccNo.getText().trim(),
+                    fBalance.getText().trim())
                 .thenAccept(ok -> SwingUtilities.invokeLater(() -> {
-                    if (ok) { DialogManager.showMessageDialog(dlg,"Account created!","Success",JOptionPane.INFORMATION_MESSAGE); dlg.dispose(); loadAccountsPageData(); }
-                    else    { DialogManager.showMessageDialog(dlg,"Failed to create account.","Error",JOptionPane.ERROR_MESSAGE); }
-                }));
+                    save.setEnabled(true);
+                    if (ok) {
+                        DialogManager.showMessageDialog(dlg, "Account created!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        dlg.dispose();
+                        loadAccountsPageData();
+                    } else {
+                        DialogManager.showMessageDialog(dlg, "Failed to create account.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }))
+                .exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        save.setEnabled(true);
+                        DialogManager.showMessageDialog(dlg, "Network error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    });
+                    return null;
+                });
         });
         btns.add(cancel); btns.add(save);
         gc.gridx=0; gc.gridy=5; gc.gridwidth=2; gc.insets=new Insets(18,0,0,0);

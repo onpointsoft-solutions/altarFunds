@@ -144,6 +144,181 @@ public class SanctumApiClient {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    //  PASSWORD RESET
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Simple result carrier returned by the two password-reset API calls.
+     * {@code success} is true when the server returned a 2xx response.
+     * {@code message} contains either the server's human-readable message or
+     * a first validation-error string on failure.
+     */
+    public static final class PasswordResetResult {
+        public final boolean success;
+        public final String  message;
+        public PasswordResetResult(boolean success, String message) {
+            this.success = success;
+            this.message = message;
+        }
+    }
+
+    /**
+     * Change the currently-authenticated user's password.
+     * POST /api/accounts/password/change/
+     * Requires a valid Bearer token (user must be logged in).
+     *
+     * Body: { "current_password": "...",
+     *         "new_password": "...",
+     *         "new_password_confirm": "..." }
+     */
+    public static CompletableFuture<PasswordResetResult> changePassword(
+            String currentPassword, String newPassword, String newPasswordConfirm) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) {
+                return new PasswordResetResult(false, "You are not logged in.");
+            }
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("current_password",    currentPassword);
+                body.addProperty("new_password",         newPassword);
+                body.addProperty("new_password_confirm", newPasswordConfirm);
+
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/accounts/password/change/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("CHANGE PASSWORD [" + resp.code() + "]: " + rb);
+
+                    if (resp.isSuccessful()) {
+                        String msg = extractMessage(rb, "Password changed successfully");
+                        return new PasswordResetResult(true, msg);
+                    }
+                    String errMsg = extractFirstError(rb);
+                    return new PasswordResetResult(false, errMsg);
+                }
+            } catch (Exception e) {
+                System.err.println("changePassword error: " + e.getMessage());
+                return new PasswordResetResult(false, null);
+            }
+        });
+    }
+
+    /**
+     * Step 1 – POST /api/accounts/password/reset/
+     * <p>Body: {@code {"email": "<email>"}}</p>
+     * Success: server returns 200 and sends a token to the user's email.
+     */
+    public static CompletableFuture<PasswordResetResult> requestPasswordReset(String email) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("email", email.trim().toLowerCase());
+
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/accounts/password/reset/")
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("PASSWORD RESET REQUEST [" + resp.code() + "]: " + rb);
+
+                    if (resp.isSuccessful()) {
+                        String msg = extractMessage(rb, "Password reset email sent");
+                        return new PasswordResetResult(true, msg);
+                    }
+                    // Extract a human-readable error from the response JSON
+                    String errMsg = extractFirstError(rb);
+                    return new PasswordResetResult(false, errMsg);
+                }
+            } catch (Exception e) {
+                System.err.println("requestPasswordReset error: " + e.getMessage());
+                return new PasswordResetResult(false, null);
+            }
+        });
+    }
+
+    /**
+     * Step 2 – POST /api/accounts/password/reset/confirm/
+     * <p>Body: {@code {"token": "<uuid>", "new_password": "...", "new_password_confirm": "..."}}</p>
+     * Success: server returns 200 and the password has been updated.
+     */
+    public static CompletableFuture<PasswordResetResult> confirmPasswordReset(
+            String token, String newPassword, String newPasswordConfirm) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("token",                token.trim());
+                body.addProperty("new_password",         newPassword);
+                body.addProperty("new_password_confirm", newPasswordConfirm);
+
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/accounts/password/reset/confirm/")
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("PASSWORD RESET CONFIRM [" + resp.code() + "]: " + rb);
+
+                    if (resp.isSuccessful()) {
+                        String msg = extractMessage(rb, "Password reset successful");
+                        return new PasswordResetResult(true, msg);
+                    }
+                    String errMsg = extractFirstError(rb);
+                    return new PasswordResetResult(false, errMsg);
+                }
+            } catch (Exception e) {
+                System.err.println("confirmPasswordReset error: " + e.getMessage());
+                return new PasswordResetResult(false, null);
+            }
+        });
+    }
+
+    /** Pull the "message" field from a JSON response, falling back to {@code fallback}. */
+    private static String extractMessage(String json, String fallback) {
+        try {
+            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+            if (obj.has("message")) return obj.get("message").getAsString();
+        } catch (Exception ignored) { }
+        return fallback;
+    }
+
+    /**
+     * Pull the first human-readable validation error from a DRF error response.
+     * DRF returns errors as {@code {"field": ["msg"]} } or {@code {"detail": "msg"}}
+     * or {@code {"non_field_errors": ["msg"]}}.
+     */
+    private static String extractFirstError(String json) {
+        try {
+            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+            // "detail" is used by DRF for non-field errors
+            if (obj.has("detail")) return obj.get("detail").getAsString();
+            // "non_field_errors" for cross-field validation failures
+            if (obj.has("non_field_errors")) {
+                JsonElement nfe = obj.get("non_field_errors");
+                if (nfe.isJsonArray() && nfe.getAsJsonArray().size() > 0)
+                    return nfe.getAsJsonArray().get(0).getAsString();
+            }
+            // first field error
+            for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+                JsonElement val = entry.getValue();
+                if (val.isJsonArray() && val.getAsJsonArray().size() > 0)
+                    return val.getAsJsonArray().get(0).getAsString();
+                if (val.isJsonPrimitive()) return val.getAsString();
+            }
+        } catch (Exception ignored) { }
+        return null;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     //  CHURCH HELPERS
     // ════════════════════════════════════════════════════════════════════════
     private static CompletableFuture<Integer> getChurchId() {
