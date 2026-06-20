@@ -1,15 +1,54 @@
+# ── Gradle ────────────────────────────────────────────────────────────────────
+.gradle/
+build/
+app/build/
+**/build/
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+.idea/
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+
+# ── Kotlin compiler cache ────────────────────────────────────────────────────
+.kotlin/
+
+# ── Local config ─────────────────────────────────────────────────────────────
 local.properties
+
+# ── Build artifacts ───────────────────────────────────────────────────────────
+app/release/
+app/debug/
+*.apk
+*.aab
+*.ap_
+mapping.txt
+
+# ── Signing keys — NEVER commit ──────────────────────────────────────────────
+*.jks
+*.keystore
+*.p12
+*.p8
+*.pfx
+
+# ── Firebase — google-services.json contains project config.
+# If your file has NO server API keys, it is safe to commit.
+# If it contains a server/legacy key, uncomment the line below:
+# app/google-services.json
+
+# ── Native build ─────────────────────────────────────────────────────────────
+.externalNativeBuild/
+.cxx/
+obj/
+
+# ── Profiling ────────────────────────────────────────────────────────────────
+captures/
+*.hprof
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

@@ -101,7 +101,14 @@ class MemberApp : Application() {
     private fun sendFcmTokenToServer(token: String) {
         appScope.launch {
             try {
-                val response = apiService.registerFcmToken(FcmTokenRequest(token = token))
+                // Include device ID so the backend can do per-device dedup
+                val deviceId = android.provider.Settings.Secure.getString(
+                    contentResolver,
+                    android.provider.Settings.Secure.ANDROID_ID
+                )
+                val response = apiService.registerFcmToken(
+                    FcmTokenRequest(token = token, deviceId = deviceId, platform = "android")
+                )
                 if (response.isSuccessful) {
                     Log.d("MemberApp", "FCM token registered with server successfully")
                 } else {

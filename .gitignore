@@ -37,9 +37,11 @@ wheels/
 *.egg
 MANIFEST
 
-# Firebase service account credentials
+# Firebase service account credentials — NEVER commit these
 service-account.json
 serviceAccountKey.json
+*-service-account.json
+firebase-adminsdk*.json
 
 # Mobile app build
 mobileapp/app/build/
@@ -101,10 +103,15 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# Django migrations
-*/migrations/0*.py
+# Django migrations — ALL migration files (auto-generated, should not be committed)
+# Keep only __init__.py so the folder is treated as a Python package
+*/migrations/*.py
 !*/migrations/__init__.py
-!*/migrations/0001_initial.py
+
+# ── Previously: only skipped 0001+ ──────────────────────────────────────────
+# OLD (replaced above):  */migrations/0*.py
+#                        !*/migrations/__init__.py
+#                        !*/migrations/0001_initial.py
 
 # Flask stuff:
 instance/
@@ -552,3 +559,99 @@ google-services.json
 
 # Room database migrations
 # (already covered in build section above)
+
+# ═══════════════════════════════════════════════════════════════════
+#  AltarFundsApp (Android / Kotlin)
+# ═══════════════════════════════════════════════════════════════════
+
+# Gradle build output
+AltarFundsApp/.gradle/
+AltarFundsApp/build/
+AltarFundsApp/app/build/
+
+# Release artifacts — APK / AAB / mapping
+AltarFundsApp/app/release/
+AltarFundsApp/app/debug/
+AltarFundsApp/**/*.apk
+AltarFundsApp/**/*.aab
+AltarFundsApp/**/*.ap_
+AltarFundsApp/**/mapping.txt
+
+# Local config (SDK path etc.)
+AltarFundsApp/local.properties
+
+# IntelliJ / Android Studio project files
+AltarFundsApp/.idea/
+AltarFundsApp/**/*.iml
+AltarFundsApp/.idea/workspace.xml
+AltarFundsApp/.idea/navEditor.xml
+AltarFundsApp/.idea/assetWizardSettings.xml
+AltarFundsApp/.idea/caches/
+
+# Kotlin compiler errors/sessions cache
+AltarFundsApp/.kotlin/
+
+# google-services.json contains project identifiers — gitignore it
+# and supply it via CI/CD secrets or a local secrets manager.
+# IMPORTANT: commit the app/google-services.json only if it contains
+# NO API keys (Firebase console → Project settings → your app).
+# If it contains a server key / API key, add it here:
+# AltarFundsApp/app/google-services.json
+
+# Keystore files — NEVER commit signing keys
+AltarFundsApp/**/*.jks
+AltarFundsApp/**/*.keystore
+AltarFundsApp/**/*.p12
+AltarFundsApp/**/*.pfx
+AltarFundsApp/**/*.p8
+
+# Android profiling / captures
+AltarFundsApp/captures/
+AltarFundsApp/**/*.hprof
+
+# Native build caches
+AltarFundsApp/.externalNativeBuild/
+AltarFundsApp/.cxx/
+
+# ═══════════════════════════════════════════════════════════════════
+#  Sanctum (Java desktop app)
+# ═══════════════════════════════════════════════════════════════════
+sanctum/target/
+sanctum/temp_jar_extract/
+sanctum/dist-windows/
+sanctum/sanctum-linux-installer-*/
+sanctum/data/sanctum.db
+
+# ═══════════════════════════════════════════════════════════════════
+#  AltarFunds (older Android app folder)
+# ═══════════════════════════════════════════════════════════════════
+AltarFunds/.gradle/
+AltarFunds/build/
+AltarFunds/app/build/
+AltarFunds/**/*.apk
+AltarFunds/**/*.aab
+AltarFunds/local.properties
+AltarFunds/.idea/
+AltarFunds/**/*.iml
+AltarFunds/**/*.jks
+AltarFunds/**/*.keystore
+
+# ═══════════════════════════════════════════════════════════════════
+#  Security — credentials that must NEVER be committed
+# ═══════════════════════════════════════════════════════════════════
+# Django secret key / env overrides
+.env
+.env.*
+!.env.example
+
+# Private keys
+*.pem
+*.key
+*.p8
+*.pfx
+
+# All service account / credentials JSON patterns
+*credentials*.json
+*secret*.json
+*service-account*.json
+*serviceAccount*.json

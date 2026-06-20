@@ -89,6 +89,7 @@ dependencies {
     // Firebase
     implementation(libs.firebase.messaging.ktx)
     implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.database.ktx)
     implementation(libs.play.services.auth)
     
     // Testing

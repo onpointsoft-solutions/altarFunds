@@ -127,7 +127,19 @@ interface ApiService {
     // Notifications
     @GET("notifications/push/")
     suspend fun getNotifications(): Response<NotificationResponse>
-    
+
+    @GET("notifications/push/all/")
+    suspend fun getAllNotifications(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 20
+    ): Response<PaginatedResponse<PushNotification>>
+
+    @POST("notifications/push/read/")
+    suspend fun markAllNotificationsRead(): Response<MessageResponse>
+
+    @GET("notifications/preferences/")
+    suspend fun getNotificationPreferences(): Response<NotificationPreferenceResponse>
+
     @POST("notifications/preferences/")
     suspend fun updateNotificationPreferences(@Body preferences: NotificationPreferenceRequest): Response<NotificationPreferenceResponse>
     

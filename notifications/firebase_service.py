@@ -90,13 +90,23 @@ def get_firebase_app():
         except ValueError:
             cred = credentials.Certificate(cred_path)
             options = {'projectId': project_id} if project_id else {}
+            # databaseURL is required for firebase_admin.db.reference() calls
+            db_url = getattr(settings, 'FIREBASE_DATABASE_URL', None)
+            if db_url:
+                options['databaseURL'] = db_url
+            else:
+                logger.warning(
+                    "FIREBASE_DATABASE_URL not set — Realtime Database operations will fail. "
+                    "Add it to .env: FIREBASE_DATABASE_URL=https://<project>-default-rtdb.firebaseio.com"
+                )
             _firebase_app = firebase_admin.initialize_app(
                 cred,
                 options=options,
                 name=project_id or '[DEFAULT]',
             )
             logger.info(
-                "Firebase Admin SDK initialised: project=%s", project_id
+                "Firebase Admin SDK initialised: project=%s databaseURL=%s",
+                project_id, db_url or 'NOT SET'
             )
 
         return _firebase_app

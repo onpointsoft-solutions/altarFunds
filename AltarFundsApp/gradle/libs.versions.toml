@@ -119,6 +119,7 @@ firebase-core = { group = "com.google.firebase", name = "firebase-core", version
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuth" }
+firebase-database-ktx = { group = "com.google.firebase", name = "firebase-database-ktx", version = "21.0.0" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 
 

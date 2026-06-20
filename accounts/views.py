@@ -145,6 +145,22 @@ class UserRegistrationView(generics.CreateAPIView):
                 details={'ip_address': self.get_client_ip(request)},
                 ip_address=self.get_client_ip(request)
             )
+
+            # ── Firebase sync (async, never blocks the response) ──────────
+            # Creates the Firebase Auth account and writes the RTDB profile
+            # snapshot so the mobile app can use Firebase Auth + Realtime DB
+            # immediately after registration.
+            try:
+                from accounts.tasks import sync_user_to_firebase
+                sync_user_to_firebase.delay(user.pk)
+                logger.info("Firebase sync task enqueued for user %s", user.pk)
+            except Exception as fb_exc:
+                # Non-fatal: user is registered in Django; Firebase sync will
+                # be retried by Celery. Log and continue.
+                logger.warning(
+                    "Could not enqueue Firebase sync for user %s: %s",
+                    user.pk, fb_exc
+                )
             
             response_data = {
                 'user': UserProfileSerializer(user).data,
@@ -334,7 +350,14 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
             details={'updated_fields': list(request.data.keys())},
             ip_address=get_client_ip(request)
         )
-        
+
+        # Sync updated profile to Firebase RTDB (async)
+        try:
+            from accounts.tasks import update_firebase_profile
+            update_firebase_profile.delay(request.user.pk)
+        except Exception as fb_exc:
+            logger.warning("Could not enqueue Firebase profile sync: %s", fb_exc)
+
         return Response(UserProfileSerializer(user).data)
 
 
@@ -608,6 +631,13 @@ def suspend_user(request, user_id):
             },
             ip_address=get_client_ip(request)
         )
+
+        # Disable Firebase Auth so the suspended user cannot sign in via mobile
+        try:
+            from accounts.tasks import disable_firebase_user
+            disable_firebase_user.delay(user.pk)
+        except Exception as fb_exc:
+            logger.warning("Could not enqueue Firebase disable for user %s: %s", user.pk, fb_exc)
         
         return Response({'message': 'User suspended successfully'})
     
@@ -641,6 +671,13 @@ def unsuspend_user(request, user_id):
             details={'target_user': user.email},
             ip_address=get_client_ip(request)
         )
+
+        # Re-enable Firebase Auth account
+        try:
+            from accounts.tasks import enable_firebase_user
+            enable_firebase_user.delay(user.pk)
+        except Exception as fb_exc:
+            logger.warning("Could not enqueue Firebase enable for user %s: %s", user.pk, fb_exc)
         
         return Response({'message': 'User unsuspended successfully'})
     

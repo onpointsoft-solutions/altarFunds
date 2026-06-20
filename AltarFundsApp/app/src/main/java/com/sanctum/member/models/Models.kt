@@ -154,7 +154,9 @@ data class ChangePasswordRequest(
 
 data class FcmTokenRequest(
     val token: String,
-    @SerializedName("device_id") val deviceId: String? = null
+    @SerializedName("device_id") val deviceId: String? = null,
+    val platform: String = "android"
+)
 )
 
 data class ChurchTransferRequest(

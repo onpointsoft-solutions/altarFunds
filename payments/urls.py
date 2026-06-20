@@ -23,7 +23,7 @@ router = DefaultRouter()
 router.register(r'requests',          PaymentRequestViewSet)
 router.register(r'payments',          PaymentViewSet)
 router.register(r'transactions',      TransactionViewSet)
-router.register(r'paystack-accounts', PaystackAccountViewSet)
+router.register(r'paystack-accounts', PaystackAccountViewSet, basename='paystack-accounts')
 
 urlpatterns = [
     path('', include(router.urls)),
