@@ -162,14 +162,10 @@ class GivingTransaction(FinancialModel):
         blank=True,
         help_text=_('Paystack transaction ID, bank reference, etc.')
     )
-    paystack_account = models.ForeignKey(
-        'payments.PaystackAccount',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='giving_transactions',
-        help_text=_('Paystack account for routing this transaction')
-    )
+    # Paystack account reference — stored via payment_reference field.
+    # The paystack_account FK/column was removed because the production DB
+    # never had this column; routing is handled by the webhook.
+
     
     # Transaction Status
     status = models.CharField(

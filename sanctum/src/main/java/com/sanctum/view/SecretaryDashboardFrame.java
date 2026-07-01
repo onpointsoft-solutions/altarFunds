@@ -1,5 +1,8 @@
 package com.sanctum.view;
 
+import com.sanctum.api.SanctumApiClient;
+import com.sanctum.util.LogoLoader;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
@@ -7,6 +10,8 @@ import java.awt.Image;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Secretary Dashboard Frame with dark theme matching ChurchAdminFrame
@@ -30,6 +35,11 @@ public class SecretaryDashboardFrame extends JFrame {
     private static final Font FONT_VALUE = new Font("Monospaced", Font.BOLD, 16);
     private static final Font FONT_SMALL = new Font("Monospaced", Font.PLAIN, 11);
     
+    // Live stat label references updated from API
+    private JLabel statMembersValue;
+    private JLabel statAnnouncementsValue;
+    private JLabel statEventsValue;
+
     private int mouseX, mouseY;
     
     public SecretaryDashboardFrame() {
@@ -38,6 +48,7 @@ public class SecretaryDashboardFrame extends JFrame {
         createComponents();
         layoutComponents();
         setupEventHandlers();
+        loadLiveStats(); // fetch real data after UI is built
     }
     
     private void initializeFrame() {
@@ -125,35 +136,100 @@ public class SecretaryDashboardFrame extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(10, 10, 10, 10);
         
-        // Title
+        // Logo + title block
         gbc.gridx = 0; gbc.gridy = 0;
+        JPanel logoBlock = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        logoBlock.setOpaque(false);
+        JLabel logoLbl = com.sanctum.util.LogoLoader.createLogoLabel(new Dimension(48, 48));
+        JPanel titleStack = new JPanel();
+        titleStack.setOpaque(false);
+        titleStack.setLayout(new BoxLayout(titleStack, BoxLayout.Y_AXIS));
         JLabel titleLabel = new JLabel("📝 SECRETARY DASHBOARD");
         titleLabel.setFont(FONT_TITLE);
         titleLabel.setForeground(C_GOLD);
-        panel.add(titleLabel, gbc);
-        
-        // Subtitle
-        gbc.gridy = 1;
         JLabel subtitleLabel = new JLabel("Administrative Management & Communication");
         subtitleLabel.setFont(FONT_LABEL);
         subtitleLabel.setForeground(C_TEXT_MID);
-        panel.add(subtitleLabel, gbc);
-        
-        // Quick stats
+        titleStack.add(titleLabel);
+        titleStack.add(subtitleLabel);
+        logoBlock.add(logoLbl);
+        logoBlock.add(titleStack);
+        gbc.gridheight = 2;
+        panel.add(logoBlock, gbc);
+
+        // Live stat cards
         gbc.gridx = 1; gbc.gridy = 0; gbc.gridheight = 2;
         gbc.anchor = GridBagConstraints.EAST;
         gbc.weightx = 1.0;
-        
+
         JPanel statsPanel = new JPanel(new GridLayout(1, 3, 20, 0));
         statsPanel.setOpaque(false);
-        
-        statsPanel.add(createStatCard("Total Members", "1,247", C_GOLD));
-        statsPanel.add(createStatCard("Pending Tasks", "23", C_GOLD_HOVER));
-        statsPanel.add(createStatCard("This Week", "8 Events", C_TEXT_MID));
-        
+
+        // Build stat cards and hold references for live update
+        statMembersValue       = new JLabel("…"); statMembersValue.setFont(FONT_VALUE);
+        statAnnouncementsValue = new JLabel("…"); statAnnouncementsValue.setFont(FONT_VALUE);
+        statEventsValue        = new JLabel("…"); statEventsValue.setFont(FONT_VALUE);
+
+        statsPanel.add(buildHeaderStatCard("Total Members",   statMembersValue,       C_GOLD));
+        statsPanel.add(buildHeaderStatCard("Announcements",   statAnnouncementsValue, C_GOLD_HOVER));
+        statsPanel.add(buildHeaderStatCard("Today's Date",
+            buildDateLabel(), C_TEXT_MID));
+
         panel.add(statsPanel, gbc);
-        
         return panel;
+    }
+
+    private JLabel buildDateLabel() {
+        String today = java.time.LocalDate.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy"));
+        JLabel lbl = new JLabel(today);
+        lbl.setFont(FONT_VALUE);
+        return lbl;
+    }
+
+    private JPanel buildHeaderStatCard(String title, JLabel valueLbl, Color accent) {
+        JPanel card = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(C_CARD);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                g2.setColor(accent);
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                g2.setColor(accent);
+                g2.fillRoundRect(0, 0, 4, getHeight(), 4, 4);
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
+        card.setPreferredSize(new Dimension(180, 80));
+        JLabel titleLbl = new JLabel(title);
+        titleLbl.setFont(FONT_SMALL);
+        titleLbl.setForeground(C_TEXT_MID);
+        valueLbl.setForeground(accent);
+        card.add(titleLbl, BorderLayout.NORTH);
+        card.add(valueLbl,  BorderLayout.CENTER);
+        return card;
+    }
+
+    /** Called after layout — loads live counts from API into stat cards. */
+    private void loadLiveStats() {
+        SanctumApiClient.getMembers().thenAccept(members ->
+            SwingUtilities.invokeLater(() ->
+                statMembersValue.setText(String.valueOf(members.size())))
+        ).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> statMembersValue.setText("—")); return null;
+        });
+
+        SanctumApiClient.getAnnouncements().thenAccept(items ->
+            SwingUtilities.invokeLater(() ->
+                statAnnouncementsValue.setText(String.valueOf(items.size())))
+        ).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> statAnnouncementsValue.setText("—")); return null;
+        });
     }
     
     private JPanel createStatCard(String title, String value, Color accent) {
@@ -246,44 +322,56 @@ public class SecretaryDashboardFrame extends JFrame {
     }
     
     private JPanel createMemberContent() {
-        JPanel panel = new JPanel(new GridLayout(4, 1, 10, 10));
+        JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
-        
-        String[] memberTasks = {"New Member Registrations: 5", "Membership Renewals: 12", "Contact Updates: 8", "Attendance Records: 156"};
-        
-        for (String task : memberTasks) {
-            JPanel itemPanel = new JPanel(new BorderLayout());
-            itemPanel.setOpaque(false);
-            
-            JLabel taskLabel = new JLabel(task);
-            taskLabel.setFont(FONT_SMALL);
-            taskLabel.setForeground(C_TEXT);
-            
-            JButton actionBtn = new JButton("Manage") {
-                @Override protected void paintComponent(Graphics g) {
-                    super.paintComponent(g);
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    if (getModel().isRollover()) {
-                        g2.setColor(C_GOLD_DIM);
-                        g2.fillRect(0, 0, getWidth(), getHeight());
-                    }
-                    g2.dispose();
+
+        JLabel loadingLbl = new JLabel("Loading members…");
+        loadingLbl.setFont(FONT_SMALL);
+        loadingLbl.setForeground(C_TEXT_MID);
+        panel.add(loadingLbl, BorderLayout.NORTH);
+
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setOpaque(false);
+        panel.add(listPanel, BorderLayout.CENTER);
+
+        SanctumApiClient.getMembers().thenAccept(members ->
+            SwingUtilities.invokeLater(() -> {
+                listPanel.removeAll();
+                loadingLbl.setText(members.size() + " members registered");
+                int shown = 0;
+                for (Map<String, Object> m : members) {
+                    if (shown++ >= 4) break;
+                    String fn     = m.getOrDefault("first_name", "").toString();
+                    String ln     = m.getOrDefault("last_name",  "").toString();
+                    String status = m.getOrDefault("membership_status", "member").toString();
+                    JPanel row = new JPanel(new BorderLayout(8, 0));
+                    row.setOpaque(false);
+                    row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+                    JLabel nameLbl = new JLabel("• " + fn + " " + ln);
+                    nameLbl.setFont(FONT_SMALL);
+                    nameLbl.setForeground(C_TEXT);
+                    JLabel statLbl = new JLabel(status.replace("_", " "));
+                    statLbl.setFont(FONT_SMALL);
+                    statLbl.setForeground(C_GOLD);
+                    row.add(nameLbl, BorderLayout.WEST);
+                    row.add(statLbl, BorderLayout.EAST);
+                    listPanel.add(row);
                 }
-            };
-            actionBtn.setContentAreaFilled(false);
-            actionBtn.setBorderPainted(false);
-            actionBtn.setFocusPainted(false);
-            actionBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            actionBtn.setFont(FONT_SMALL);
-            actionBtn.setForeground(C_GOLD);
-            actionBtn.setPreferredSize(new Dimension(60, 25));
-            
-            itemPanel.add(taskLabel, BorderLayout.WEST);
-            itemPanel.add(actionBtn, BorderLayout.EAST);
-            
-            panel.add(itemPanel);
-        }
-        
+                if (members.size() > 4) {
+                    JLabel moreLbl = new JLabel("… and " + (members.size() - 4) + " more");
+                    moreLbl.setFont(FONT_SMALL);
+                    moreLbl.setForeground(C_TEXT_MID);
+                    listPanel.add(moreLbl);
+                }
+                listPanel.revalidate();
+                listPanel.repaint();
+            })
+        ).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> loadingLbl.setText("Could not load members"));
+            return null;
+        });
+
         return panel;
     }
     
@@ -589,7 +677,10 @@ public class SecretaryDashboardFrame extends JFrame {
         closeBtn.setFocusPainted(false);
         closeBtn.setPreferredSize(new Dimension(40, 30));
         closeBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        closeBtn.addActionListener(e -> System.exit(0));
+        closeBtn.addActionListener(e -> {
+            com.sanctum.auth.SessionManager.getInstance().clearSession();
+            System.exit(0);
+        });
         
         controls.add(minimizeBtn);
         controls.add(closeBtn);

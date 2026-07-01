@@ -4,203 +4,90 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.lang.reflect.Method;
 
 /**
- * Enhanced dialog manager to prevent minimizing and improve dialog behavior
+ * Dialog manager for Sanctum.
+ *
+ * Previous version tried to stop the (full-screen-exclusive) main frame from
+ * minimizing by forcing setAlwaysOnTop on/off, blocking the EDT with
+ * Thread.sleep(), and disabling the dialog's focusable-window-state. That
+ * actively caused the problems it was trying to fix:
+ *   - Thread.sleep() on the EDT froze the whole UI for ~100-150ms every time
+ *     a dialog opened.
+ *   - setFocusableWindowState(false) meant dialogs could never receive
+ *     keyboard focus, so text fields inside them couldn't be typed into.
+ *   - Fighting focus changes with toFront() on windowDeactivated() caused
+ *     visible flicker and stole focus back from the user.
+ *
+ * The actual minimizing was caused by the main frame using OS-level
+ * full-screen-exclusive mode (GraphicsDevice#setFullScreenWindow), which
+ * Windows breaks (iconifying the frame) whenever another top-level window
+ * gets focus. That's fixed at the source in TreasurerDashboardFrame by using
+ * a normal maximized undecorated frame instead. This class no longer needs
+ * to compensate for it.
  */
 public class DialogManager {
-    
-    private static final boolean IS_WINDOWS = System.getProperty("os.name").toLowerCase().contains("windows");
-    
-    /**
-     * Creates a modal dialog with enhanced properties to prevent minimizing
-     */
+
+    /** Creates a modal dialog with sane, non-hacky defaults. */
     public static JDialog createModalDialog(Frame parent, String title) {
         JDialog dialog = new JDialog(parent, title, true);
-        
-        // Enhanced dialog configuration
         configureDialog(dialog);
-        
         return dialog;
     }
-    
-    /**
-     * Creates a modal dialog with enhanced properties to prevent minimizing (Window version)
-     */
+
+    /** Creates a modal dialog with sane, non-hacky defaults (Window owner). */
     public static JDialog createModalDialog(Window parent, String title) {
-        JDialog dialog = new JDialog(parent, title);
-        
-        // Enhanced dialog configuration
+        JDialog dialog = new JDialog(parent, title, Dialog.ModalityType.APPLICATION_MODAL);
         configureDialog(dialog);
-        
         return dialog;
     }
-    
-    /**
-     * Apply enhanced configuration to dialog to prevent minimizing
-     */
+
     private static void configureDialog(JDialog dialog) {
-        // Basic dialog settings
         dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         dialog.setResizable(true);
-        dialog.setFocusable(true);
-        dialog.setAutoRequestFocus(true);
-        
-        if (IS_WINDOWS) {
-            // Windows-specific enhancements
-            try {
-                // Prevent focus stealing
-                dialog.setFocusableWindowState(false);
-                
-                // Set dialog type to normal (prevents some minimize behaviors)
-                dialog.setType(Window.Type.NORMAL);
-                
-                // Try to set always on top temporarily during initialization
-                dialog.setAlwaysOnTop(true);
-                
-                // Windows-specific properties
-                try {
-                    // Try to access Windows-specific methods if available
-                    Class<?> awtUtilitiesClass = Class.forName("com.sun.awt.AWTUtilities");
-                    if (awtUtilitiesClass != null) {
-                        Method setWindowOpaque = awtUtilitiesClass.getMethod("setWindowOpaque", Window.class, boolean.class);
-                        setWindowOpaque.invoke(null, dialog, false);
-                    }
-                } catch (Exception e) {
-                    // Ignore if AWTUtilities not available
-                }
-                
-            } catch (Exception e) {
-                System.err.println("Windows dialog enhancement failed: " + e.getMessage());
-            }
-        }
-        
-        // Add window listener to handle focus and minimize events
+        // Let it behave like a normal window: focusable, no always-on-top
+        // tricks. This is what actually lets text fields receive input.
         dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowOpened(WindowEvent e) {
-                // Ensure dialog stays on top when opened
-                dialog.toFront();
-                dialog.requestFocus();
-                
-                // Reset always on top after a short delay (Windows)
-                if (IS_WINDOWS) {
-                    SwingUtilities.invokeLater(() -> {
-                        try {
-                            Thread.sleep(100);
-                            dialog.setAlwaysOnTop(false);
-                            dialog.toFront();
-                        } catch (InterruptedException ex) {
-                            Thread.currentThread().interrupt();
-                        }
-                    });
-                }
-            }
-            
-            @Override
-            public void windowActivated(WindowEvent e) {
-                // Ensure dialog comes to front when activated
-                dialog.toFront();
-                dialog.requestFocus();
-            }
-            
-            @Override
-            public void windowDeactivated(WindowEvent e) {
-                // Try to prevent minimizing by bringing back to front
-                if (IS_WINDOWS && dialog.isVisible()) {
-                    SwingUtilities.invokeLater(() -> {
-                        try {
-                            Thread.sleep(50);
-                            if (dialog.isVisible()) {
-                                dialog.toFront();
-                            }
-                        } catch (InterruptedException ex) {
-                            Thread.currentThread().interrupt();
-                        }
-                    });
-                }
-            }
-            
-            @Override
-            public void windowStateChanged(WindowEvent e) {
-                // Handle state changes to prevent minimizing
-                if (IS_WINDOWS && e.getNewState() == Frame.ICONIFIED) {
-                    SwingUtilities.invokeLater(() -> {
-                        // Restore from minimized state
-                        //dialog.setExtendedState(Frame.NORMAL);
-                        dialog.toFront();
-                        dialog.requestFocus();
-                    });
-                }
+            @Override public void windowOpened(WindowEvent e) {
+                dialog.requestFocusInWindow();
             }
         });
     }
-    
+
     /**
-     * Show dialog with enhanced display logic to prevent blinking and minimizing
+     * Show a dialog. No sleeps, no always-on-top juggling — just shows it.
+     * Safe to call from the EDT (the normal case) or off it.
      */
     public static void showDialogEnhanced(JDialog dialog) {
-        if (!IS_WINDOWS) {
+        if (SwingUtilities.isEventDispatchThread()) {
             dialog.setVisible(true);
-            return;
+        } else {
+            SwingUtilities.invokeLater(() -> dialog.setVisible(true));
         }
-        
-        // Windows-specific enhanced show
-        SwingUtilities.invokeLater(() -> {
-            try {
-                // Pre-show configuration
-                dialog.setAlwaysOnTop(true);
-                
-                // Small delay to ensure proper initialization
-                Thread.sleep(30);
-                
-                // Show dialog
-                dialog.setVisible(true);
-                dialog.toFront();
-                dialog.requestFocus();
-                
-                // Additional delay before removing always on top
-                Thread.sleep(100);
-                dialog.setAlwaysOnTop(false);
-                
-                // Final front and focus
-                dialog.toFront();
-                dialog.requestFocus();
-                dialog.repaint();
-                
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
     }
-    
+
     /**
-     * Create a confirmation dialog with enhanced properties
+     * Confirmation dialog with Yes/No/Cancel buttons styled to match the app.
      */
     public static int showConfirmDialog(Component parent, String message, String title, int optionType) {
-        // Create custom dialog instead of JOptionPane to have better control
-        JDialog dialog = createModalDialog(getParentWindow(parent), title);
-        
+        Window owner = getParentWindow(parent);
+        JDialog dialog = createModalDialog(owner, title);
+
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
-        // Message label
-        JLabel messageLabel = new JLabel("<html><div style='width:200px'>" + message + "</div></html>");
+
+        JLabel messageLabel = new JLabel("<html><div style='width:240px'>" + message + "</div></html>");
         messageLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
-        
-        // Button panel
+
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        
         JButton yesButton = new JButton("Yes");
         JButton noButton = new JButton("No");
         JButton cancelButton = new JButton("Cancel");
-        
         styleDialogButton(yesButton);
         styleDialogButton(noButton);
         styleDialogButton(cancelButton);
-        
+
         buttonPanel.add(yesButton);
         if (optionType == JOptionPane.YES_NO_OPTION || optionType == JOptionPane.YES_NO_CANCEL_OPTION) {
             buttonPanel.add(noButton);
@@ -208,39 +95,28 @@ public class DialogManager {
         if (optionType == JOptionPane.YES_NO_CANCEL_OPTION) {
             buttonPanel.add(cancelButton);
         }
-        
         panel.add(buttonPanel, BorderLayout.SOUTH);
-        
+
         dialog.setContentPane(panel);
         dialog.pack();
         dialog.setLocationRelativeTo(parent);
-        
-        // Handle button actions
+
         final int[] result = {JOptionPane.CANCEL_OPTION};
-        
-        yesButton.addActionListener(e -> {
-            result[0] = JOptionPane.YES_OPTION;
-            dialog.dispose();
-        });
-        
-        noButton.addActionListener(e -> {
-            result[0] = JOptionPane.NO_OPTION;
-            dialog.dispose();
-        });
-        
-        cancelButton.addActionListener(e -> {
-            result[0] = JOptionPane.CANCEL_OPTION;
-            dialog.dispose();
-        });
-        
-        showDialogEnhanced(dialog);
-        
+        yesButton.addActionListener(e -> { result[0] = JOptionPane.YES_OPTION; dialog.dispose(); });
+        noButton.addActionListener(e -> { result[0] = JOptionPane.NO_OPTION; dialog.dispose(); });
+        cancelButton.addActionListener(e -> { result[0] = JOptionPane.CANCEL_OPTION; dialog.dispose(); });
+        dialog.getRootPane().setDefaultButton(yesButton);
+
+        dialog.setVisible(true); // blocks until disposed (modal) — fine, no sleeps involved
         return result[0];
     }
 
+    /**
+     * Simple OK message dialog.
+     */
     public static void showMessageDialog(Component parent, String message, String title, int messageType) {
-        Window parentWindow = getParentWindow(parent);
-        JDialog dialog = createModalDialog(parentWindow, title);
+        Window owner = getParentWindow(parent);
+        JDialog dialog = createModalDialog(owner, title);
 
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
@@ -256,16 +132,14 @@ public class DialogManager {
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
         okButton.addActionListener(e -> dialog.dispose());
+        dialog.getRootPane().setDefaultButton(okButton);
 
         dialog.setContentPane(panel);
         dialog.pack();
         dialog.setLocationRelativeTo(parent);
-        showDialogEnhanced(dialog);
+        dialog.setVisible(true);
     }
-    
-    /**
-     * Style dialog buttons consistently
-     */
+
     private static void styleDialogButton(JButton button) {
         button.setPreferredSize(new Dimension(80, 30));
         button.setFocusPainted(false);
@@ -276,20 +150,13 @@ public class DialogManager {
         button.setFont(new Font("SansSerif", Font.BOLD, 12));
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
-    
-    /**
-     * Get parent window from component
-     */
+
     private static Window getParentWindow(Component component) {
-        if (component == null) {
-            return null;
-        }
-        
+        if (component == null) return null;
         Component parent = component.getParent();
         while (parent != null && !(parent instanceof Window)) {
             parent = parent.getParent();
         }
-        
         return (Window) parent;
     }
 }

@@ -23,49 +23,97 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def giving_categories(request):
-    """Get giving categories for user's church"""
-    try:
-        user = request.user
-        logger.info(f"Fetching categories for user: {user.email}, role: {user.role}, church: {user.church}")
-        
-        # Check if user has a church
-        if not user.church:
-            logger.warning(f"User {user.email} has no church assigned")
-            return Response({
-                'success': False,
-                'message': 'User is not associated with any church',
-                'data': []
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get categories for user's church
-        if user.role == 'system_admin':
-            categories = GivingCategory.objects.filter(is_active=True)
-            logger.info(f"System admin fetching all active categories: {categories.count()} found")
-        else:
-            categories = GivingCategory.objects.filter(church=user.church, is_active=True)
-            logger.info(f"User {user.email} fetching categories for church {user.church.name}: {categories.count()} found")
-        
-        serializer = GivingCategorySerializer(categories, many=True)
-        
-        response_data = {
-            'success': True,
-            'message': f'Found {len(categories)} categories',
-            'data': serializer.data
-        }
-        logger.info(f"Returning categories response: {response_data}")
-        
-        return Response(response_data, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        logger.error(f"Error fetching giving categories: {str(e)}")
+    """
+    GET  — return active giving categories for the user's church.
+    POST — create a new giving category (treasurer / pastor only).
+    """
+    user = request.user
+
+    if not user.church and user.role != 'system_admin':
         return Response({
-            'success': False,
-            'message': 'Failed to fetch categories',
-            'data': []
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            'success': False, 'message': 'User is not associated with any church', 'data': []
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # ── GET ──────────────────────────────────────────────────────────────────
+    if request.method == 'GET':
+        try:
+            if user.role == 'system_admin':
+                categories = GivingCategory.objects.filter(is_active=True)
+            else:
+                categories = GivingCategory.objects.filter(church=user.church, is_active=True)
+            serializer = GivingCategorySerializer(categories, many=True)
+            return Response({
+                'success': True,
+                'message': f'Found {categories.count()} categories',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching giving categories: {str(e)}")
+            return Response({'success': False, 'message': 'Failed to fetch categories', 'data': []},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # ── POST ─────────────────────────────────────────────────────────────────
+    if user.role not in ('treasurer', 'pastor', 'denomination_admin', 'system_admin'):
+        return Response({'success': False, 'message': 'Only treasurers and pastors can create categories.'},
+                        status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        name         = request.data.get('name', '').strip()
+        description  = request.data.get('description', '').strip()
+        has_target   = bool(request.data.get('has_target', False))
+        monthly_tgt  = request.data.get('monthly_target', None)
+        yearly_tgt   = request.data.get('yearly_target',  None)
+
+        if not name:
+            return Response({'success': False, 'message': 'name is required.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        church = user.church if user.role != 'system_admin' else None
+        if church is None and user.role == 'system_admin':
+            from churches.models import Church as _Church
+            church_id = request.data.get('church')
+            if church_id:
+                church = _Church.objects.get(pk=church_id)
+
+        cat = GivingCategory.objects.create(
+            name           = name,
+            description    = description,
+            church         = church,
+            has_target     = has_target,
+            monthly_target = monthly_tgt,
+            yearly_target  = yearly_tgt,
+            is_active      = True,
+            display_order  = GivingCategory.objects.filter(church=church).count(),
+        )
+        serializer = GivingCategorySerializer(cat)
+        return Response({'success': True, 'message': f'Category "{name}" created.', 'data': serializer.data},
+                        status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        logger.error(f"Error creating giving category: {str(e)}")
+        return Response({'success': False, 'message': f'Failed to create category: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def _normalize_payment_method(raw: str) -> str:
+    """Map mobile app payment method strings to valid GivingTransaction choices."""
+    mapping = {
+        'mpesa':        'mobile_money',
+        'm-pesa':       'mobile_money',
+        'm_pesa':       'mobile_money',
+        'mobile_money': 'mobile_money',
+        'card':         'card',
+        'paystack':     'paystack',
+        'bank':         'bank_transfer',
+        'bank_transfer':'bank_transfer',
+        'cash':         'cash',
+        'check':        'check',
+        'cheque':       'check',
+    }
+    return mapping.get(raw.strip().lower(), 'other')
 
 
 @api_view(['POST'])
@@ -126,39 +174,142 @@ def create_giving_transaction(request):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Create transaction
-        transaction = GivingTransaction.objects.create(
-            member=member,
-            church=user.church,
-            category=category,
-            amount=data['amount'],
-            payment_method=data.get('payment_method') or data.get('paymentMethod') or 'mpesa',
-            transaction_type='one_time',
-            status='pending',
-            transaction_date=timezone.now().date(),
-            created_by=user,
-            updated_by=user,
-            note=data.get('note') or data.get('description') or '',
-            is_anonymous=data.get('is_anonymous') or data.get('isAnonymous') or False
+        giving_tx = GivingTransaction.objects.create(
+            member           = member,
+            church           = user.church,
+            category         = category,
+            amount           = data['amount'],
+            payment_method   = _normalize_payment_method(
+                                    data.get('payment_method') or data.get('paymentMethod') or 'mobile_money'),
+            transaction_type = 'one_time',
+            status           = 'pending',
+            transaction_date = timezone.now(),          # DateTimeField — pass datetime, not date
+            created_by       = user,
+            updated_by       = user,
+            notes            = data.get('note') or data.get('notes') or data.get('description') or '',
+            is_anonymous     = bool(data.get('is_anonymous') or data.get('isAnonymous') or False),
         )
-        
-        logger.info(f"Created transaction {transaction.transaction_id} for user {user.email}")
-        
-        # Serialize and return
-        serializer = GivingTransactionSerializer(transaction)
-        
-        return Response({
+
+        logger.info(f"Created transaction {giving_tx.transaction_id} for user {user.email}")
+
+        response_data = {
             'success': True,
             'message': 'Transaction created successfully',
-            'data': serializer.data
-        }, status=status.HTTP_201_CREATED)
-        
+            'data': GivingTransactionSerializer(giving_tx).data,
+        }
+
+        # ── Paystack initialization — always run for all payment methods ──
+        # All mobile payments go through Paystack (card, mobile money via Paystack, etc.)
+        try:
+            from payments.paystack_service import PaystackService
+            import uuid as _uuid
+            svc = PaystackService()
+            ref = f"AF-{_uuid.uuid4().hex[:12].upper()}"
+            giving_tx.payment_reference = ref
+            giving_tx.save(update_fields=['payment_reference'])
+
+            callback_url = data.get('callback_url',
+                'https://backend.sanctum.co.ke/api/payments/paystack/callback/')
+
+            result = svc.initialize_payment(
+                email        = user.email,
+                amount       = giving_tx.amount,
+                reference    = ref,
+                metadata     = {
+                    'user_id':        user.id,
+                    'church_id':      user.church.id if user.church else None,
+                    'transaction_id': str(giving_tx.transaction_id),
+                    'category':       category.name,
+                },
+                callback_url = callback_url,
+            )
+
+            if result.get('success'):
+                response_data['authorization_url'] = result['authorization_url']
+                response_data['access_code']       = result['access_code']
+                response_data['payment_reference'] = ref
+                # Also embed in the serialized transaction data
+                response_data['data']['payment_reference'] = ref
+                logger.info(f"Paystack init OK for {giving_tx.transaction_id}: {ref}")
+            else:
+                logger.error(
+                    f"Paystack init failed for {giving_tx.transaction_id}: {result.get('message')}")
+                response_data['warning'] = 'Payment gateway could not be initialized — try again.'
+        except Exception as paystack_exc:
+            logger.error(f"Paystack initialization exception: {paystack_exc}", exc_info=True)
+            response_data['warning'] = 'Payment gateway error — please retry.'
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
     except Exception as e:
-        logger.error(f"Error creating giving transaction: {str(e)}")
+        logger.error(f"Error creating giving transaction: {str(e)}", exc_info=True)
         return Response({
             'success': False,
-            'message': 'Failed to create transaction',
+            'message': f'Failed to create transaction: {str(e)}',
             'data': None
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def retry_giving_payment(request, transaction_id):
+    """
+    POST /api/giving/transactions/<transaction_id>/retry-payment/
+    Re-initializes Paystack for a pending transaction so the user can
+    complete payment from the GivingFragment "Complete Payment" button.
+    """
+    try:
+        user = request.user
+        member = user.member_profile
+
+        giving_tx = GivingTransaction.objects.get(
+            transaction_id=transaction_id,
+            member=member,
+            status='pending'
+        )
+
+        from payments.paystack_service import PaystackService
+        import uuid as _uuid
+
+        svc = PaystackService()
+        ref = f"AF-{_uuid.uuid4().hex[:12].upper()}"
+        giving_tx.payment_reference = ref
+        giving_tx.save(update_fields=['payment_reference'])
+
+        result = svc.initialize_payment(
+            email        = user.email,
+            amount       = giving_tx.amount,
+            reference    = ref,
+            metadata     = {
+                'user_id':        user.id,
+                'church_id':      user.church.id if user.church else None,
+                'transaction_id': str(giving_tx.transaction_id),
+                'category':       giving_tx.category.name,
+            },
+            callback_url = f"https://backend.sanctum.co.ke/api/payments/paystack/callback/",
+        )
+
+        if result.get('success'):
+            return Response({
+                'success':           True,
+                'authorization_url': result['authorization_url'],
+                'access_code':       result['access_code'],
+                'payment_reference': ref,
+                'transaction_id':    str(giving_tx.transaction_id),
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'message': result.get('message', 'Paystack initialization failed'),
+            }, status=status.HTTP_502_BAD_GATEWAY)
+
+    except GivingTransaction.DoesNotExist:
+        return Response({'success': False, 'message': 'Pending transaction not found.'},
+                        status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.error(f"retry_giving_payment error: {e}", exc_info=True)
+        return Response({'success': False, 'message': str(e)},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GivingCategoryViewSet(viewsets.ModelViewSet):
@@ -384,9 +535,10 @@ def church_givings(request, church_id):
         end_date = request.query_params.get('end_date')
         giving_type = request.query_params.get('giving_type')
         
-        # Base query
+        # Base query — GivingTransaction links to church via member.user.church
+        # Use member__user__church_id to avoid AttributeError if church_id is on User
         givings = GivingTransaction.objects.filter(
-            church_id=church_id,
+            member__user__church_id=church_id,
             status='completed'
         )
         
@@ -408,15 +560,23 @@ def church_givings(request, church_id):
         )
         
         # Recent givings
-        recent_givings = givings.order_by('-transaction_date')[:10]
+        recent_givings = givings.select_related('member__user', 'category').order_by('-transaction_date')[:10]
         
         giving_data = []
         for giving in recent_givings:
+            try:
+                member_name = (
+                    giving.member.user.get_full_name()
+                    if not giving.is_anonymous and giving.member and giving.member.user
+                    else 'Anonymous'
+                )
+            except Exception:
+                member_name = 'Unknown'
             giving_data.append({
                 'id': giving.id,
                 'amount': float(giving.amount),
-                'member': giving.member.user.get_full_name() if not giving.is_anonymous else 'Anonymous',
-                'category': giving.category.name,
+                'member': member_name,
+                'category': giving.category.name if giving.category else 'General',
                 'date': giving.transaction_date,
                 'payment_method': giving.payment_method,
                 'status': giving.status

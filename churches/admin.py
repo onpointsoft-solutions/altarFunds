@@ -80,7 +80,7 @@ class ChurchAdmin(BaseAdmin):
     list_display = [
         'name', 'church_code', 'church_type_display', 'denomination',
         'city', 'county', 'senior_pastor_name', 'status_colored',
-        'is_verified_colored', 'member_count', 'created_at'
+        'is_verified_colored', 'member_count', 'branding_preview', 'created_at'
     ]
     list_filter = [
         'church_type', 'status', 'is_verified', 'is_active',
@@ -125,6 +125,16 @@ class ChurchAdmin(BaseAdmin):
                 'is_active'
             )
         }),
+        ('Branding', {
+            'fields': (
+                'logo_preview', 'logo', 'primary_color', 'secondary_color', 'accent_color'
+            ),
+            'description': (
+                'Logo: paste a full URL (https://...) or a relative media path. '
+                'Colours: use hex codes e.g. #260E68. '
+                'These are served to mobile members via GET /api/churches/mobile/theme-colors/'
+            ),
+        }),
         ('Settings', {
             'fields': (
                 'allow_online_giving', 'require_membership_approval'
@@ -136,7 +146,49 @@ class ChurchAdmin(BaseAdmin):
         }),
     )
     
-    readonly_fields = ['church_code', 'verification_date', 'verified_by', 'created_at', 'updated_at']
+    readonly_fields = ['church_code', 'verification_date', 'verified_by', 'created_at', 'updated_at', 'logo_preview']
+
+    def logo_preview(self, obj):
+        """Show logo in the change form."""
+        if obj.logo:
+            try:
+                url = obj.logo.url   # ImageField gives a proper URL
+            except (ValueError, AttributeError):
+                url = f'/media/{obj.logo}'
+            return format_html(
+                '<img src="{}" style="max-width:120px;max-height:120px;'
+                'border-radius:8px;border:1px solid #ccc;" />',
+                url
+            )
+        return '(no logo uploaded yet)'
+    logo_preview.short_description = 'Logo Preview'
+
+    def branding_preview(self, obj):
+        """Show colour swatches + logo thumbnail in list view."""
+        primary   = obj.primary_color   or '#3B82F6'
+        secondary = obj.secondary_color or '#10B981'
+        accent    = obj.accent_color    or '#F59E0B'
+
+        logo_html = ''
+        if obj.logo:
+            try:
+                logo_url = obj.logo.url
+            except (ValueError, AttributeError):
+                logo_url = f'/media/{obj.logo}'
+            logo_html = (
+                f'<img src="{logo_url}" style="width:22px;height:22px;'
+                f'border-radius:50%;object-fit:cover;margin-right:6px;'
+                f'border:1px solid #ccc;vertical-align:middle;" />'
+            )
+
+        swatches = ''.join([
+            f'<span style="display:inline-block;width:16px;height:16px;'
+            f'background:{c};border-radius:3px;margin-right:3px;'
+            f'border:1px solid #888;vertical-align:middle;" title="{c}"></span>'
+            for c in [primary, secondary, accent]
+        ])
+        return format_html('{}{}', logo_html, format_html(swatches))
+    branding_preview.short_description = 'Branding'
     
     def church_type_display(self, obj):
         return obj.get_church_type_display()

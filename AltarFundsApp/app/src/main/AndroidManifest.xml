@@ -169,7 +169,9 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AltarFunds" />
-
+        <activity android:name=".ui.giving.PaystackWebViewActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AltarFunds"/>
         <activity
             android:name=".ui.profile.ChangePasswordActivity"
             android:exported="false"

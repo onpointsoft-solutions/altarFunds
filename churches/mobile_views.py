@@ -101,9 +101,23 @@ def church_theme_colors(request):
             'church_code': church.church_code,
         }
         
-        # Add logo URL if available
+        # Add logo URL — handles both ImageField paths and legacy URL strings
         if church.logo:
-            theme_colors['logo_url'] = request.build_absolute_uri(church.logo.url)
+            logo_url = None
+            try:
+                # ImageField: .url returns the relative media URL (e.g. /media/church_logos/x.png)
+                raw = str(church.logo)
+                if raw.startswith('http'):
+                    # Legacy data: full URL was stored as CharField
+                    logo_url = raw
+                else:
+                    # Proper ImageField path — build absolute URL
+                    logo_url = request.build_absolute_uri(church.logo.url)
+            except (ValueError, AttributeError):
+                pass
+
+            if logo_url:
+                theme_colors['logo_url'] = logo_url
         
         logger.info(f"Returning theme colors for {church.name}")
         

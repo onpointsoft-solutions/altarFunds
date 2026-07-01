@@ -1,8 +1,8 @@
 from django.urls import path
-from . import views
+from .views import audit_logs
 
-app_name = '$app'
+app_name = 'audit'
 
 urlpatterns = [
-    # URL patterns will be added here
+    path('logs/', audit_logs, name='audit_logs'),
 ]

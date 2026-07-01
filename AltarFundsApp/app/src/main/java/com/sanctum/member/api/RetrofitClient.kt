@@ -1,7 +1,12 @@
 package com.sanctum.member.api
 
 import android.util.Log
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
 import com.sanctum.member.BuildConfig
+import com.sanctum.member.models.GivingCategoryRef
 import com.sanctum.member.models.RefreshTokenRequest
 import com.sanctum.member.utils.OptimizedTokenManager
 import kotlinx.coroutines.runBlocking
@@ -13,7 +18,39 @@ import okhttp3.Route
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.lang.reflect.Type
 import java.util.concurrent.TimeUnit
+
+/**
+ * Custom deserializer for GivingCategoryRef.
+ *
+ * The mobile list endpoint returns category as a bare integer (e.g. 7),
+ * while the detail endpoint may return a full JSON object.
+ * This deserializer handles both shapes.
+ */
+private class GivingCategoryRefDeserializer : JsonDeserializer<GivingCategoryRef> {
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: Type,
+        context: JsonDeserializationContext
+    ): GivingCategoryRef {
+        return when {
+            json.isJsonPrimitive -> {
+                // Bare integer — just store the ID; name unknown from this endpoint
+                GivingCategoryRef(id = json.asInt, name = "")
+            }
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                GivingCategoryRef(
+                    id   = obj.get("id")?.asInt ?: 0,
+                    name = obj.get("name")?.asString ?: "",
+                    description = obj.get("description")?.asString,
+                )
+            }
+            else -> GivingCategoryRef()
+        }
+    }
+}
 
 /**
  * Retrofit client with:
@@ -28,11 +65,7 @@ object RetrofitClient {
     // Switch environments by setting BASE_URL in build.gradle.kts:
     //   buildConfigField("String", "BASE_URL", '"https://backend.sanctum.co.ke/api/"')
     // Falls back to the hardcoded value if the field is not set.
-    private fun baseUrl(): String = try {
-        BuildConfig.BASE_URL
-    } catch (_: Exception) {
-        "https://backend.sanctum.co.ke/api/"
-    }
+    private fun baseUrl(): String = BuildConfig.BASE_URL
 
     fun create(tokenManager: OptimizedTokenManager): ApiService {
 
@@ -102,7 +135,13 @@ object RetrofitClient {
         return Retrofit.Builder()
             .baseUrl(baseUrl())
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(
+                GsonConverterFactory.create(
+                    GsonBuilder()
+                        .registerTypeAdapter(GivingCategoryRef::class.java, GivingCategoryRefDeserializer())
+                        .create()
+                )
+            )
             .build()
             .create(ApiService::class.java)
     }

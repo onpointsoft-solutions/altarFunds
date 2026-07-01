@@ -938,71 +938,39 @@ public class LoginFrame extends JFrame {
     private void navigateToDashboard(String userRole) {
         System.out.println("=== NAVIGATING TO DASHBOARD ===");
         System.out.println("User Role: " + userRole);
-        
-        // Show loading indicator (check for null first)
-        if (loadingPanel != null) {
-            loadingPanel.setVisible(true);
-        }
-        if (loginButton != null) {
-            loginButton.setEnabled(false);
-        }
-        
-        // Use SwingWorker for async dashboard loading
+
+        if (loadingPanel != null) loadingPanel.setVisible(true);
+        if (loginButton  != null) loginButton.setEnabled(false);
+
         SwingWorker<JFrame, Void> worker = new SwingWorker<>() {
             @Override
             protected JFrame doInBackground() throws Exception {
-                switch (userRole.toLowerCase()) {
-                    case "admin":
-                    case "denomination_admin":
-                        return new ChurchAdminFrame();
-                    case "pastor":
-                        return new PastorDashboardFrame();
-                    case "treasurer":
-                        // Optimize treasurer loading with pre-initialization
-                        return new TreasurerDashboardFrame();
-                    case "usher":
-                        return new UsherDashboardFrame();
-                    case "youth_leader":
-                        return YouthLeaderDashboard.createDashboard(SanctumApiClient.getAuthToken());
-                    case "secretary":
-                        return SecretaryDashboard.createDashboard(SanctumApiClient.getAuthToken());
-                    case "music_director":
-                        // MusicDirectorDashboard not implemented yet
-                        return new PastorDashboardFrame(); // fallback
-                    default:
-                        return new PastorDashboardFrame(); // fallback
-                }
+                // Single source of truth — the factory handles ALL roles
+                // including system_admin → SystemAdminDashboardFrame
+                String token = SanctumApiClient.getAuthToken();
+                return RoleBasedDashboardFactory.createRoleBasedDashboard(userRole, token);
             }
-            
+
             @Override
             protected void done() {
                 try {
                     JFrame dashboard = get();
-                    if (dashboard != null) {
-                        // Hide loading and show dashboard
-                        SwingUtilities.invokeLater(() -> {
-                            if (loadingPanel != null) {
-                                loadingPanel.setVisible(false);
-                            }
-                            dispose();
-                            dashboard.setVisible(true);
-                        });
-                    }
-                } catch (Exception e) {
                     SwingUtilities.invokeLater(() -> {
-                        if (loadingPanel != null) {
-                            loadingPanel.setVisible(false);
-                        }
-                        if (loginButton != null) {
-                            loginButton.setEnabled(true);
-                        }
+                        if (loadingPanel != null) loadingPanel.setVisible(false);
+                        dispose();
+                        dashboard.setVisible(true);
+                    });
+                } catch (Exception e) {
+                    System.err.println("Dashboard loading failed: " + e.getMessage());
+                    SwingUtilities.invokeLater(() -> {
+                        if (loadingPanel != null) loadingPanel.setVisible(false);
+                        if (loginButton  != null) loginButton.setEnabled(true);
                         statusLabel.setText("Dashboard loading failed. Please try again.");
                         statusLabel.setForeground(C_TEXT_MID);
                     });
                 }
             }
         };
-        
         worker.execute();
     }
     

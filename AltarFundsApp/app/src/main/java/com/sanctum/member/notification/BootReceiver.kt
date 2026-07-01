@@ -41,10 +41,8 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     /**
-     * goAsync() is NOT used here because our coroutine work is short
-     * (token fetch + one network call). BroadcastReceiver has ~10 s before
-     * ANR on modern Android; FCM token retrieval is typically < 1 s.
-     * If that ever changes, wrap in goAsync() + pendingResult.finish().
+     * Uses goAsync() to extend the BroadcastReceiver window beyond the default 10 s ANR
+     * limit, giving the FCM token fetch + network call room to complete reliably.
      */
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
@@ -54,8 +52,15 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED -> {
                 Log.d(TAG, "Restarting notification services after boot/update")
-                refreshFcmTokenAndRegister(context)
-                schedulePeriodicSync(context)
+                val pendingResult = goAsync()
+                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                    try {
+                        refreshFcmTokenAndRegister(context)
+                        schedulePeriodicSync(context)
+                    } finally {
+                        pendingResult.finish()
+                    }
+                }
             }
         }
     }
@@ -63,38 +68,42 @@ class BootReceiver : BroadcastReceiver() {
     /**
      * Retrieves a fresh FCM token and re-registers it with the backend.
      *
-     * Uses a SupervisorJob scope so a failure in the network call does not
+     * Runs inside the goAsync() coroutine. A failure in the network call does not
      * cancel the token-persistence step — token is always saved locally even
      * if the server call fails.
      */
-    private fun refreshFcmTokenAndRegister(context: Context) {
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            try {
-                val token = FirebaseMessaging.getInstance().token.await()
-                Log.d(TAG, "FCM token retrieved after boot/update")
+    private suspend fun refreshFcmTokenAndRegister(context: Context) {
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            Log.d(TAG, "FCM token retrieved after boot/update")
 
-                // Always persist locally so the sync worker can detect rotation
-                context.getSharedPreferences(PREFS_USER, Context.MODE_PRIVATE)
-                    .edit()
-                    .putString(KEY_FCM_TOKEN, token)
-                    .apply()
+            // Always persist locally so the sync worker can detect rotation
+            context.getSharedPreferences(PREFS_USER, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_FCM_TOKEN, token)
+                .apply()
 
-                // Only push to server if the user is logged in
-                val app = context.applicationContext as? MemberApp ?: return@launch
-                if (!app.tokenManager.isLoggedIn.value) {
-                    Log.d(TAG, "User not logged in — skipping server FCM registration")
-                    return@launch
-                }
-
-                val response = app.apiService.registerFcmToken(FcmTokenRequest(token = token))
-                if (response.isSuccessful) {
-                    Log.d(TAG, "FCM token re-registered after boot/update")
-                } else {
-                    Log.w(TAG, "FCM re-registration returned HTTP ${response.code()}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error refreshing/re-registering FCM token", e)
+            // Only push to server if the user is logged in
+            val app = context.applicationContext as? MemberApp ?: return
+            if (!app.tokenManager.isLoggedIn.value) {
+                Log.d(TAG, "User not logged in — skipping server FCM registration")
+                return
             }
+
+            val deviceId = android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ANDROID_ID
+            )
+            val response = app.apiService.registerFcmToken(
+                FcmTokenRequest(token = token, deviceId = deviceId, platform = "android")
+            )
+            if (response.isSuccessful) {
+                Log.d(TAG, "FCM token re-registered after boot/update")
+            } else {
+                Log.w(TAG, "FCM re-registration returned HTTP ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refreshing/re-registering FCM token", e)
         }
     }
 

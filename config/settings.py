@@ -18,7 +18,7 @@ SECRET_KEY = config('SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS =["*"]
+ALLOWED_HOSTS = ["*"]
 
 # --------------------------------------------------
 # APPLICATION DEFINITION
@@ -175,6 +175,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Ensure media subdirectories exist on startup
+import os as _os
+_os.makedirs(MEDIA_ROOT / 'church_logos', exist_ok=True)
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --------------------------------------------------
@@ -272,6 +276,8 @@ PAYSTACK_PUBLIC_KEY    = config('PAYSTACK_PUBLIC_KEY')
 PAYSTACK_CALLBACK_URL  = config('PAYSTACK_CALLBACK_URL',  default='https://altarfunds.pythonanywhere.com/api/payments/paystack/callback/')
 PAYSTACK_WEBHOOK_URL   = config('PAYSTACK_WEBHOOK_URL',   default='https://altarfunds.pythonanywhere.com/api/payments/paystack/webhook/')
 PLATFORM_FEE_PERCENTAGE = config('PLATFORM_FEE_PERCENTAGE', default=1.5, cast=float)
+# KES for Kenya, NGN for Nigeria — Paystack supports both
+PAYSTACK_CURRENCY      = config('PAYSTACK_CURRENCY', default='KES')
 
 # --------------------------------------------------
 # EMAIL

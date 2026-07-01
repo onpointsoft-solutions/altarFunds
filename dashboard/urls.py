@@ -4,7 +4,8 @@ from .views import (
     financial_summary,
     monthly_trend,
     income_breakdown,
-    expense_breakdown
+    expense_breakdown,
+    dashboard_stats,
 )
 from .comprehensive_views import comprehensive_dashboard
 
@@ -13,7 +14,10 @@ app_name = 'dashboard'
 urlpatterns = [
     # Template views
     path('', dashboard_view, name='home'),
-    
+
+    # Mobile app stats endpoint — matches Android DashboardStats model
+    path('stats/', dashboard_stats, name='dashboard_stats'),
+
     # API endpoints
     path('financial-summary/', financial_summary, name='financial_summary'),
     path('monthly-trend/', monthly_trend, name='monthly_trend'),

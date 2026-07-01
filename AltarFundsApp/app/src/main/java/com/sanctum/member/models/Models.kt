@@ -20,14 +20,33 @@ data class LoginRequest(
     val password: String
 )
 
-data class FirebaseLoginRequest(
-    @SerializedName("id_token") val idToken: String
-)
-
+/**
+ * Login response — the backend wraps tokens in a nested "tokens" object:
+ *   { "user": {...}, "tokens": { "access": "...", "refresh": "..." }, "message": "..." }
+ *
+ * The nested [TokenPair] class maps to that inner object.
+ * [access] and [refresh] are convenience shorthands for the token strings.
+ */
 data class LoginResponse(
+    val user: User? = null,
+    val tokens: TokenPair? = null,
+    val message: String? = null,
+    @SerializedName("access") private val flatAccess: String? = null,
+    @SerializedName("refresh") private val flatRefresh: String? = null,
+) {
+    /** Flat access token — works whether the server nests or flattens tokens. */
+    val access: String get() = tokens?.access ?: flatAccess.orEmpty()
+    /** Flat refresh token — works whether the server nests or flattens tokens. */
+    val refresh: String get() = tokens?.refresh ?: flatRefresh.orEmpty()
+}
+
+data class TokenPair(
     val access: String,
     val refresh: String,
-    val user: User? = null
+)
+
+data class FirebaseLoginRequest(
+    @SerializedName("id_token") val idToken: String
 )
 
 data class RegisterRequest(
@@ -157,7 +176,6 @@ data class FcmTokenRequest(
     @SerializedName("device_id") val deviceId: String? = null,
     val platform: String = "android"
 )
-)
 
 data class ChurchTransferRequest(
     @SerializedName("church_code") val churchCode: String,
@@ -198,19 +216,45 @@ data class GivingTransaction(
     @SerializedName("transaction_id") val transactionId: String,
     val amount: String,
     @SerializedName("payment_method") val paymentMethod: String,
-    @SerializedName("payment_method_display") val paymentMethodDisplay: String,
+    @SerializedName("payment_method_display") val paymentMethodDisplay: String? = null,
     val status: String,
     @SerializedName("payment_status") val paymentStatus: String? = null,
     @SerializedName("payment_reference") val paymentReference: String? = null,
     @SerializedName("transaction_type") val transactionType: String,
     @SerializedName("transaction_date") val transactionDate: String,
-    val note: String?,
+    val notes: String? = null,
+    val note: String? = null,            // legacy field name — same as notes
     @SerializedName("is_anonymous") val isAnonymous: Boolean,
     @SerializedName("created_at") val createdAt: String,
     @SerializedName("updated_at") val updatedAt: String,
-    val category: GivingCategory,
-    val member: String,
-    val church: String
+    // category can come as an object OR a bare integer (mobile list endpoint)
+    val category: GivingCategoryRef,
+    val member: Int? = null,             // integer PK on mobile list endpoint
+    val church: Int? = null,
+    val currency: String = "KES",
+    @SerializedName("disbursement_status") val disbursementStatus: String? = null,
+)
+
+/**
+ * Flexible category reference — handles both shapes:
+ *   • { "id": 7, "name": "Offering", ... }   (nested object)
+ *   • 7                                        (bare integer — use custom deserializer)
+ */
+data class GivingCategoryRef(
+    val id: Int = 0,
+    val name: String = "",
+    val description: String? = null,
+)
+
+// Wrapper returned by create_giving_transaction when payment_method is "card"
+data class GivingTransactionCreateResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val warning: String? = null,
+    val data: GivingTransaction? = null,
+    @SerializedName("authorization_url") val authorizationUrl: String? = null,
+    @SerializedName("access_code")       val accessCode:       String? = null,
+    @SerializedName("payment_reference") val paymentReference: String? = null,
 )
 
 // Donation Models
@@ -414,7 +458,27 @@ data class BookmarkResponse(
     @SerializedName("is_bookmarked") val isBookmarked: Boolean
 )
 
-// Suggestion Models
+// Budget PIN verification
+data class BudgetPinRequest(val pin: String)
+
+data class BudgetDepartment(
+    val department: String,
+    val allocated: Double,
+    val spent: Double,
+    val remaining: Double,
+)
+
+data class BudgetSummaryResponse(
+    val success: Boolean,
+    @SerializedName("church_name")    val churchName: String?,
+    @SerializedName("pin_label")      val pinLabel: String?,
+    @SerializedName("expires_at")     val expiresAt: String?,
+    @SerializedName("total_allocated") val totalAllocated: Double = 0.0,
+    @SerializedName("total_spent")    val totalSpent: Double = 0.0,
+    @SerializedName("total_remaining") val totalRemaining: Double = 0.0,
+    @SerializedName("by_department")  val byDepartment: List<BudgetDepartment>? = null,
+    val error: String? = null,
+)
 data class Suggestion(
     val id: Int,
     @SerializedName("member_name") val memberName: String,

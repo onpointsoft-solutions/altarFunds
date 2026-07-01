@@ -1,4 +1,4 @@
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status, permissions, serializers
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -12,7 +12,7 @@ from django import forms
 
 from .models import (
     Denomination, Church, Campus, Department, SmallGroup,
-    ChurchBankAccount, MpesaAccount, ChurchDocument
+    ChurchBankAccount, MpesaAccount, ChurchDocument, ChurchService
 )
 from .serializers import (
     DenominationSerializer, ChurchSerializer, ChurchRegistrationSerializer,
@@ -989,121 +989,150 @@ def pending_churches(request):
 
 @api_view(['POST'])
 @permission_classes([CanApproveChurches])
-def approve_church(request, church_id):
-    """Approve a church registration (Super Admin only)"""
+def approve_church(request, pk):
+    """Approve a church registration (Super Admin / Denomination Admin only)"""
+    church_id = pk
     try:
         with transaction.atomic():
             church = Church.objects.get(id=church_id)
-            
-            if church.status != 'pending':
+
+            if church.status == 'verified':
                 return Response({
                     'success': False,
-                    'message': 'Church is not pending approval'
+                    'message': 'Church is already verified'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            church.status = 'verified'
-            church.approved_by = request.user
-            church.approved_date = timezone.now()
-            church.save()
-            
+
+            # Use the model's built-in verify() method which sets
+            # is_verified, verification_date, verified_by, status='verified'
+            church.verify(request.user)
+
             # Log approval
             AuditService.log_user_action(
                 user=request.user,
                 action='CHURCH_APPROVAL',
-                details={'church': church.name},
+                details={'church': church.name, 'church_id': church.id},
                 ip_address=get_client_ip(request)
             )
-            
-            # Send notification to church admin
-            from common.services import NotificationService
-            NotificationService.send_church_approval_notification(church)
-            
+
+            # Send notification — wrapped so a missing template never breaks the response
+            try:
+                from common.services import NotificationService
+                NotificationService.send_church_approval_notification(church)
+            except Exception as notify_err:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Approval notification failed for {church.name}: {notify_err}"
+                )
+
             return Response({
                 'success': True,
-                'message': f'Church "{church.name}" approved successfully'
+                'message': f'Church "{church.name}" approved successfully',
+                'data': {
+                    'id':     church.id,
+                    'name':   church.name,
+                    'status': church.status,
+                }
             }, status=status.HTTP_200_OK)
-            
+
     except Church.DoesNotExist:
-        return Response({
-            'success': False,
-            'message': 'Church not found'
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {'success': False, 'message': 'Church not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
-        return Response({
-            'success': False,
-            'message': f'Church approval failed: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        import logging, traceback
+        logging.getLogger(__name__).error(
+            f"approve_church error for id={church_id}: {traceback.format_exc()}"
+        )
+        return Response(
+            {'success': False, 'message': f'Approval failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['POST'])
 @permission_classes([CanApproveChurches])
-def reject_church(request, church_id):
-    """Reject a church registration (Super Admin only)"""
-    reason = request.data.get('reason', '')
-    
+@api_view(['POST'])
+@permission_classes([CanApproveChurches])
+def reject_church(request, pk):
+    """Reject a church registration (Super Admin / Denomination Admin only)"""
+    church_id = pk
+    reason = request.data.get('reason', '').strip()
+
     if not reason:
-        return Response({
-            'success': False,
-            'message': 'Rejection reason is required'
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response(
+            {'success': False, 'message': 'Rejection reason is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     try:
         with transaction.atomic():
             church = Church.objects.get(id=church_id)
-            
-            if church.status != 'pending':
-                return Response({
-                    'success': False,
-                    'message': 'Church is not pending approval'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            church.status = 'rejected'
-            church.rejection_reason = reason
-            church.rejected_by = request.user
-            church.rejected_date = timezone.now()
-            church.save()
-            
-            # Log rejection
+
+            if church.status == 'verified':
+                return Response(
+                    {'success': False, 'message': 'Church is already verified and cannot be rejected'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Use Church.suspend() or just set status directly
+            # Church model has status choices: pending, verified, suspended, closed
+            # Use 'closed' to indicate rejection (or 'suspended')
+            church.status    = 'closed'
+            church.is_active = False
+            church.save(update_fields=['status', 'is_active'])
+
+            # Log rejection with reason stored in audit log
             AuditService.log_user_action(
                 user=request.user,
                 action='CHURCH_REJECTION',
-                details={
-                    'church': church.name,
-                    'reason': reason
-                },
+                details={'church': church.name, 'church_id': church.id, 'reason': reason},
                 ip_address=get_client_ip(request)
             )
-            
-            # Send notification to church admin
-            from common.services import NotificationService
-            NotificationService.send_church_rejection_notification(church, reason)
-            
+
+            # Notification — non-fatal
+            try:
+                from common.services import NotificationService
+                NotificationService.send_church_rejection_notification(church, reason)
+            except Exception as notify_err:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Rejection notification failed for {church.name}: {notify_err}"
+                )
+
             return Response({
                 'success': True,
-                'message': f'Church "{church.name}" rejected successfully'
+                'message': f'Church "{church.name}" rejected successfully',
+                'data': {'id': church.id, 'name': church.name, 'status': church.status}
             }, status=status.HTTP_200_OK)
-            
+
     except Church.DoesNotExist:
-        return Response({
-            'success': False,
-            'message': 'Church not found'
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {'success': False, 'message': 'Church not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
-        return Response({
-            'success': False,
-            'message': f'Church rejection failed: {str(e)}'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        import logging, traceback
+        logging.getLogger(__name__).error(
+            f"reject_church error for id={church_id}: {traceback.format_exc()}"
+        )
+        return Response(
+            {'success': False, 'message': f'Rejection failed: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def church_members(request, church_id):
+def church_members(request, pk):
     """Get list of church members (Church Admin only)"""
+    church_id = pk
     try:
         user = request.user
         
         # Check if user is church admin or system admin
-        if user.role not in ['pastor', 'treasurer', 'auditor', 'denomination_admin', 'system_admin']:
+        from common.permissions import _is_system_admin
+        if not _is_system_admin(user) and user.role not in ['pastor', 'treasurer', 'auditor', 'denomination_admin']:
             return Response({
                 'success': False,
                 'message': 'Insufficient permissions'
@@ -1112,7 +1141,7 @@ def church_members(request, church_id):
         church = Church.objects.get(id=church_id)
         
         # Check if user belongs to this church (except system admin)
-        if user.role != 'system_admin' and user.church != church:
+        if not _is_system_admin(user) and user.church != church:
             return Response({
                 'success': False,
                 'message': 'You can only view members of your own church'
@@ -1161,110 +1190,145 @@ def church_members(request, church_id):
 
 
 @api_view(['POST'])
+@api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def upload_church_logo(request, pk):
-    """Upload church logo"""
+    """
+    POST /api/churches/{pk}/upload-logo/
+    Upload a logo image for the church. Saved to MEDIA_ROOT/church_logos/.
+    """
     try:
         church = Church.objects.get(pk=pk)
-        user = request.user
-        
-        # Check permissions
-        if user.role not in ['pastor', 'treasurer', 'denomination_admin', 'system_admin']:
-            return Response({
-                'success': False,
-                'message': 'Insufficient permissions'
-            }, status=status.HTTP_403_FORBIDDEN)
-        
-        # Handle file upload
-        if 'logo' not in request.FILES:
-            return Response({
-                'success': False,
-                'message': 'No logo file provided'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        logo_file = request.FILES['logo']
-        
-        # Save file and get URL
-        from django.core.files.storage import default_storage
-        from django.core.files.base import ContentFile
-        import os
-        
-        # Generate unique filename
-        ext = os.path.splitext(logo_file.name)[1]
-        filename = f"church_{church.id}_logo{ext}"
-        filepath = f"church_logos/{filename}"
-        
-        # Save file
-        saved_path = default_storage.save(filepath, ContentFile(logo_file.read()))
-        
-        # Update church logo field
-        church.logo = saved_path
-        church.save()
-        
-        # Build full URL
-        logo_url = request.build_absolute_uri(default_storage.url(saved_path))
-        
-        return Response({
-            'success': True,
-            'message': 'Logo uploaded successfully',
-            'logo_url': logo_url,
-            'data': {
-                'id': church.id,
-                'logo': saved_path,
-                'logo_url': logo_url
-            }
-        }, status=status.HTTP_200_OK)
-        
     except Church.DoesNotExist:
-        return Response({
-            'success': False,
-            'message': 'Church not found'
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response({'success': False, 'message': 'Church not found'},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    user = request.user
+    allowed_roles = {'pastor', 'treasurer', 'denomination_admin',
+                     'church_admin', 'system_admin'}
+    if user.role not in allowed_roles:
+        return Response({'success': False, 'message': 'Insufficient permissions'},
+                        status=status.HTTP_403_FORBIDDEN)
+
+    if user.role != 'system_admin' and user.church_id != church.id:
+        return Response({'success': False, 'message': 'You can only update your own church'},
+                        status=status.HTTP_403_FORBIDDEN)
+
+    if 'logo' not in request.FILES:
+        return Response({'success': False, 'message': 'No logo file provided'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    logo_file = request.FILES['logo']
+
+    # Validate content type
+    allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+    content_type = logo_file.content_type or ''
+    if content_type not in allowed_types:
+        return Response(
+            {'success': False, 'message': 'Only JPEG, PNG, WebP and GIF images are accepted'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Delete old logo file from storage before saving new one
+    if church.logo:
+        try:
+            church.logo.delete(save=False)
+        except Exception:
+            pass  # don't fail if old file is missing
+
+    # Assign new file to ImageField — Django handles path generation via upload_to
+    church.logo = logo_file
+    church.save(update_fields=['logo'])
+
+    # Build absolute URL
+    try:
+        logo_url = request.build_absolute_uri(church.logo.url)
+    except Exception:
+        logo_url = ''
+
+    return Response({
+        'success':  True,
+        'message':  'Logo uploaded successfully',
+        'logo_url': logo_url,
+        'data': {
+            'id':       church.id,
+            'logo':     str(church.logo),
+            'logo_url': logo_url,
+        }
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['PATCH', 'PUT'])
 @permission_classes([permissions.IsAuthenticated])
 def update_church_branding(request, pk):
-    """Update church branding (theme colors)"""
+    """
+    PATCH /api/churches/{pk}/branding/
+    Update church theme colours and/or logo URL.
+    Accessible to: pastor, treasurer, denomination_admin, church_admin, system_admin.
+    """
+    import re
+    HEX_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
+
     try:
         church = Church.objects.get(pk=pk)
-        user = request.user
-        
-        # Check permissions
-        if user.role not in ['pastor', 'treasurer', 'denomination_admin', 'system_admin']:
-            return Response({
-                'success': False,
-                'message': 'Insufficient permissions'
-            }, status=status.HTTP_403_FORBIDDEN)
-        
-        # Update theme colors
-        data = request.data
-        
-        if 'primary_color' in data:
-            church.primary_color = data['primary_color']
-        if 'secondary_color' in data:
-            church.secondary_color = data['secondary_color']
-        if 'accent_color' in data:
-            church.accent_color = data['accent_color']
-        
-        church.save()
-        
-        return Response({
-            'success': True,
-            'message': 'Branding updated successfully',
-            'data': {
-                'id': church.id,
-                'primary_color': church.primary_color,
-                'secondary_color': church.secondary_color,
-                'accent_color': church.accent_color
-            }
-        }, status=status.HTTP_200_OK)
-        
     except Church.DoesNotExist:
-        return Response({
-            'success': False,
-            'message': 'Church not found'
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response({'success': False, 'message': 'Church not found'},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    user = request.user
+    allowed_roles = {'pastor', 'treasurer', 'denomination_admin',
+                     'church_admin', 'system_admin', 'admin'}
+    if user.role not in allowed_roles:
+        return Response({'success': False, 'message': 'Insufficient permissions'},
+                        status=status.HTTP_403_FORBIDDEN)
+
+    # Non-system admins (role != system_admin/admin+superuser) can only update their own church
+    from common.permissions import _is_system_admin
+    if not _is_system_admin(user) and user.church_id != church.id:
+        return Response({'success': False, 'message': 'You can only update your own church branding'},
+                        status=status.HTTP_403_FORBIDDEN)
+
+    data = request.data
+    errors = {}
+
+    for field in ('primary_color', 'secondary_color', 'accent_color'):
+        val = data.get(field)
+        if val is not None:
+            val = val.strip()
+            if not val.startswith('#'):
+                val = f'#{val}'
+            if not HEX_RE.match(val):
+                errors[field] = f'Invalid hex colour: "{val}". Use format #RRGGBB.'
+            else:
+                setattr(church, field, val)
+
+    if 'logo' in data:
+        logo_val = str(data['logo']).strip()
+        if logo_val and logo_val != 'null':
+            church.logo = logo_val
+        elif logo_val in ('', 'null'):
+            church.logo = None
+
+    if errors:
+        return Response({'success': False, 'errors': errors},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    church.save(update_fields=[
+        f for f in ('primary_color', 'secondary_color', 'accent_color', 'logo')
+        if f in data or (f.endswith('_color') and data.get(f))
+    ] or ['primary_color', 'secondary_color', 'accent_color', 'logo'])
+
+    return Response({
+        'success': True,
+        'message': 'Branding updated successfully',
+        'data': {
+            'id':               church.id,
+            'primary_color':    church.primary_color,
+            'secondary_color':  church.secondary_color,
+            'accent_color':     church.accent_color,
+            'logo':             church.logo,
+        }
+    }, status=status.HTTP_200_OK)
 
 
 def get_client_ip(request):
@@ -1275,3 +1339,45 @@ def get_client_ip(request):
     else:
         ip = request.META.get('REMOTE_ADDR')
     return ip
+
+
+# ── ChurchService endpoints ───────────────────────────────────────────────────
+
+class ChurchServiceEndpointSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChurchService
+        fields = ['id', 'name', 'service_type', 'day_of_week',
+                  'start_time', 'end_time', 'location', 'is_active']
+        read_only_fields = ['id']
+        extra_kwargs = {
+            'service_type': {'required': False, 'default': 'other'},
+            'day_of_week':  {'required': False, 'allow_blank': True},
+            'end_time':     {'required': False, 'allow_null': True},
+            'location':     {'required': False, 'allow_blank': True},
+        }
+
+
+class ChurchServiceListView(generics.ListCreateAPIView):
+    """
+    GET  /api/churches/services/  — list active ChurchService records for the user's church.
+    POST /api/churches/services/  — create a new ChurchService for the user's church.
+
+    Accessible to all authenticated staff including ushers (read + create).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ChurchServiceEndpointSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = ChurchService.objects.filter(is_active=True)
+        if not user.is_superuser and user.church:
+            qs = qs.filter(church=user.church)
+        return qs.order_by('day_of_week', 'start_time')
+
+    def perform_create(self, serializer):
+        """Automatically assign the church from the requesting user."""
+        user = self.request.user
+        if not user.church:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("You must be assigned to a church to create a service.")
+        serializer.save(church=user.church)

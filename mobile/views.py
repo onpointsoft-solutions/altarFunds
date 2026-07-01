@@ -936,39 +936,42 @@ class MobileAnnouncementListView(generics.ListAPIView):
 
 class MobileDevotionalListView(generics.ListAPIView):
     """Mobile devotionals list - shows global and church devotionals"""
-    
+
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
-    
+
     def get_queryset(self):
-        """Get devotionals for mobile users - includes global and church devotionals"""
-        user = self.request.user
         from devotionals.models import Devotional
-        
-        # Debug: Check user's church
-        print(f"Devotional - User: {user.id}, Church: {user.church.id if user.church else None}")
-        
+        from django.db import connection
+
+        user = self.request.user
+
         # Start with all published devotionals
         queryset = Devotional.objects.filter(is_published=True)
-        
-        # Filter by church logic
+
+        # Filter by church
         if user.church:
-            # User has church - show global + church devotionals
             queryset = queryset.filter(
                 Q(church__isnull=True) | Q(church=user.church)
             )
-            print(f"User has church {user.church.id}, showing global + church devotionals")
         else:
-            # User has no church - show only global devotionals
             queryset = queryset.filter(church__isnull=True)
-            print("User has no church, showing only global devotionals")
-        
-        # Debug: Count results
-        count = queryset.count()
-        print(f"Final devotional queryset count: {count}")
-        
+
+        # Safely defer banner_image if the column doesn't exist yet in the DB
+        # (migration 0002 adds it; until it runs, SELECT would throw 1054).
+        try:
+            cols = [
+                col.name for col in connection.introspection.get_table_description(
+                    connection.cursor(), 'devotionals'
+                )
+            ]
+            if 'banner_image' not in cols:
+                queryset = queryset.defer('banner_image')
+        except Exception:
+            pass
+
         return queryset.order_by('-created_at')
-    
+
     def get_serializer_class(self):
         from devotionals.serializers import DevotionalSerializer
         return DevotionalSerializer

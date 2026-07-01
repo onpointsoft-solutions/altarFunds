@@ -13,6 +13,7 @@ from .forms import LoginForm, RegisterForm
 from django.utils import timezone
 from django.db import transaction
 import logging
+from datetime import timedelta
 
 from .models import User, Member, UserSession, PasswordResetToken
 from .serializers import (
@@ -220,7 +221,7 @@ class UserLoginView(generics.GenericAPIView):
             ip_address=self.get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', ''),
             device_info=self.extract_device_info(request),
-            expires_at=timezone.now() + timezone.timedelta(days=7)
+            expires_at=timezone.now() + timedelta(days=7)
         )
         
         # Generate JWT tokens
@@ -403,7 +404,7 @@ class PasswordResetRequestView(generics.GenericAPIView):
         token = PasswordResetToken.objects.create(
             user=user,
             token=uuid.uuid4(),
-            expires_at=timezone.now() + timezone.timedelta(hours=1),
+            expires_at=timezone.now() + timedelta(hours=1),
             ip_address=get_client_ip(request)
         )
         

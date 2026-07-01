@@ -35,26 +35,18 @@ class AttendanceRecordSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def validate(self, data):
-        """Validate that total attendance equals sum of categories"""
-        total = data.get('total_attendance', 0)
-        male = data.get('male_attendance', 0)
-        female = data.get('female_attendance', 0)
-        children = data.get('children_attendance', 0)
-        youth = data.get('youth_attendance', 0)
-        
-        calculated_total = male + female + children + youth
-        if total != calculated_total:
-            raise serializers.ValidationError(
-                f"Total attendance ({total}) must equal sum of categories ({calculated_total})"
-            )
+        """Skip strict category sum validation — partial data is acceptable for usher entry."""
         return data
 
 
 class MemberAttendanceSerializer(serializers.ModelSerializer):
-    """Serializer for MemberAttendance model"""
+    """Serializer for MemberAttendance model.
     
-    member_name = serializers.CharField(source='member.get_full_name', read_only=True)
-    member_email = serializers.CharField(source='member.email', read_only=True)
+    member is optional — visitor records have no user account.
+    """
+    
+    member_name = serializers.SerializerMethodField()
+    member_email = serializers.SerializerMethodField()
     
     class Meta:
         model = MemberAttendance
@@ -64,6 +56,20 @@ class MemberAttendanceSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'member': {'required': False, 'allow_null': True},
+        }
+
+    def get_member_name(self, obj):
+        if obj.member:
+            return obj.member.get_full_name()
+        # For visitors, extract name from notes field (format: "Name | Phone | Purpose")
+        if obj.notes:
+            return obj.notes.split('|')[0].strip()
+        return 'Visitor'
+
+    def get_member_email(self, obj):
+        return obj.member.email if obj.member else ''
 
 
 class AttendanceRecordDetailSerializer(AttendanceRecordSerializer):

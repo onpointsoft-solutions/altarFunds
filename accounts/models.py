@@ -93,6 +93,37 @@ class User(AbstractUser):
             
         return permissions
 
+    @property
+    def full_name(self) -> str:
+        return self.get_full_name() or self.email
+
+    def suspend(self, reason: str = '', until=None):
+        """Suspend the user account."""
+        self.is_suspended = True
+        self.is_active = False
+        update_fields = ['is_suspended', 'is_active']
+        # Store optional metadata as attributes (non-DB) if the columns don't exist yet
+        if hasattr(self, 'suspension_reason'):
+            self.suspension_reason = reason
+            update_fields.append('suspension_reason')
+        if until and hasattr(self, 'suspended_until'):
+            self.suspended_until = until
+            update_fields.append('suspended_until')
+        self.save(update_fields=update_fields)
+
+    def unsuspend(self):
+        """Re-activate a suspended user account."""
+        self.is_suspended = False
+        self.is_active = True
+        update_fields = ['is_suspended', 'is_active']
+        if hasattr(self, 'suspension_reason'):
+            self.suspension_reason = ''
+            update_fields.append('suspension_reason')
+        if hasattr(self, 'suspended_until'):
+            self.suspended_until = None
+            update_fields.append('suspended_until')
+        self.save(update_fields=update_fields)
+
     class Meta:
         db_table = 'users'
 
@@ -132,6 +163,17 @@ class Member(models.Model):
         church_name = self.church.name if self.church else "No Church"
         return f"{self.user.get_full_name()} - {church_name}"
 
+    def generate_membership_number(self):
+        """Generate a unique membership number: <CHURCH_CODE>-<ZERO_PADDED_ID>"""
+        if self.membership_number:
+            return  # already set
+        church_code = (
+            self.church.church_code if self.church and hasattr(self.church, 'church_code')
+            else 'MBR'
+        )
+        self.membership_number = f"{church_code}-{self.pk:05d}"
+        self.save(update_fields=['membership_number'])
+
 class UserSession(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     session_key = models.CharField(max_length=40)
@@ -151,6 +193,11 @@ class PasswordResetToken(models.Model):
     is_used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    def is_valid(self) -> bool:
+        """Return True if the token has not been used and has not expired."""
+        from django.utils import timezone
+        return not self.is_used and timezone.now() < self.expires_at
 
 
 class ChurchJoinRequest(models.Model):

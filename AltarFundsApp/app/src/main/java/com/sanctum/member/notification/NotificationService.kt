@@ -1,8 +1,12 @@
 package com.sanctum.member.notification
 
+import android.app.ActivityManager
 import android.content.Context
 import android.util.Log
+import androidx.work.Constraints
 import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
@@ -15,39 +19,53 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Receives FCM messages and either:
- *  - Shows a heads-up notification immediately (foreground / data-only messages), OR
- *  - Delegates to NotificationWorker for background/expedited processing.
+ * Firebase Cloud Messaging service.
  *
- * FCM delivery behaviour:
- *  - App in FOREGROUND  → onMessageReceived() fires; system does NOT auto-display.
- *    We must call NotificationHelper.show() ourselves.
- *  - App in BACKGROUND  → if the message has a "notification" block, the system
- *    auto-displays it using the manifest default channel. If it is DATA-only,
- *    onMessageReceived() fires and we handle it.
- *  - App KILLED         → data-only messages wake up WorkManager via the worker.
+ * Delivery scenarios:
+ *
+ *  ┌──────────────────┬────────────────────────────────────────────────────────┐
+ *  │ App state        │ What happens                                           │
+ *  ├──────────────────┼────────────────────────────────────────────────────────┤
+ *  │ FOREGROUND       │ onMessageReceived fires. We call NotificationHelper    │
+ *  │                  │ directly — no worker overhead needed.                  │
+ *  ├──────────────────┼────────────────────────────────────────────────────────┤
+ *  │ BACKGROUND       │ Data-only: onMessageReceived fires → expedited worker. │
+ *  │ (process alive)  │ Notification block: system tray handles it via the     │
+ *  │                  │ default channel declared in AndroidManifest.           │
+ *  ├──────────────────┼────────────────────────────────────────────────────────┤
+ *  │ KILLED / STOPPED │ Data-only: FCM wakes the process → onMessageReceived  │
+ *  │                  │ → expedited worker.                                    │
+ *  │                  │ Notification block: system handles without our code.   │
+ *  └──────────────────┴────────────────────────────────────────────────────────┘
  */
 class NotificationService : FirebaseMessagingService() {
 
+    companion object {
+        private const val TAG = "NotificationService"
+    }
+
+    // ── FCM message received ──────────────────────────────────────────────
+
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        Log.d("NotificationService", "Message received from: ${remoteMessage.from}")
+        Log.d(TAG, "Message received from: ${remoteMessage.from}")
 
-        // ── Extract payload ───────────────────────────────────────────────
-        // Merge the FCM "notification" block + data map so we handle both
+        // Merge "notification" block + data map.
+        // Data keys win so the backend can override display fields.
         val data = mutableMapOf<String, String>()
-        remoteMessage.notification?.let { notif ->
-            notif.title?.let   { data["title"]   = it }
-            notif.body?.let    { data["message"]  = it }
+        remoteMessage.notification?.let { n ->
+            n.title?.let { data["title"]   = it }
+            n.body?.let  { data["message"] = it }
         }
-        data.putAll(remoteMessage.data)   // data keys override notification block
+        data.putAll(remoteMessage.data)
 
-        if (data.isEmpty()) return        // nothing to display
+        if (data.isEmpty()) {
+            Log.d(TAG, "Empty payload — nothing to display")
+            return
+        }
 
-        // ── Relevance filter ──────────────────────────────────────────────
-        val churchId = data["church_id"]
-        val userId   = data["user_id"]
-        if (!isRelevantToUser(churchId, userId)) {
-            Log.d("NotificationService", "Notification filtered out — not relevant to this user")
+        // Relevance check: skip if addressed to a different user / church
+        if (!isRelevantToUser(data["church_id"], data["user_id"])) {
+            Log.d(TAG, "Filtered out — not relevant to this user")
             return
         }
 
@@ -55,53 +73,98 @@ class NotificationService : FirebaseMessagingService() {
         val title   = data["title"]   ?: "Sanctum"
         val message = data["message"] ?: "You have a new notification"
 
-        // ── Show heads-up notification directly ───────────────────────────
-        // Using an expedited Worker ensures delivery even if the system is
-        // under memory pressure, while still showing immediately via the helper.
-        val inputData = Data.Builder().putAll(data as Map<String, Any>).build()
+        if (isAppInForeground()) {
+            // App is visible → show heads-up immediately, skip worker overhead
+            Log.d(TAG, "App in foreground — showing notification directly")
+            val extras = data.filterKeys { it !in setOf("type", "title", "message", "church_id", "user_id") }
+            NotificationHelper.show(
+                context  = applicationContext,
+                type     = type,
+                title    = title,
+                message  = message,
+                extras   = extras
+            )
+        } else {
+            // App in background / killed → use expedited worker for reliable delivery.
+            // Worker name = type+title hash so identical messages don't stack up.
+            val workName = "notif_${type}_${(title + message).hashCode()}"
+            val inputData = Data.Builder().apply {
+                data.forEach { (k, v) -> putString(k, v) }
+            }.build()
 
-        val work = OneTimeWorkRequestBuilder<NotificationWorker>()
-            .setInputData(inputData)
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .build()
+            val work = OneTimeWorkRequestBuilder<NotificationWorker>()
+                .setInputData(inputData)
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
 
-        WorkManager.getInstance(applicationContext).enqueue(work)
-        Log.d("NotificationService", "Notification work enqueued: type=$type title=$title")
+            // KEEP: if the same work is already queued (duplicate FCM delivery),
+            // don't enqueue again — prevents duplicate notifications.
+            WorkManager.getInstance(applicationContext)
+                .enqueueUniqueWork(workName, ExistingWorkPolicy.KEEP, work)
+
+            Log.d(TAG, "Worker enqueued: $workName  type=$type")
+        }
     }
 
+    // ── FCM token refresh ─────────────────────────────────────────────────
+
     override fun onNewToken(token: String) {
-        Log.d("NotificationService", "FCM token refreshed")
+        Log.d(TAG, "FCM token refreshed")
+
+        // Always persist locally first — even if the network call fails,
+        // the token is available for the next login / sync cycle.
         getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
             .edit().putString("fcm_token", token).apply()
-        registerTokenWithServer(token)
+
+        val app = applicationContext as? MemberApp ?: return
+        if (!app.tokenManager.isLoggedIn.value) {
+            Log.d(TAG, "Not logged in — token saved locally, will register on next login")
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val deviceId = android.provider.Settings.Secure.getString(
+                    contentResolver,
+                    android.provider.Settings.Secure.ANDROID_ID
+                )
+                val response = app.apiService.registerFcmToken(
+                    FcmTokenRequest(token = token, deviceId = deviceId, platform = "android")
+                )
+                if (response.isSuccessful) {
+                    Log.d(TAG, "Rotated FCM token registered with server")
+                } else {
+                    Log.w(TAG, "Token registration returned ${response.code()}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error registering rotated FCM token", e)
+            }
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private fun isRelevantToUser(churchId: String?, userId: String?): Boolean {
-        val prefs         = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val userChurchId  = prefs.getString("church_id", null)
-        val currentUserId = prefs.getString("user_id",   null)
-        return churchId == null || churchId == userChurchId || userId == currentUserId
+        if (churchId == null && userId == null) return true   // broadcast to everyone
+        val prefs        = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val myChurchId   = prefs.getString("church_id", null)
+        val myUserId     = prefs.getString("user_id",   null)
+        return churchId == myChurchId || userId == myUserId
     }
 
-    private fun registerTokenWithServer(token: String) {
-        val app = applicationContext as? MemberApp ?: return
-        if (!app.tokenManager.isLoggedIn.value) {
-            Log.d("NotificationService", "User not logged in — skipping FCM token registration")
-            return
-        }
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val response = app.apiService.registerFcmToken(FcmTokenRequest(token = token))
-                if (response.isSuccessful) {
-                    Log.d("NotificationService", "FCM token registered with server")
-                } else {
-                    Log.w("NotificationService", "FCM token registration: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                Log.e("NotificationService", "Error registering FCM token", e)
-            }
-        }
+    /**
+     * Returns true if the host app process is currently in the foreground
+     * (i.e. at least one activity is resumed).
+     *
+     * Uses ActivityManager.RunningAppProcessInfo.importance which is the
+     * recommended way on all API levels without needing ProcessLifecycleOwner.
+     */
+    private fun isAppInForeground(): Boolean {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        return am.runningAppProcesses
+            ?.any {
+                it.uid == android.os.Process.myUid() &&
+                it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            } == true
     }
 }

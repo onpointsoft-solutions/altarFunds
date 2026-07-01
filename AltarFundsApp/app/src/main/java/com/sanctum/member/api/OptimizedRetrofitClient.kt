@@ -1,5 +1,6 @@
 package com.sanctum.member.api
 
+import com.sanctum.member.BuildConfig
 import com.sanctum.member.utils.OptimizedTokenManager
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -13,12 +14,10 @@ import java.util.concurrent.TimeUnit
 
 object OptimizedRetrofitClient {
     
-    private const val BASE_URL = "https://backend.sanctum.co.ke/api/"
     private var apiService: ApiService? = null
-    private val isRefreshing = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val refreshMutex = Mutex()
     
     fun create(tokenManager: OptimizedTokenManager): ApiService {
-        // Cache the API service instance
         if (apiService == null) {
             synchronized(this) {
                 if (apiService == null) {
@@ -31,27 +30,22 @@ object OptimizedRetrofitClient {
     
     private fun buildApiService(tokenManager: OptimizedTokenManager): ApiService {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
         
         val authInterceptor = Interceptor { chain ->
             val originalRequest = chain.request()
-            
-            // Get current token from StateFlow (instant access!)
             val token = tokenManager.getToken()
             
-            val newRequest = if (token != null) {
-                originalRequest.newBuilder()
-                    .header("Authorization", "Bearer $token")
-                    .build()
-            } else {
-                originalRequest
+            val requestBuilder = originalRequest.newBuilder()
+            if (token != null) {
+                requestBuilder.header("Authorization", "Bearer $token")
             }
             
-            val response = chain.proceed(newRequest)
+            val response = chain.proceed(requestBuilder.build())
             
-            // Handle 401 Unauthorized with automatic token refresh
-            if (response.code == 401) {
+            if (response.code == 401 && originalRequest.header("X-Token-Refreshed") == null) {
+                response.close()
                 return@Interceptor handleTokenRefreshSync(chain, originalRequest, tokenManager)
             }
             
@@ -69,7 +63,7 @@ object OptimizedRetrofitClient {
             .build()
         
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(BuildConfig.BASE_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -80,64 +74,51 @@ object OptimizedRetrofitClient {
         chain: Interceptor.Chain,
         originalRequest: okhttp3.Request,
         tokenManager: OptimizedTokenManager
-    ): okhttp3.Response {
-        
-        // Use atomic flag to prevent multiple simultaneous refresh attempts
-        if (!isRefreshing.compareAndSet(false, true)) {
-            // Another thread is already refreshing, just proceed with original request
-            return chain.proceed(originalRequest)
-        }
-        
-        return try {
-            // Try to refresh the token synchronously
-            val refreshSuccess = runBlocking {
-                tokenManager.refreshAccessToken()
+    ): okhttp3.Response = runBlocking {
+        refreshMutex.withLock {
+            val currentToken = tokenManager.getToken()
+            val requestToken = originalRequest.header("Authorization")?.removePrefix("Bearer ")
+            
+            // If token already changed, another thread refreshed it
+            if (currentToken != null && currentToken != requestToken) {
+                val newRequest = originalRequest.newBuilder()
+                    .header("Authorization", "Bearer $currentToken")
+                    .header("X-Token-Refreshed", "true")
+                    .build()
+                return@runBlocking chain.proceed(newRequest)
             }
             
-            if (refreshSuccess) {
-                // Retry the original request with new token
-                val newToken = tokenManager.getToken()
-                val newRequest = originalRequest.newBuilder()
+            val success = tokenManager.refreshAccessToken()
+            val newToken = tokenManager.getToken()
+            
+            val finalRequest = if (success && newToken != null) {
+                originalRequest.newBuilder()
                     .header("Authorization", "Bearer $newToken")
+                    .header("X-Token-Refreshed", "true")
                     .build()
-                chain.proceed(newRequest)
             } else {
-                // Token refresh failed, clear tokens and let UI handle logout
-                runBlocking {
-                    tokenManager.clearTokens()
-                }
-                chain.proceed(originalRequest)
+                // Refresh failed, proceed one last time (will likely 401 again)
+                originalRequest.newBuilder()
+                    .header("X-Token-Refreshed", "true")
+                    .build()
             }
-        } catch (e: Exception) {
-            // Error during refresh, clear tokens
-            runBlocking {
-                tokenManager.clearTokens()
-            }
-            chain.proceed(originalRequest)
-        } finally {
-            // Reset the refresh flag
-            isRefreshing.set(false)
+            
+            chain.proceed(finalRequest)
         }
     }
     
-        
-    // Network interceptor for better connectivity handling
     private class NetworkInterceptor : Interceptor {
         override fun intercept(chain: Interceptor.Chain): okhttp3.Response {
             val request = chain.request()
-            
-            // Add network-related headers
             val newRequest = request.newBuilder()
                 .header("Connection", "keep-alive")
                 .header("Accept-Encoding", "gzip, deflate")
                 .header("User-Agent", "Sanctum-Android/1.0")
                 .build()
-            
             return chain.proceed(newRequest)
         }
     }
     
-    // Clear cached service (useful for logout)
     fun clearCache() {
         apiService = null
     }

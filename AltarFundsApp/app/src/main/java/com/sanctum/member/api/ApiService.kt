@@ -64,6 +64,10 @@ interface ApiService {
     // Create Giving Transaction
     @POST("mobile/donations/")
     suspend fun createDonation(@Body request: GivingTransactionRequest): Response<ApiResponse<GivingTransaction>>
+
+    // Create Giving Transaction — returns authorization_url for Paystack card payments
+    @POST("mobile/donations/")
+    suspend fun createDonationWithPaystack(@Body request: GivingTransactionRequest): Response<GivingTransactionCreateResponse>
     
     // Get Giving Transactions
     @GET("mobile/giving-transactions/")
@@ -82,6 +86,12 @@ interface ApiService {
     
     @GET("payments/payments/verify_payment/")
     suspend fun verifyPaystackPayment(@Query("reference") reference: String): Response<ApiResponse<Map<String, Any>>>
+
+    // Retry Paystack payment for a pending giving transaction
+    @POST("giving/transactions/{transactionId}/retry-payment/")
+    suspend fun retryGivingPayment(
+        @Path("transactionId") transactionId: String
+    ): Response<GivingTransactionCreateResponse>
     
     // Payment Verification
     @POST("giving/verify-payment/")
@@ -186,4 +196,8 @@ interface ApiService {
     // Church Transfer
     @POST("auth/transfer-church/")
     suspend fun transferChurch(@Body request: ChurchTransferRequest): Response<MessageResponse>
+
+    // Budget Access PIN — members verify a PIN to view church budget summary
+    @POST("budgets/pins/verify/")
+    suspend fun verifyBudgetPin(@Body request: BudgetPinRequest): Response<BudgetSummaryResponse>
 }

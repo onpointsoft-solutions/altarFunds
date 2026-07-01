@@ -177,21 +177,51 @@ public class ChurchAdminFrame extends JFrame {
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         controls.setOpaque(false);
         
-        JButton minimizeBtn = new JButton();
-        minimizeBtn.setIcon(IconManager.getThemedIcon("settings", IconManager.SIZE_SMALL));
+        JButton minimizeBtn = new JButton("─") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isRollover()) {
+                    g2.setColor(new Color(255, 255, 255, 30));
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
+                g2.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+                g2.setColor(C_TEXT_MID);
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString("─", (getWidth()-fm.stringWidth("─"))/2,
+                    (getHeight()+fm.getAscent()-fm.getDescent())/2);
+                g2.dispose();
+            }
+        };
         minimizeBtn.setContentAreaFilled(false);
         minimizeBtn.setBorderPainted(false);
         minimizeBtn.setFocusPainted(false);
-        minimizeBtn.setPreferredSize(new Dimension(24, 24));
+        minimizeBtn.setPreferredSize(new Dimension(40, 36));
         minimizeBtn.setToolTipText("Minimize");
         minimizeBtn.addActionListener(e -> setState(JFrame.ICONIFIED));
         
-        JButton closeBtn = new JButton();
-        closeBtn.setIcon(IconManager.getThemedIcon("error", IconManager.SIZE_SMALL));
+        JButton closeBtn = new JButton("✕") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isRollover()) {
+                    g2.setColor(new Color(255, 59, 48, 180));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                    g2.setColor(Color.WHITE);
+                } else {
+                    g2.setColor(C_TEXT_MID);
+                }
+                g2.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString("✕", (getWidth()-fm.stringWidth("✕"))/2,
+                    (getHeight()+fm.getAscent()-fm.getDescent())/2);
+                g2.dispose();
+            }
+        };
         closeBtn.setContentAreaFilled(false);
         closeBtn.setBorderPainted(false);
         closeBtn.setFocusPainted(false);
-        closeBtn.setPreferredSize(new Dimension(24, 24));
+        closeBtn.setPreferredSize(new Dimension(40, 36));
         closeBtn.setToolTipText("Close");
         closeBtn.addActionListener(e -> performLogout());
         
@@ -287,6 +317,12 @@ public class ChurchAdminFrame extends JFrame {
 
     // ─── Sidebar ──────────────────────────────────────────────────────
     private JPanel buildSidebar() {
+        JPanel side = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(C_SURFACE);
+                g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setColor(C_BORDER);
                 g2.fillRect(getWidth() - 1, 0, 1, getHeight());
                 g2.dispose();
@@ -618,16 +654,16 @@ public class ChurchAdminFrame extends JFrame {
             () -> showAddStaffDialog()
         );
         
-        // View All Announcements button
+        // View All Announcements button — use C_GOLD (fully opaque) not C_GOLD_DIM (10% alpha = invisible)
         JButton viewAnnouncementsBtn = createQuickActionButton(
             "📋 View All",
-            C_GOLD_DIM,
+            C_GOLD,
             () -> switchContent("announcements")
         );
         
         // View All Members button
         JButton viewMembersBtn = createQuickActionButton(
-            "👥 View All",
+            "👥 Members",
             C_TEXT_MID,
             () -> switchContent("members")
         );
@@ -683,13 +719,16 @@ public class ChurchAdminFrame extends JFrame {
                 int totalAnnouncements = announcements.size();
                 int recentCount = (int) announcements.stream()
                     .filter(a -> {
-                        // Filter for recent announcements (last 7 days)
+                        // Filter for recent announcements (last 7 days) — field is "created_at"
                         try {
-                            String dateStr = a.get("date_created").toString();
-                            LocalDateTime date = LocalDateTime.parse(dateStr.replace("Z", ""));
+                            String dateStr = a.get("created_at").toString();
+                            // Handle ISO-8601 with or without T separator
+                            dateStr = dateStr.replace("Z", "").replace(" ", "T");
+                            if (dateStr.length() > 19) dateStr = dateStr.substring(0, 19);
+                            LocalDateTime date = LocalDateTime.parse(dateStr);
                             return date.isAfter(LocalDateTime.now().minusDays(7));
                         } catch (Exception e) {
-                            return false;
+                            return true; // include if date unparseable
                         }
                     })
                     .count();
@@ -2569,201 +2608,242 @@ public class ChurchAdminFrame extends JFrame {
     }
 
     private JPanel createBrandingSettingsCard(Map<String, Object> churchData) {
-        // Get church ID for API calls
-        final int churchId = churchData.get("id") instanceof Number 
-            ? ((Number) churchData.get("id")).intValue() 
-            : 0;
-        
-        // Get current theme colors from church data
-        final String currentPrimaryColor = churchData.getOrDefault("primary_color", "#3B82F6").toString();
-        final String currentSecondaryColor = churchData.getOrDefault("secondary_color", "#10B981").toString();
-        final String currentAccentColor = churchData.getOrDefault("accent_color", "#F59E0B").toString();
-        
-        JPanel card = new JPanel(new BorderLayout(0, 15));
-        card.setOpaque(false);
-        card.setBorder(new EmptyBorder(20, 20, 20, 20));
-        
-        // Header
-        JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
-        headerPanel.setOpaque(false);
-        
-        JLabel iconLabel = new JLabel("🎨");
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 24));
-        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        iconLabel.setPreferredSize(new Dimension(40, 40));
-        
-        JLabel titleLabel = new JLabel("Church Branding");
-        titleLabel.setFont(F_HEADING);
-        titleLabel.setForeground(C_TEXT);
-        
-        headerPanel.add(iconLabel, BorderLayout.WEST);
-        headerPanel.add(titleLabel, BorderLayout.CENTER);
-        
-        // Content panel
-        JPanel contentPanel = new JPanel(new GridLayout(0, 1, 0, 12));
-        contentPanel.setOpaque(false);
-        
-        // Logo display/upload section
-        Object logoObj = churchData.get("logo");
-        String logoUrl = logoObj != null ? logoObj.toString() : "";
-        if (logoUrl.isEmpty() || logoUrl.equals("null")) {
-            Object logoUrlObj = churchData.get("logo_url");
-            logoUrl = logoUrlObj != null ? logoUrlObj.toString() : "";
-        }
-        
-        // Prepend base URL if logo path is relative
-        if (!logoUrl.isEmpty() && !logoUrl.startsWith("http")) {
-            logoUrl = "https://backend.sanctum.co.ke/media/" + logoUrl;
-        }
-        
-        JPanel logoPanel = new JPanel(new BorderLayout(10, 0));
-        logoPanel.setOpaque(false);
-        
-        JLabel logoPreview = new JLabel("No Logo", SwingConstants.CENTER);
-        logoPreview.setFont(F_MONO_SM);
-        logoPreview.setForeground(C_TEXT_DIM);
-        logoPreview.setPreferredSize(new Dimension(80, 80));
-        logoPreview.setBorder(BorderFactory.createLineBorder(C_BORDER, 2));
-        
-        // Load logo if available
-        final String finalLogoUrl = logoUrl;
-        if (!logoUrl.isEmpty() && !logoUrl.equals("null")) {
-            try {
-                ImageIcon logoIcon = new ImageIcon(new java.net.URL(logoUrl));
-                Image scaled = logoIcon.getImage().getScaledInstance(80, 80, Image.SCALE_SMOOTH);
-                logoPreview.setIcon(new ImageIcon(scaled));
-                logoPreview.setText("");
-            } catch (Exception e) {
-                System.err.println("Failed to load logo: " + e.getMessage());
-            }
-        }
-        
-        JButton uploadBtn = createStyledButton("Upload Logo", C_GOLD);
-        uploadBtn.setFont(F_MONO_SM);
-        uploadBtn.addActionListener(e -> showLogoUploadDialog(churchId, logoPreview));
-        
-        logoPanel.add(logoPreview, BorderLayout.WEST);
-        logoPanel.add(uploadBtn, BorderLayout.CENTER);
-        contentPanel.add(logoPanel);
-        
-        // Theme color selection
-        JLabel colorLabel = new JLabel("Primary Theme Color:");
-        colorLabel.setFont(F_LABEL);
-        colorLabel.setForeground(C_TEXT_MID);
-        contentPanel.add(colorLabel);
-        
-        JPanel colorPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        colorPanel.setOpaque(false);
-        
-        // Color presets with their hex values
-        String[][] colorPresets = {
-            {"#3B82F6", "Blue"},
-            {"#10B981", "Emerald"},
-            {"#F59E0B", "Amber"},
-            {"#EF4444", "Red"},
-            {"#8B5CF6", "Purple"},
-            {"#EC4899", "Pink"},
-            {"#6366F1", "Indigo"},
-            {"#14B8A6", "Teal"}
-        };
-        
-        // Track selected color button
-        final JButton[] selectedColorBtn = {null};
-        
-        for (String[] preset : colorPresets) {
-            final String hexColor = preset[0];
-            final String name = preset[1];
-            final Color color = Color.decode(hexColor);
-            
-            JButton colorBtn = new JButton();
-            colorBtn.setPreferredSize(new Dimension(40, 40));
-            colorBtn.setBackground(color);
-            colorBtn.setBorder(BorderFactory.createLineBorder(
-                currentPrimaryColor.equalsIgnoreCase(hexColor) ? C_GOLD : C_BORDER, 
-                currentPrimaryColor.equalsIgnoreCase(hexColor) ? 3 : 2
-            ));
-            colorBtn.setFocusPainted(false);
-            colorBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            colorBtn.setToolTipText(name + " (" + hexColor + ")");
-            
-            colorBtn.addActionListener(e -> {
-                // Update selection visual
-                if (selectedColorBtn[0] != null) {
-                    selectedColorBtn[0].setBorder(BorderFactory.createLineBorder(C_BORDER, 2));
-                }
-                colorBtn.setBorder(BorderFactory.createLineBorder(C_GOLD, 3));
-                selectedColorBtn[0] = colorBtn;
-                
-                // Save to backend
-                if (churchId > 0) {
-                    SanctumApiClient.updateChurchBranding(churchId, hexColor, null, null)
-                        .thenAccept(response -> {
-                            SwingUtilities.invokeLater(() -> {
-                                if (response.containsKey("success") && (Boolean) response.get("success")) {
-                                    JOptionPane.showMessageDialog(this, 
-                                        "✅ Theme color updated to " + name + "!",
-                                        "Theme Updated", JOptionPane.INFORMATION_MESSAGE);
-                                } else {
-                                    JOptionPane.showMessageDialog(this, 
-                                        "❌ Failed to update theme color.\n" + response.getOrDefault("error", "Unknown error"),
-                                        "Error", JOptionPane.ERROR_MESSAGE);
-                                }
-                            });
-                        }).exceptionally(ex -> {
-                            SwingUtilities.invokeLater(() -> {
-                                JOptionPane.showMessageDialog(this, 
-                                    "❌ Error updating theme: " + ex.getMessage(),
-                                    "Error", JOptionPane.ERROR_MESSAGE);
-                            });
-                            return null;
-                        });
-                }
-            });
-            
-            colorPanel.add(colorBtn);
-        }
-        
-        contentPanel.add(colorPanel);
-        
-        // Current theme info
-        JLabel currentTheme = new JLabel("Current Primary: " + currentPrimaryColor);
-        currentTheme.setFont(F_MONO_SM);
-        currentTheme.setForeground(C_GOLD);
-        contentPanel.add(currentTheme);
-        
-        // Card background with gradient
-        card = new JPanel(new BorderLayout()) {
+        final int churchId = churchData.get("id") instanceof Number
+            ? ((Number) churchData.get("id")).intValue() : 0;
+
+        final String initPrimary   = churchData.getOrDefault("primary_color",   "#260E68").toString();
+        final String initSecondary = churchData.getOrDefault("secondary_color", "#03DAC6").toString();
+        final String initAccent    = churchData.getOrDefault("accent_color",    "#FF9800").toString();
+
+        // ── Outer card ────────────────────────────────────────────────────
+        JPanel card = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                GradientPaint gradient = new GradientPaint(
-                    0, 0, C_CARD,
-                    0, getHeight(), C_SURFACE
-                );
-                g2.setPaint(gradient);
+                g2.setPaint(new GradientPaint(0, 0, C_CARD, 0, getHeight(), C_SURFACE));
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-                
                 g2.setColor(C_BORDER);
                 g2.setStroke(new BasicStroke(1));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
-                
+                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
                 g2.dispose();
             }
         };
         card.setOpaque(false);
-        card.setBorder(new EmptyBorder(10, 10, 10, 10));
-        card.add(headerPanel, BorderLayout.NORTH);
-        card.add(contentPanel, BorderLayout.CENTER);
-        
+        card.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        // ── Header ────────────────────────────────────────────────────────
+        JLabel headerIcon  = new JLabel("\uD83C\uDFA8");
+        headerIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
+        JLabel headerTitle = new JLabel("Church Branding");
+        headerTitle.setFont(F_HEADING); headerTitle.setForeground(C_TEXT);
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        header.setOpaque(false);
+        header.add(headerIcon); header.add(headerTitle);
+
+        // ── Content ───────────────────────────────────────────────────────
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setOpaque(false);
+        content.add(Box.createVerticalStrut(12));
+
+        // ── Logo section ──────────────────────────────────────────────────
+        Object logoObj = churchData.get("logo_url");   // prefer the absolute URL from serializer
+        if (logoObj == null || logoObj.toString().equals("null") || logoObj.toString().isEmpty()) {
+            logoObj = churchData.get("logo");           // fallback to raw logo field
+        }
+        String logoUrl = (logoObj != null && !logoObj.toString().equals("null"))
+            ? logoObj.toString() : "";
+        if (!logoUrl.isEmpty() && !logoUrl.startsWith("http"))
+            logoUrl = "https://backend.sanctum.co.ke/media/" + logoUrl;
+
+        JLabel logoPreview = new JLabel("No Logo", SwingConstants.CENTER);
+        logoPreview.setFont(F_MONO_SM); logoPreview.setForeground(C_TEXT_DIM);
+        logoPreview.setPreferredSize(new Dimension(80, 80));
+        logoPreview.setMinimumSize(new Dimension(80, 80));
+        logoPreview.setMaximumSize(new Dimension(80, 80));
+        logoPreview.setBorder(BorderFactory.createLineBorder(C_GOLD, 2));
+        logoPreview.setOpaque(true); logoPreview.setBackground(C_SURFACE);
+
+        if (!logoUrl.isEmpty()) {
+            try {
+                ImageIcon icon = new ImageIcon(new java.net.URL(logoUrl));
+                Image scaled = icon.getImage().getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                logoPreview.setIcon(new ImageIcon(scaled)); logoPreview.setText("");
+            } catch (Exception ex) { System.err.println("Logo load failed: " + ex.getMessage()); }
+        }
+
+        JButton uploadBtn = createStyledButton("\uD83D\uDCF7 Upload Logo", C_GOLD);
+        uploadBtn.setFont(F_MONO_SM);
+        uploadBtn.addActionListener(e -> showLogoUploadDialog(churchId, logoPreview));
+
+        JPanel logoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 4));
+        logoRow.setOpaque(false); logoRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logoRow.add(logoPreview); logoRow.add(uploadBtn);
+        content.add(logoRow);
+        content.add(Box.createVerticalStrut(16));
+
+        // ── Colour picker helper ──────────────────────────────────────────
+        // We build one section for each of primary / secondary / accent
+        String[][] sections = {
+            {"Primary Colour",   initPrimary},
+            {"Secondary Colour", initSecondary},
+            {"Accent Colour",    initAccent},
+        };
+        String[] fieldKeys = {"primary_color", "secondary_color", "accent_color"};
+
+        // Colour presets
+        String[][] presets = {
+            {"#260E68","Sanctum Purple"}, {"#3B82F6","Blue"},     {"#10B981","Emerald"},
+            {"#F59E0B","Amber"},          {"#EF4444","Red"},       {"#8B5CF6","Light Purple"},
+            {"#EC4899","Pink"},           {"#6366F1","Indigo"},    {"#14B8A6","Teal"},
+            {"#1E293B","Slate"},          {"#7C3AED","Violet"},    {"#D97706","Dark Amber"},
+        };
+
+        for (int s = 0; s < sections.length; s++) {
+            final String label    = sections[s][0];
+            final String initHex  = sections[s][1];
+            final String fieldKey = fieldKeys[s];
+
+            JLabel sectionLabel = new JLabel(label + ":");
+            sectionLabel.setFont(F_LABEL); sectionLabel.setForeground(C_TEXT_MID);
+            sectionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            content.add(sectionLabel);
+            content.add(Box.createVerticalStrut(6));
+
+            // Swatch row
+            JPanel swatchRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+            swatchRow.setOpaque(false); swatchRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            final JButton[] selected = {null};
+
+            for (String[] preset : presets) {
+                final String hex  = preset[0];
+                final String name = preset[1];
+                Color col;
+                try { col = Color.decode(hex); } catch (Exception ex) { continue; }
+                JButton btn = new JButton();
+                btn.setPreferredSize(new Dimension(32, 32));
+                btn.setBackground(col);
+                btn.setFocusPainted(false);
+                btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                btn.setToolTipText(name + " (" + hex + ")");
+                boolean isActive = hex.equalsIgnoreCase(initHex);
+                btn.setBorder(isActive
+                    ? BorderFactory.createLineBorder(C_GOLD, 3)
+                    : BorderFactory.createLineBorder(C_BORDER, 1));
+                if (isActive) selected[0] = btn;
+
+                btn.addActionListener(e -> {
+                    if (selected[0] != null)
+                        selected[0].setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+                    btn.setBorder(BorderFactory.createLineBorder(C_GOLD, 3));
+                    selected[0] = btn;
+                    saveBrandingField(churchId, fieldKey, hex, name);
+                });
+                swatchRow.add(btn);
+            }
+            content.add(swatchRow);
+
+            // Custom hex input row
+            JPanel hexRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+            hexRow.setOpaque(false); hexRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+            JLabel hexLabel = new JLabel("Custom:");
+            hexLabel.setFont(F_MONO_SM); hexLabel.setForeground(C_TEXT_DIM);
+            JTextField hexField = new JTextField(initHex, 9);
+            hexField.setFont(F_MONO_SM); hexField.setForeground(C_TEXT);
+            hexField.setBackground(C_SURFACE);
+            hexField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(C_BORDER),
+                new EmptyBorder(3, 6, 3, 6)));
+            // Live preview swatch
+            JLabel previewSwatch = new JLabel("  ");
+            previewSwatch.setOpaque(true);
+            previewSwatch.setPreferredSize(new Dimension(24, 24));
+            try { previewSwatch.setBackground(Color.decode(initHex)); }
+            catch (Exception ex) { previewSwatch.setBackground(C_SURFACE); }
+            previewSwatch.setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+
+            hexField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+                void update() {
+                    String txt = hexField.getText().trim();
+                    try { previewSwatch.setBackground(Color.decode(txt)); }
+                    catch (Exception ex) { /* ignore invalid */ }
+                }
+                public void insertUpdate(javax.swing.event.DocumentEvent e)  { update(); }
+                public void removeUpdate(javax.swing.event.DocumentEvent e)  { update(); }
+                public void changedUpdate(javax.swing.event.DocumentEvent e) { update(); }
+            });
+
+            JButton applyHex = createStyledButton("Apply", C_GOLD);
+            applyHex.setFont(F_MONO_SM);
+            applyHex.setPreferredSize(new Dimension(70, 28));
+            applyHex.addActionListener(e -> {
+                String hex = hexField.getText().trim();
+                if (!hex.startsWith("#")) hex = "#" + hex;
+                if (hex.matches("#[0-9A-Fa-f]{6}")) {
+                    saveBrandingField(churchId, fieldKey, hex, "custom");
+                    if (selected[0] != null)
+                        selected[0].setBorder(BorderFactory.createLineBorder(C_BORDER, 1));
+                    selected[0] = null; // no preset selected
+                } else {
+                    JOptionPane.showMessageDialog(card,
+                        "Invalid hex colour. Use format: #RRGGBB", "Invalid Input",
+                        JOptionPane.WARNING_MESSAGE);
+                }
+            });
+            hexRow.add(hexLabel); hexRow.add(hexField);
+            hexRow.add(previewSwatch); hexRow.add(applyHex);
+            content.add(hexRow);
+            content.add(Box.createVerticalStrut(16));
+        }
+
+        card.add(header,  BorderLayout.NORTH);
+        card.add(content, BorderLayout.CENTER);
         return card;
     }
-    
+
+    /** Fire-and-forget branding save — shows success/error dialog with actual server response. */
+    private void saveBrandingField(int churchId, String field, String value, String label) {
+        if (churchId <= 0) {
+            JOptionPane.showMessageDialog(this,
+                "\u274C Church ID is 0 — settings not fully loaded yet.\n"
+                + "Please wait a moment for the settings page to finish loading, then try again.",
+                "Church Not Ready", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        SanctumApiClient.updateChurchBranding(
+            churchId,
+            field.equals("primary_color")   ? value : null,
+            field.equals("secondary_color") ? value : null,
+            field.equals("accent_color")    ? value : null
+        ).thenAccept(resp -> SwingUtilities.invokeLater(() -> {
+            boolean ok = Boolean.TRUE.equals(resp.get("success"));
+            if (ok) {
+                JOptionPane.showMessageDialog(this,
+                    "\u2705 " + field.replace('_', ' ') + " updated to "
+                    + label + " (" + value + ")",
+                    "Branding Updated", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                String err = resp.containsKey("error")
+                    ? resp.get("error").toString()
+                    : "Unknown error — check the Sanctum console log";
+                JOptionPane.showMessageDialog(this,
+                    "\u274C Failed to update " + field.replace('_', ' ') + ":\n" + err,
+                    "Update Failed", JOptionPane.ERROR_MESSAGE);
+            }
+        })).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this,
+                "\u274C Network error: " + ex.getMessage(),
+                "Network Error", JOptionPane.ERROR_MESSAGE));
+            return null;
+        });
+    }
+
     private void showLogoUploadDialog(int churchId, JLabel logoPreview) {
         if (churchId <= 0) {
             JOptionPane.showMessageDialog(this,
-                "❌ Church ID not available. Cannot upload logo.",
+                "\u274C Church ID not available. Cannot upload logo.",
                 "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }

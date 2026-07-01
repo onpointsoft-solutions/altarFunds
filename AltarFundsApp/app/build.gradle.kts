@@ -7,9 +7,7 @@ plugins {
 
 android {
     namespace = "com.sanctum.member"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.sanctum.member"
@@ -17,6 +15,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField("String", "BASE_URL", "\"https://backend.sanctum.co.ke/api/\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,6 +39,7 @@ android {
     }
     buildFeatures{
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -83,7 +84,6 @@ dependencies {
     // Room Database for offline caching
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.firebase.messaging)
     ksp(libs.androidx.room.compiler)
     
     // Firebase

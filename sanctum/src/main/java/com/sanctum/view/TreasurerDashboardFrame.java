@@ -63,6 +63,12 @@ public class TreasurerDashboardFrame extends JFrame {
 
     // KPI labels
     private JLabel lblTotalDonations, lblMonthlyDonations, lblTotalExpenses, lblNetBalance;
+    private JLabel donationsTotalMini, donationsMonthMini, donationsDonorsMini;
+    private JLabel reportIncomeMini, reportExpensesMini, reportNetMini, reportBudgetUsedMini;
+    private JLabel budgetTotalMini, budgetSpentMini, budgetRemainingMini;
+    private JLabel accountsCountMini, accountsBalanceMini, accountsActiveMini;
+    private JLabel expensesTotalMini, expensesMonthMini, expensesPendingMini, expensesApprovedMini;
+    private JLabel membersTotalMini, membersDonorsMini, membersAverageMini, membersMonthMini;
 
     // Page-level data containers
     private JPanel  recentDonationsList;
@@ -75,6 +81,8 @@ public class TreasurerDashboardFrame extends JFrame {
     private JTable donationsPageTable;
     private JTable expensesPageTable;
     private JTable accountsPageTable;
+    private JTable budgetPageTable;    // fix: was a local variable — could never be found reliably
+    private JTable membersPageTable;   // fix: was a local variable — 8-column search was fragile
 
     // Nav buttons (for active-state management)
     private final List<JButton> navButtons = new ArrayList<>();
@@ -82,9 +90,13 @@ public class TreasurerDashboardFrame extends JFrame {
     private JLabel topBarSub;
 
     // Reports page charts
-    private int[] reportDonations = {210, 245, 290, 380, 260, 284};
-    private int[] reportExpenses  = { 90, 105, 120, 140, 110,  95};
-    private String[] reportMonths = {"SEP","OCT","NOV","DEC","JAN","FEB"};
+    private int[] reportDonations = {0, 0, 0, 0, 0, 0};
+    private int[] reportExpenses  = {0, 0, 0, 0, 0, 0};
+    private String[] reportMonths = buildRecentMonthLabels();
+    private int[] givingBreakdownValues = {0, 0, 0, 0};
+    private String[] givingBreakdownLabels = {"Tithe", "Offering", "Building", "Other"};
+    private JPanel givingBreakdownPanel;
+    private JTable reportStatementTable;
 
     // ═══════════════════════════════════════════════════════════════════
     //  EMOJI FONT UTILITIES  (Matching other dashboards)
@@ -161,14 +173,25 @@ public class TreasurerDashboardFrame extends JFrame {
         loadData();
     }
 
+    private static String[] buildRecentMonthLabels() {
+        String[] labels = new String[6];
+        LocalDate start = LocalDate.now().minusMonths(5);
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = start.plusMonths(i).format(DateTimeFormatter.ofPattern("MMM")).toUpperCase();
+        }
+        return labels;
+    }
+
     // ─── Window ─────────────────────────────────────────────────────────────
     private void configureWindow() {
         setTitle("Sanctum — Treasurer Dashboard");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setUndecorated(true);
-        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
-        if (gd.isFullScreenSupported()) gd.setFullScreenWindow(this);
-        else setExtendedState(JFrame.MAXIMIZED_BOTH);
+        // Use MAXIMIZED_BOTH instead of exclusive full-screen.
+        // Exclusive full-screen (gd.setFullScreenWindow) causes the frame to
+        // iconify whenever a modal JDialog is shown — a Java/AWT limitation.
+        // MAXIMIZED_BOTH gives the same visual result without the iconify bug.
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
     }
 
     private void buildUI() {
@@ -669,10 +692,10 @@ public class TreasurerDashboardFrame extends JFrame {
         JPanel row = new JPanel(new GridLayout(1,4,16,0));
         row.setOpaque(false); row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
 
-        JPanel c1 = buildKpiCard("Total Donations", "KES 0", "All time",       C_GOLD,      "💰");
-        JPanel c2 = buildKpiCard("This Month",      "KES 0", "Current period", C_GOLD_HOVER,"📅");
-        JPanel c3 = buildKpiCard("Total Expenses",  "KES 0", "All time",       C_TEXT_MID,  "📤");
-        JPanel c4 = buildKpiCard("Net Balance",     "KES 0", "As of today",    C_SUCCESS,   "🏦");
+        JPanel c1 = buildKpiCard("Total Donations", "Loading...", "All time",       C_GOLD,      "💰");
+        JPanel c2 = buildKpiCard("This Month",      "Loading...", "Current period", C_GOLD_HOVER,"📅");
+        JPanel c3 = buildKpiCard("Total Expenses",  "Loading...", "All time",       C_TEXT_MID,  "📤");
+        JPanel c4 = buildKpiCard("Net Balance",     "Loading...", "As of today",    C_SUCCESS,   "🏦");
 
         lblTotalDonations  = findValueLabel(c1);
         lblMonthlyDonations= findValueLabel(c2);
@@ -762,7 +785,11 @@ public class TreasurerDashboardFrame extends JFrame {
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 int W=getWidth(), H=getHeight(), padL=16, padR=16, padB=28, padT=12;
-                int chartH=H-padT-padB, maxVal=400, n=months.length;
+                int chartH=H-padT-padB, n=months.length;
+                int maxVal = 1;
+                for (int v : donations) maxVal = Math.max(maxVal, v);
+                for (int v : expenses) maxVal = Math.max(maxVal, v);
+                maxVal = Math.max(1, (int) Math.ceil(maxVal * 1.15));
                 int groupW=(W-padL-padR)/n, barW=Math.min(groupW/3,18);
                 g2.setStroke(new BasicStroke(1f,BasicStroke.CAP_BUTT,BasicStroke.JOIN_BEVEL,0,new float[]{3,5},0));
                 g2.setColor(C_BORDER);
@@ -965,6 +992,8 @@ public class TreasurerDashboardFrame extends JFrame {
         header.add(title, BorderLayout.WEST);
         JPanel headerBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT,8,0)); headerBtns.setOpaque(false);
         headerBtns.add(buildTopBtn("📤 Export", C_TEXT_MID));
+        JButton givingTypesBtn = buildPrimaryBtn("🏷 Giving Types", e -> showGivingTypesDialog());
+        headerBtns.add(givingTypesBtn);
         headerBtns.add(buildPrimaryBtn("➕ Add Donation", e -> showAddDonationDialog()));
         header.add(headerBtns, BorderLayout.EAST);
 
@@ -972,9 +1001,15 @@ public class TreasurerDashboardFrame extends JFrame {
         JPanel kpiRow = new JPanel(new GridLayout(1,3,16,0));
         kpiRow.setOpaque(false); kpiRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
         kpiRow.setBorder(new EmptyBorder(0,0,20,0));
-        kpiRow.add(buildMiniKpiCard("Total Donations",  "KES 0", C_GOLD));
-        kpiRow.add(buildMiniKpiCard("This Month",       "KES 0", C_GOLD_HOVER));
-        kpiRow.add(buildMiniKpiCard("No. of Donors",    "0",     C_SUCCESS));
+        JPanel totalCard = buildMiniKpiCard("Total Donations",  "Loading...", C_GOLD);
+        JPanel monthCard = buildMiniKpiCard("This Month",       "Loading...", C_GOLD_HOVER);
+        JPanel donorCard = buildMiniKpiCard("No. of Donors",    "Loading...", C_SUCCESS);
+        donationsTotalMini = findValueLabel(totalCard);
+        donationsMonthMini = findValueLabel(monthCard);
+        donationsDonorsMini = findValueLabel(donorCard);
+        kpiRow.add(totalCard);
+        kpiRow.add(monthCard);
+        kpiRow.add(donorCard);
 
         // Filter bar
         JPanel filterBar = buildDonationFilterBar();
@@ -1017,6 +1052,7 @@ public class TreasurerDashboardFrame extends JFrame {
         card.setBorder(new EmptyBorder(14,16,14,16));
         JLabel lbl = new JLabel(label); lbl.setFont(F_MONO_SM); lbl.setForeground(C_TEXT_DIM);
         JLabel val = new JLabel(value); val.setFont(new Font("Monospaced",Font.BOLD,18)); val.setForeground(accent);
+        val.putClientProperty("kpiValue", Boolean.TRUE);
         card.add(lbl); card.add(Box.createVerticalStrut(4)); card.add(val);
         return card;
     }
@@ -1063,10 +1099,18 @@ public class TreasurerDashboardFrame extends JFrame {
         JPanel kpiRow = new JPanel(new GridLayout(1,4,16,0));
         kpiRow.setOpaque(false); kpiRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
         kpiRow.setBorder(new EmptyBorder(0,0,20,0));
-        kpiRow.add(buildMiniKpiCard("Gross Income",   "KES 0",   C_GOLD));
-        kpiRow.add(buildMiniKpiCard("Gross Expenses", "KES 0",   C_WARNING));
-        kpiRow.add(buildMiniKpiCard("Net Surplus",    "KES 0",   C_SUCCESS));
-        kpiRow.add(buildMiniKpiCard("Budget Used",    "0%",      C_GOLD_HOVER));
+        JPanel grossIncomeCard = buildMiniKpiCard("Gross Income",   "Loading...", C_GOLD);
+        JPanel expensesCard = buildMiniKpiCard("Gross Expenses", "Loading...", C_WARNING);
+        JPanel netCard = buildMiniKpiCard("Net Surplus",    "Loading...", C_SUCCESS);
+        JPanel budgetUsedCard = buildMiniKpiCard("Budget Used",    "Loading...", C_GOLD_HOVER);
+        reportIncomeMini = findValueLabel(grossIncomeCard);
+        reportExpensesMini = findValueLabel(expensesCard);
+        reportNetMini = findValueLabel(netCard);
+        reportBudgetUsedMini = findValueLabel(budgetUsedCard);
+        kpiRow.add(grossIncomeCard);
+        kpiRow.add(expensesCard);
+        kpiRow.add(netCard);
+        kpiRow.add(budgetUsedCard);
         content.add(kpiRow);
 
         // Row: Chart + Giving Breakdown
@@ -1084,16 +1128,17 @@ public class TreasurerDashboardFrame extends JFrame {
         content.add(Box.createVerticalStrut(20));
 
         // Row: Income statement table
-        JPanel incomeCard = buildSectionCard("Income & Expense Statement", C_GOLD);
+        JPanel statementCard = buildSectionCard("Income & Expense Statement", C_GOLD);
         String[] cols = {"Category","Budget (KES)","Actual (KES)","Variance (KES)","% Used"};
         DefaultTableModel m = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         JTable stmtTable = new JTable(m); styleTable(stmtTable);
+        reportStatementTable = stmtTable;
         int[] widths = {180,140,140,140,100};
         for (int i=0; i<widths.length; i++) stmtTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
-        incomeCard.add(styledScroll(stmtTable, 200), BorderLayout.CENTER);
-        content.add(incomeCard);
+        statementCard.add(styledScroll(stmtTable, 200), BorderLayout.CENTER);
+        content.add(statementCard);
 
         page.add(hdr, BorderLayout.NORTH);
         page.add(content, BorderLayout.CENTER);
@@ -1112,12 +1157,14 @@ public class TreasurerDashboardFrame extends JFrame {
                 Graphics2D g2=(Graphics2D)g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
                 int cx=getWidth()/2, cy=50, r=38;
-                int[] values={45,25,20,10};
                 Color[] colors={C_GOLD,C_GOLD_HOVER,C_SUCCESS,C_TEXT_DIM};
-                String[] labels={"Tithe","Offering","Building","Other"};
+                int[] values = givingBreakdownValues;
+                String[] labels = givingBreakdownLabels;
+                int total = 0;
+                for (int v : values) total += Math.max(0, v);
                 int startAngle=90;
                 for (int i=0; i<values.length; i++) {
-                    int arc=(int)(values[i]/100.0*360);
+                    int arc = total > 0 ? (int)Math.round(values[i] / (double)total * 360) : 0;
                     g2.setColor(colors[i]);
                     g2.fillArc(cx-r,cy-r,r*2,r*2,startAngle,arc);
                     startAngle+=arc;
@@ -1128,13 +1175,15 @@ public class TreasurerDashboardFrame extends JFrame {
                 for (int i=0; i<values.length; i++) {
                     g2.setColor(colors[i]); g2.fillRoundRect(10,ly,8,8,2,2);
                     g2.setFont(F_SMALL); g2.setColor(C_TEXT_MID);
-                    g2.drawString(labels[i]+" ("+values[i]+"%)", 24, ly+8);
+                    int pct = total > 0 ? (int)Math.round(values[i] * 100.0 / total) : 0;
+                    g2.drawString(labels[i]+" ("+pct+"%)", 24, ly+8);
                     ly+=22;
                 }
             }
             @Override public Dimension getPreferredSize() { return new Dimension(0,210); }
         };
         donut.setOpaque(false);
+        givingBreakdownPanel = donut;
         list.add(donut);
         s.add(list, BorderLayout.CENTER);
         return s;
@@ -1152,6 +1201,7 @@ public class TreasurerDashboardFrame extends JFrame {
         hdr.add(title, BorderLayout.WEST);
         JPanel hBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT,8,0)); hBtns.setOpaque(false);
         hBtns.add(buildTopBtn("📤 Export", C_TEXT_MID));
+        hBtns.add(buildPrimaryBtn("🔑 Access PINs", e -> showBudgetPinManagerDialog()));
         hBtns.add(buildPrimaryBtn("➕ Add Budget", e -> showBudgetStudioDialog()));
         hdr.add(hBtns, BorderLayout.EAST);
 
@@ -1162,9 +1212,15 @@ public class TreasurerDashboardFrame extends JFrame {
         JPanel progressRow = new JPanel(new GridLayout(1,3,16,0));
         progressRow.setOpaque(false); progressRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
         progressRow.setBorder(new EmptyBorder(0,0,20,0));
-        progressRow.add(buildMiniKpiCard("Total Budget", "KES 0",   C_GOLD));
-        progressRow.add(buildMiniKpiCard("Total Spent",  "KES 0",   C_WARNING));
-        progressRow.add(buildMiniKpiCard("Remaining",    "KES 0",   C_SUCCESS));
+        JPanel totalBudgetCard = buildMiniKpiCard("Total Budget", "Loading...", C_GOLD);
+        JPanel totalSpentCard = buildMiniKpiCard("Total Spent",  "Loading...", C_WARNING);
+        JPanel remainingCard = buildMiniKpiCard("Remaining",    "Loading...", C_SUCCESS);
+        budgetTotalMini = findValueLabel(totalBudgetCard);
+        budgetSpentMini = findValueLabel(totalSpentCard);
+        budgetRemainingMini = findValueLabel(remainingCard);
+        progressRow.add(totalBudgetCard);
+        progressRow.add(totalSpentCard);
+        progressRow.add(remainingCard);
         content.add(progressRow);
 
         // Budget table
@@ -1174,6 +1230,7 @@ public class TreasurerDashboardFrame extends JFrame {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         JTable budgetTable = new JTable(m); styleTable(budgetTable);
+        budgetPageTable = budgetTable; // assign to class field so loadBudgetPageData() can find it
         int[] widths = {130,160,130,120,130,100,80};
         for (int i=0; i<widths.length; i++) budgetTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         // color % used column
@@ -1308,9 +1365,15 @@ public class TreasurerDashboardFrame extends JFrame {
         JPanel kpiRow = new JPanel(new GridLayout(1,3,16,0));
         kpiRow.setOpaque(false); kpiRow.setMaximumSize(new Dimension(Integer.MAX_VALUE,90));
         kpiRow.setBorder(new EmptyBorder(0,0,20,0));
-        kpiRow.add(buildMiniKpiCard("Total Accounts", "0",    C_GOLD));
-        kpiRow.add(buildMiniKpiCard("Total Balance",  "KES 0",C_SUCCESS));
-        kpiRow.add(buildMiniKpiCard("Active Accounts","0",    C_GOLD_HOVER));
+        JPanel totalAccountsCard = buildMiniKpiCard("Total Accounts", "Loading...", C_GOLD);
+        JPanel totalBalanceCard = buildMiniKpiCard("Total Balance",  "Loading...", C_SUCCESS);
+        JPanel activeAccountsCard = buildMiniKpiCard("Active Accounts","Loading...", C_GOLD_HOVER);
+        accountsCountMini = findValueLabel(totalAccountsCard);
+        accountsBalanceMini = findValueLabel(totalBalanceCard);
+        accountsActiveMini = findValueLabel(activeAccountsCard);
+        kpiRow.add(totalAccountsCard);
+        kpiRow.add(totalBalanceCard);
+        kpiRow.add(activeAccountsCard);
         content.add(kpiRow);
 
         // Accounts table
@@ -1352,10 +1415,18 @@ public class TreasurerDashboardFrame extends JFrame {
         JPanel kpiRow = new JPanel(new GridLayout(1,4,16,0));
         kpiRow.setOpaque(false); kpiRow.setMaximumSize(new Dimension(Integer.MAX_VALUE,90));
         kpiRow.setBorder(new EmptyBorder(0,0,20,0));
-        kpiRow.add(buildMiniKpiCard("Total Expenses",  "KES 0", C_WARNING));
-        kpiRow.add(buildMiniKpiCard("This Month",      "KES 0", C_GOLD));
-        kpiRow.add(buildMiniKpiCard("Pending Approval","0",     C_DANGER));
-        kpiRow.add(buildMiniKpiCard("Approved",        "0",     C_SUCCESS));
+        JPanel totalExpensesCard = buildMiniKpiCard("Total Expenses",  "Loading...", C_WARNING);
+        JPanel monthExpensesCard = buildMiniKpiCard("This Month",      "Loading...", C_GOLD);
+        JPanel pendingCard = buildMiniKpiCard("Pending Approval","Loading...", C_DANGER);
+        JPanel approvedCard = buildMiniKpiCard("Approved",        "Loading...", C_SUCCESS);
+        expensesTotalMini = findValueLabel(totalExpensesCard);
+        expensesMonthMini = findValueLabel(monthExpensesCard);
+        expensesPendingMini = findValueLabel(pendingCard);
+        expensesApprovedMini = findValueLabel(approvedCard);
+        kpiRow.add(totalExpensesCard);
+        kpiRow.add(monthExpensesCard);
+        kpiRow.add(pendingCard);
+        kpiRow.add(approvedCard);
         content.add(kpiRow);
 
         // Filter
@@ -1406,7 +1477,9 @@ public class TreasurerDashboardFrame extends JFrame {
         hdr.add(title, BorderLayout.WEST);
         JPanel hBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT,8,0)); hBtns.setOpaque(false);
         hBtns.add(buildTopBtn("📤 Export", C_TEXT_MID));
-        hBtns.add(buildTopBtn("🔄 Refresh", C_TEXT_MID) {{ addActionListener(e -> loadMembersPageData()); }});
+        JButton refreshBtn = buildTopBtn("🔄 Refresh", C_TEXT_MID);
+        refreshBtn.addActionListener(e -> loadMembersPageData());
+        hBtns.add(refreshBtn);
         hdr.add(hBtns, BorderLayout.EAST);
 
         JPanel content = new JPanel(); content.setOpaque(false);
@@ -1416,10 +1489,18 @@ public class TreasurerDashboardFrame extends JFrame {
         JPanel kpiRow = new JPanel(new GridLayout(1,4,16,0));
         kpiRow.setOpaque(false); kpiRow.setMaximumSize(new Dimension(Integer.MAX_VALUE,90));
         kpiRow.setBorder(new EmptyBorder(0,0,20,0));
-        kpiRow.add(buildMiniKpiCard("Total Members", "0",    C_GOLD));
-        kpiRow.add(buildMiniKpiCard("Active Donors", "0",    C_SUCCESS));
-        kpiRow.add(buildMiniKpiCard("Avg Donation", "KES 0", C_GOLD_HOVER));
-        kpiRow.add(buildMiniKpiCard("This Month",   "KES 0", C_WARNING));
+        JPanel totalMembersCard = buildMiniKpiCard("Total Members", "Loading...", C_GOLD);
+        JPanel activeDonorsCard = buildMiniKpiCard("Active Donors", "Loading...", C_SUCCESS);
+        JPanel avgDonationCard = buildMiniKpiCard("Avg Donation", "Loading...", C_GOLD_HOVER);
+        JPanel membersMonthCard = buildMiniKpiCard("This Month",   "Loading...", C_WARNING);
+        membersTotalMini = findValueLabel(totalMembersCard);
+        membersDonorsMini = findValueLabel(activeDonorsCard);
+        membersAverageMini = findValueLabel(avgDonationCard);
+        membersMonthMini = findValueLabel(membersMonthCard);
+        kpiRow.add(totalMembersCard);
+        kpiRow.add(activeDonorsCard);
+        kpiRow.add(avgDonationCard);
+        kpiRow.add(membersMonthCard);
         content.add(kpiRow);
 
         // Filter and search
@@ -1447,6 +1528,7 @@ public class TreasurerDashboardFrame extends JFrame {
         };
         JTable membersPageTable = new JTable(m);
         styleTable(membersPageTable);
+        this.membersPageTable = membersPageTable; // assign to class field so loadMembersPageData() can find it
         int[] widths = {180,150,120,100,120,100,80,120};
         for (int i=0; i<widths.length; i++) membersPageTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         membersPageTable.getColumnModel().getColumn(4).setCellRenderer(new CurrencyCellRenderer());
@@ -1523,33 +1605,54 @@ public class TreasurerDashboardFrame extends JFrame {
         loadBudgetSummaryData();
         loadFundSummaryData();
         loadOverviewTransactionsData();
+        loadTrendChartData();
+    }
+
+    private void loadTrendChartData() {
+        CompletableFuture<List<Map<String,Object>>> donationsFuture = SanctumApiClient.getDonations();
+        CompletableFuture<List<Map<String,Object>>> expensesFuture = SanctumApiClient.getExpenses();
+        donationsFuture.thenCombine(expensesFuture, (donations, expenses) -> new Object[]{donations, expenses})
+            .thenAccept(result -> SwingUtilities.invokeLater(() -> {
+                @SuppressWarnings("unchecked")
+                List<Map<String,Object>> donations = (List<Map<String,Object>>) result[0];
+                @SuppressWarnings("unchecked")
+                List<Map<String,Object>> expenses = (List<Map<String,Object>>) result[1];
+                updateTrendData(donations, expenses);
+            })).exceptionally(ex -> null);
     }
 
     private void loadKpiData() {
-        // Show loading state on EDT
         setKpiLabels("Loading...");
 
-        // Try comprehensive dashboard data first (like Pastor Dashboard)
         SanctumApiClient.getDashboardData().thenAccept(data -> SwingUtilities.invokeLater(() -> {
             if (data != null && !data.isEmpty()) {
-                // Extract meaningful data from comprehensive dashboard
-                double totalIncome = parseSafelyDouble(data.getOrDefault("total_income", "0"));
-                double totalExpenses = parseSafelyDouble(data.getOrDefault("total_expenses", "0"));
-                double monthlyIncome = parseSafelyDouble(data.getOrDefault("monthly_income", "0"));
-                double netIncome = parseSafelyDouble(data.getOrDefault("net_income", "0"));
-                
-                // Update KPI labels with formatted data
-                updateKpiLabels(totalIncome, monthlyIncome, totalExpenses, netIncome);
-                
-                System.out.println("Treasurer dashboard data loaded from comprehensive endpoint.");
+                // The comprehensive dashboard wraps financials in "financial_summary" (camelCase)
+                double totalIncome   = 0, monthlyIncome = 0, totalExpenses = 0, netBalance = 0;
+
+                Object fs = data.get("financial_summary");
+                if (fs instanceof Map) {
+                    @SuppressWarnings("unchecked") Map<String,Object> fin = (Map<String,Object>) fs;
+                    totalIncome   = parseSafelyDouble(fin.getOrDefault("totalIncome",   fin.getOrDefault("total_income",   "0")));
+                    monthlyIncome = parseSafelyDouble(fin.getOrDefault("monthlyIncome", fin.getOrDefault("monthly_income", "0")));
+                    totalExpenses = parseSafelyDouble(fin.getOrDefault("totalExpenses", fin.getOrDefault("total_expenses", "0")));
+                    netBalance    = parseSafelyDouble(fin.getOrDefault("netBalance",    fin.getOrDefault("net_income",     "0")));
+                } else {
+                    // flat keys — older endpoint shape
+                    totalIncome   = parseSafelyDouble(data.getOrDefault("total_income",   data.getOrDefault("totalIncome",   "0")));
+                    monthlyIncome = parseSafelyDouble(data.getOrDefault("monthly_income", data.getOrDefault("monthlyIncome", "0")));
+                    totalExpenses = parseSafelyDouble(data.getOrDefault("total_expenses", data.getOrDefault("totalExpenses", "0")));
+                    netBalance    = parseSafelyDouble(data.getOrDefault("net_income",     data.getOrDefault("netBalance",     "0")));
+                }
+
+                updateKpiLabels(totalIncome, monthlyIncome, totalExpenses, netBalance);
+                System.out.println("Treasurer KPIs loaded from dashboard endpoint.");
             } else {
-                // Fallback to financial overview API (current approach)
                 loadFinancialOverviewFallback();
             }
         })).exceptionally(ex -> {
             SwingUtilities.invokeLater(() -> {
-                System.err.println("Failed to load comprehensive dashboard data: " + ex.getMessage());
-                loadFinancialOverviewFallback(); // Fallback to individual calls
+                System.err.println("Dashboard data failed — falling back: " + ex.getMessage());
+                loadFinancialOverviewFallback();
             });
             return null;
         });
@@ -1666,6 +1769,98 @@ public class TreasurerDashboardFrame extends JFrame {
             return 0.0;
         } catch (Exception e) {
             return 0.0;
+        }
+    }
+
+    private void setMiniLabel(JLabel label, String value) {
+        if (label == null) return;
+        label.setText(value);
+        label.revalidate();
+        label.repaint();
+    }
+
+    private String dateValue(Map<String,Object> row) {
+        String date = row.getOrDefault("created_at",
+            row.getOrDefault("transaction_date",
+            row.getOrDefault("date", ""))).toString();
+        return date.length() > 10 ? date.substring(0, 10) : date;
+    }
+
+    private boolean isCurrentMonth(String date) {
+        return date != null && date.startsWith(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM")));
+    }
+
+    private int monthIndexForDate(String date) {
+        if (date == null || date.length() < 7) return -1;
+        try {
+            LocalDate month = LocalDate.parse(date.substring(0, 10));
+            LocalDate start = LocalDate.now().minusMonths(5).withDayOfMonth(1);
+            LocalDate itemMonth = month.withDayOfMonth(1);
+            int diff = (itemMonth.getYear() - start.getYear()) * 12 + itemMonth.getMonthValue() - start.getMonthValue();
+            return diff >= 0 && diff < 6 ? diff : -1;
+        } catch (Exception ignored) {
+            return -1;
+        }
+    }
+
+    private void updateGivingBreakdownFromDonations(List<Map<String,Object>> donations) {
+        double tithe = 0, offering = 0, building = 0, other = 0;
+        for (Map<String,Object> d : donations) {
+            double amount = parseSafelyDouble(d.getOrDefault("amount", "0"));
+            String type = d.getOrDefault("giving_type",
+                d.getOrDefault("donation_type", d.getOrDefault("category", ""))).toString().toLowerCase();
+            if (type.contains("tithe")) tithe += amount;
+            else if (type.contains("offering")) offering += amount;
+            else if (type.contains("building")) building += amount;
+            else other += amount;
+        }
+        givingBreakdownValues = new int[]{
+            (int)Math.round(tithe),
+            (int)Math.round(offering),
+            (int)Math.round(building),
+            (int)Math.round(other)
+        };
+        if (givingBreakdownPanel != null) givingBreakdownPanel.repaint();
+    }
+
+    private void updateReportStatement(List<Map<String,Object>> budgets) {
+        if (reportStatementTable == null) return;
+        DefaultTableModel model = (DefaultTableModel) reportStatementTable.getModel();
+        model.setRowCount(0);
+        if (budgets.isEmpty()) {
+            model.addRow(new Object[]{"No budget data", "", "", "", ""});
+            return;
+        }
+        for (Map<String,Object> b : budgets) {
+            double budget = parseSafelyDouble(b.getOrDefault("allocated_amount", "0"));
+            double actual = parseSafelyDouble(b.getOrDefault("spent_amount", "0"));
+            double variance = budget - actual;
+            double used = budget > 0 ? (actual / budget) * 100 : 0;
+            model.addRow(new Object[]{
+                b.getOrDefault("department", b.getOrDefault("name", "Budget")),
+                fmt(String.valueOf(budget)),
+                fmt(String.valueOf(actual)),
+                fmt(String.valueOf(variance)),
+                String.format("%.1f%%", used)
+            });
+        }
+    }
+
+    private void updateTrendData(List<Map<String,Object>> donations, List<Map<String,Object>> expenses) {
+        reportMonths = buildRecentMonthLabels();
+        reportDonations = new int[]{0, 0, 0, 0, 0, 0};
+        reportExpenses = new int[]{0, 0, 0, 0, 0, 0};
+        for (Map<String,Object> d : donations) {
+            int idx = monthIndexForDate(dateValue(d));
+            if (idx >= 0) reportDonations[idx] += (int)Math.round(parseSafelyDouble(d.getOrDefault("amount", "0")));
+        }
+        for (Map<String,Object> e : expenses) {
+            int idx = monthIndexForDate(dateValue(e));
+            if (idx >= 0) reportExpenses[idx] += (int)Math.round(parseSafelyDouble(e.getOrDefault("amount", "0")));
+        }
+        if (contentArea != null) {
+            contentArea.revalidate();
+            contentArea.repaint();
         }
     }
     
@@ -1868,91 +2063,103 @@ public class TreasurerDashboardFrame extends JFrame {
         SanctumApiClient.getDonations().thenAccept(donations -> SwingUtilities.invokeLater(() -> {
             if (donationsPageTable == null) return;
             DefaultTableModel m = (DefaultTableModel) donationsPageTable.getModel(); m.setRowCount(0);
+            double total = 0;
+            double monthTotal = 0;
+            java.util.Set<String> donors = new java.util.HashSet<>();
             if (donations.isEmpty()) {
                 m.addRow(new Object[]{"No donations found","","","","","",""});
             } else {
                 for (Map<String,Object> d : donations) {
-                    String date = d.getOrDefault("created_at","").toString();
-                    if (date.length()>10) date=date.substring(0,10);
+                    double amount = parseSafelyDouble(d.getOrDefault("amount","0"));
+                    total += amount;
+                    String date = dateValue(d);
+                    if (isCurrentMonth(date)) monthTotal += amount;
+                    String donorKey = d.getOrDefault("member",
+                        d.getOrDefault("donor_name", d.getOrDefault("member_name", ""))).toString();
+                    if (!donorKey.isBlank()) donors.add(donorKey);
                     m.addRow(new Object[]{
                         date,
-                        d.getOrDefault("member","Unknown"),
-                        d.getOrDefault("giving_type","General"),
-                        "KES "+fmt(d.getOrDefault("amount","0").toString()),
+                        d.getOrDefault("donor_name", d.getOrDefault("member_name", d.getOrDefault("member","Unknown"))),
+                        d.getOrDefault("giving_type", d.getOrDefault("donation_type", "General")),
+                        "KES "+fmt(String.valueOf(amount)),
                         d.getOrDefault("payment_method","Cash"),
-                        "Completed",
+                        d.getOrDefault("status", "Completed"),
                         d.getOrDefault("notes","")
                     });
                 }
             }
+            setMiniLabel(donationsTotalMini, "KES " + fmt(String.valueOf(total)));
+            setMiniLabel(donationsMonthMini, "KES " + fmt(String.valueOf(monthTotal)));
+            setMiniLabel(donationsDonorsMini, String.valueOf(donors.size()));
         })).exceptionally(ex -> null);
     }
 
     private void loadReportsPageData() {
-        SanctumApiClient.getFinancialReport().thenAccept(report -> SwingUtilities.invokeLater(() -> {
-            if (report == null || report.isEmpty()) return;
+        CompletableFuture<Map<String,Object>> overviewFuture = SanctumApiClient.getFinancialReport();
+        CompletableFuture<List<Map<String,Object>>> donationsFuture = SanctumApiClient.getDonations();
+        CompletableFuture<List<Map<String,Object>>> expensesFuture = SanctumApiClient.getExpenses();
+        CompletableFuture<List<Map<String,Object>>> budgetsFuture = SanctumApiClient.getBudgets();
 
-            // Update chart data if the API returns monthly breakdown
-            Object rawMonthly = report.get("monthly_donations");
-            if (rawMonthly instanceof java.util.List) {
-                java.util.List<?> monthly = (java.util.List<?>) rawMonthly;
-                int len = Math.min(monthly.size(), 6);
-                for (int i = 0; i < len; i++) {
-                    Object entry = monthly.get(i);
-                    if (entry instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> m = (Map<String, Object>) entry;
-                        reportDonations[i] = (int) parseSafelyDouble(m.getOrDefault("total", "0"));
-                        String label = m.getOrDefault("month", "").toString();
-                        if (label.length() >= 3) reportMonths[i] = label.substring(0, 3).toUpperCase();
+        CompletableFuture.allOf(overviewFuture, donationsFuture, expensesFuture, budgetsFuture)
+            .thenRun(() -> SwingUtilities.invokeLater(() -> {
+                try {
+                    Map<String,Object> overview = overviewFuture.get();
+                    List<Map<String,Object>> donations = donationsFuture.get();
+                    List<Map<String,Object>> expenses = expensesFuture.get();
+                    List<Map<String,Object>> budgets = budgetsFuture.get();
+
+                    double totalIncome = donations.stream()
+                        .mapToDouble(d -> parseSafelyDouble(d.getOrDefault("amount", "0")))
+                        .sum();
+                    double totalExpenses = expenses.stream()
+                        .mapToDouble(e -> parseSafelyDouble(e.getOrDefault("amount", "0")))
+                        .sum();
+                    if (overview != null && !overview.isEmpty()) {
+                        totalIncome = parseSafelyDouble(overview.getOrDefault("total_income", totalIncome));
+                        totalExpenses = parseSafelyDouble(overview.getOrDefault("total_expenses", totalExpenses));
                     }
-                }
-            }
+                    double net = totalIncome - totalExpenses;
 
-            Object rawExpMonthly = report.get("monthly_expenses");
-            if (rawExpMonthly instanceof java.util.List) {
-                java.util.List<?> monthly = (java.util.List<?>) rawExpMonthly;
-                int len = Math.min(monthly.size(), 6);
-                for (int i = 0; i < len; i++) {
-                    Object entry = monthly.get(i);
-                    if (entry instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> m = (Map<String, Object>) entry;
-                        reportExpenses[i] = (int) parseSafelyDouble(m.getOrDefault("total", "0"));
+                    double totalBudget = 0;
+                    double totalSpent = 0;
+                    for (Map<String,Object> b : budgets) {
+                        totalBudget += parseSafelyDouble(b.getOrDefault("allocated_amount", "0"));
+                        totalSpent += parseSafelyDouble(b.getOrDefault("spent_amount", "0"));
                     }
-                }
-            }
+                    double budgetUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
-            // Repaint the whole content area so the chart picks up new data
-            if (contentArea != null) { contentArea.revalidate(); contentArea.repaint(); }
-        })).exceptionally(ex -> {
-            SwingUtilities.invokeLater(() ->
-                System.err.println("Failed to load reports page data: " + ex.getMessage()));
-            return null;
-        });
+                    updateTrendData(donations, expenses);
+                    setMiniLabel(reportIncomeMini, "KES " + fmt(String.valueOf(totalIncome)));
+                    setMiniLabel(reportExpensesMini, "KES " + fmt(String.valueOf(totalExpenses)));
+                    setMiniLabel(reportNetMini, "KES " + fmt(String.valueOf(net)));
+                    setMiniLabel(reportBudgetUsedMini, String.format("%.1f%%", budgetUsed));
+                    updateGivingBreakdownFromDonations(donations);
+                    updateReportStatement(budgets);
+
+                    if (contentArea != null) { contentArea.revalidate(); contentArea.repaint(); }
+                } catch (Exception ex) {
+                    System.err.println("Failed to apply reports page data: " + ex.getMessage());
+                }
+            })).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() ->
+                    System.err.println("Failed to load reports page data: " + ex.getMessage()));
+                return null;
+            });
     }
 
     private void loadBudgetPageData() {
         SanctumApiClient.getBudgets().thenAccept(budgets -> SwingUtilities.invokeLater(() -> {
-            // Find the budget page's table by searching the "budget" card panel
-            java.awt.Component budgetPage = null;
-            for (int i = 0; i < contentArea.getComponentCount(); i++) {
-                java.awt.Component c = contentArea.getComponent(i);
-                if (c instanceof JPanel) {
-                    budgetPage = c;
-                    break;
-                }
-            }
+            // Use the class field directly — local-variable search was finding the wrong table
+            if (budgetPageTable == null) return;
 
-            // Find JTable inside the budget card
-            JTable budgetTable = findTableInContainer(contentArea, "budget");
-            if (budgetTable == null) return;
-
-            DefaultTableModel m = (DefaultTableModel) budgetTable.getModel();
+            DefaultTableModel m = (DefaultTableModel) budgetPageTable.getModel();
             m.setRowCount(0);
 
             if (budgets.isEmpty()) {
                 m.addRow(new Object[]{"No budgets", "", "", "", "", "", ""});
+                setMiniLabel(budgetTotalMini, "KES 0");
+                setMiniLabel(budgetSpentMini, "KES 0");
+                setMiniLabel(budgetRemainingMini, "KES 0");
             } else {
                 double totalAlloc = 0, totalSpent = 0;
                 for (Map<String, Object> b : budgets) {
@@ -1971,13 +2178,19 @@ public class TreasurerDashboardFrame extends JFrame {
                         String.format("%.1f%%", pct)
                     });
                 }
-                // Totals row
+                // Totals summary row
                 double remaining = totalAlloc - totalSpent;
                 double totalPct  = totalAlloc > 0 ? (totalSpent / totalAlloc) * 100 : 0;
+                setMiniLabel(budgetTotalMini, "KES " + fmt(String.valueOf(totalAlloc)));
+                setMiniLabel(budgetSpentMini, "KES " + fmt(String.valueOf(totalSpent)));
+                setMiniLabel(budgetRemainingMini, "KES " + fmt(String.valueOf(remaining)));
                 m.addRow(new Object[]{
-                    "TOTAL", "", fmt(String.valueOf(totalAlloc)),
-                    fmt(String.valueOf(totalSpent)), fmt(String.valueOf(remaining)),
-                    "", String.format("%.1f%%", totalPct)
+                    "TOTAL", "",
+                    fmt(String.valueOf(totalAlloc)),
+                    fmt(String.valueOf(totalSpent)),
+                    fmt(String.valueOf(remaining)),
+                    "",
+                    String.format("%.1f%%", totalPct)
                 });
             }
         })).exceptionally(ex -> {
@@ -1987,7 +2200,7 @@ public class TreasurerDashboardFrame extends JFrame {
         });
     }
 
-    /** Walk the contentArea card layout to find a JTable inside the named card. */
+    /** @deprecated Use budgetPageTable / membersPageTable class fields directly. */
     private JTable findTableInContainer(java.awt.Container root, String cardHint) {
         for (int i = 0; i < root.getComponentCount(); i++) {
             java.awt.Component c = root.getComponent(i);
@@ -2026,21 +2239,30 @@ public class TreasurerDashboardFrame extends JFrame {
         SanctumApiClient.getAccounts().thenAccept(accounts -> SwingUtilities.invokeLater(() -> {
             if (accountsPageTable == null) return;
             DefaultTableModel m = (DefaultTableModel) accountsPageTable.getModel(); m.setRowCount(0);
+            double totalBalance = 0;
+            int activeCount = 0;
             if (accounts.isEmpty()) {
                 m.addRow(new Object[]{"No accounts found","","","","","",""});
             } else {
                 for (Map<String,Object> a : accounts) {
+                    double balance = parseSafelyDouble(a.getOrDefault("balance", a.getOrDefault("current_balance", "0")));
+                    boolean active = a.getOrDefault("is_active", true).equals(true);
+                    totalBalance += balance;
+                    if (active) activeCount++;
                     m.addRow(new Object[]{
-                        a.getOrDefault("name",""),
+                        a.getOrDefault("name", a.getOrDefault("account_name","")),
                         a.getOrDefault("account_type",""),
                         a.getOrDefault("account_number",""),
                         a.getOrDefault("bank_name",""),
-                        "KES "+fmt(a.getOrDefault("balance","0").toString()),
+                        "KES "+fmt(String.valueOf(balance)),
                         a.getOrDefault("currency","KES"),
-                        a.getOrDefault("is_active",true).equals(true) ? "Active" : "Inactive"
+                        active ? "Active" : "Inactive"
                     });
                 }
             }
+            setMiniLabel(accountsCountMini, String.valueOf(accounts.size()));
+            setMiniLabel(accountsBalanceMini, "KES " + fmt(String.valueOf(totalBalance)));
+            setMiniLabel(accountsActiveMini, String.valueOf(activeCount));
         })).exceptionally(ex -> null);
     }
 
@@ -2048,74 +2270,100 @@ public class TreasurerDashboardFrame extends JFrame {
         SanctumApiClient.getExpenses().thenAccept(expenses -> SwingUtilities.invokeLater(() -> {
             if (expensesPageTable == null) return;
             DefaultTableModel m = (DefaultTableModel) expensesPageTable.getModel(); m.setRowCount(0);
+            double total = 0;
+            double monthTotal = 0;
+            int pending = 0;
+            int approved = 0;
             if (expenses.isEmpty()) {
                 m.addRow(new Object[]{"No expenses found","","","","","","",""});
             } else {
                 for (Map<String,Object> e : expenses) {
-                    String date = e.getOrDefault("date","").toString();
-                    if (date.length()>10) date=date.substring(0,10);
+                    String date = dateValue(e);
+                    double amount = parseSafelyDouble(e.getOrDefault("amount","0"));
+                    total += amount;
+                    if (isCurrentMonth(date)) monthTotal += amount;
+                    String status = e.getOrDefault("status","Pending").toString();
+                    if (status.equalsIgnoreCase("approved")) approved++;
+                    else if (status.equalsIgnoreCase("pending")) pending++;
                     m.addRow(new Object[]{
                         date,
-                        e.getOrDefault("description",""),
+                        e.getOrDefault("description", e.getOrDefault("title","")),
                         e.getOrDefault("category",""),
                         e.getOrDefault("vendor",""),
-                        "KES "+fmt(e.getOrDefault("amount","0").toString()),
+                        "KES "+fmt(String.valueOf(amount)),
                         e.getOrDefault("approved_by",""),
-                        e.getOrDefault("status","Pending"),
+                        status,
                         e.getOrDefault("receipt","") != null && !e.getOrDefault("receipt","").toString().isEmpty() ? "✓" : "—"
                     });
                 }
             }
+            setMiniLabel(expensesTotalMini, "KES " + fmt(String.valueOf(total)));
+            setMiniLabel(expensesMonthMini, "KES " + fmt(String.valueOf(monthTotal)));
+            setMiniLabel(expensesPendingMini, String.valueOf(pending));
+            setMiniLabel(expensesApprovedMini, String.valueOf(approved));
         })).exceptionally(ex -> null);
     }
 
     private void loadMembersPageData() {
-        // Load members and donations in parallel, then join on EDT
-        CompletableFuture<java.util.List<Map<String,Object>>> membersFuture  = SanctumApiClient.getMembers();
+        CompletableFuture<java.util.List<Map<String,Object>>> membersFuture   = SanctumApiClient.getMembers();
         CompletableFuture<java.util.List<Map<String,Object>>> donationsFuture = SanctumApiClient.getDonations();
 
         membersFuture.thenCombine(donationsFuture, (members, donations) -> {
-            // Build a per-member donation summary
-            java.util.Map<String, Double> totalByMember   = new java.util.LinkedHashMap<>();
-            java.util.Map<String, Double> monthlyByMember = new java.util.LinkedHashMap<>();
-            java.util.Map<String, String> lastDonation    = new java.util.LinkedHashMap<>();
+            // ── Build per-member donation summaries ──────────────────────
+            // KEY FIX: donations from the API identify the member by their
+            // primary key integer (field "member"), NOT by display name.
+            // We build two lookup maps keyed by member-id string so the join
+            // is always correct regardless of how names are formatted.
+            java.util.Map<String, Double> totalById   = new java.util.LinkedHashMap<>();
+            java.util.Map<String, Double> monthlyById = new java.util.LinkedHashMap<>();
+            java.util.Map<String, String> lastById    = new java.util.LinkedHashMap<>();
 
             String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
             for (Map<String,Object> d : donations) {
-                String memberKey = d.getOrDefault("member", "Unknown").toString();
-                double amount    = parseSafelyDouble(d.getOrDefault("amount", "0"));
-                String date      = d.getOrDefault("created_at", "").toString();
+                // "member" field is the member PK (int or string)
+                String memberId = d.getOrDefault("member", "").toString();
+                double amount   = parseSafelyDouble(d.getOrDefault("amount", "0"));
+                String date     = d.getOrDefault("created_at", d.getOrDefault("transaction_date", "")).toString();
 
-                totalByMember.merge(memberKey, amount, Double::sum);
+                totalById.merge(memberId, amount, Double::sum);
                 if (date.startsWith(currentMonth))
-                    monthlyByMember.merge(memberKey, amount, Double::sum);
-                if (!lastDonation.containsKey(memberKey) || date.compareTo(lastDonation.getOrDefault(memberKey,"")) > 0)
-                    lastDonation.put(memberKey, date.length() > 10 ? date.substring(0,10) : date);
+                    monthlyById.merge(memberId, amount, Double::sum);
+                String prev = lastById.getOrDefault(memberId, "");
+                if (date.compareTo(prev) > 0)
+                    lastById.put(memberId, date.length() > 10 ? date.substring(0, 10) : date);
             }
 
-            return new Object[]{members, totalByMember, monthlyByMember, lastDonation};
+            return new Object[]{members, totalById, monthlyById, lastById};
+
         }).thenAccept(result -> SwingUtilities.invokeLater(() -> {
+            // Use the class field — fragile column-count search removed
+            if (membersPageTable == null) return;
+
             @SuppressWarnings("unchecked")
             java.util.List<Map<String,Object>> members =
                 (java.util.List<Map<String,Object>>) result[0];
             @SuppressWarnings("unchecked")
-            java.util.Map<String,Double> totalByMember =
+            java.util.Map<String,Double> totalById =
                 (java.util.Map<String,Double>) result[1];
             @SuppressWarnings("unchecked")
-            java.util.Map<String,Double> monthlyByMember =
+            java.util.Map<String,Double> monthlyById =
                 (java.util.Map<String,Double>) result[2];
             @SuppressWarnings("unchecked")
-            java.util.Map<String,String> lastDonation =
+            java.util.Map<String,String> lastById =
                 (java.util.Map<String,String>) result[3];
 
-            // Find the members page table — it's the JTable in the "members" card
-            // We stored it as a local variable in buildMembersPage, so we search for it
-            JTable table = findMembersTable();
-            if (table == null) return;
-
-            DefaultTableModel m = (DefaultTableModel) table.getModel();
+            DefaultTableModel m = (DefaultTableModel) membersPageTable.getModel();
             m.setRowCount(0);
+
+            double totalGivenAll = totalById.values().stream().mapToDouble(Double::doubleValue).sum();
+            double monthGivenAll = monthlyById.values().stream().mapToDouble(Double::doubleValue).sum();
+            long activeDonors = totalById.values().stream().filter(v -> v > 0).count();
+            double avgGiven = activeDonors > 0 ? totalGivenAll / activeDonors : 0;
+            setMiniLabel(membersTotalMini, String.valueOf(members.size()));
+            setMiniLabel(membersDonorsMini, String.valueOf(activeDonors));
+            setMiniLabel(membersAverageMini, "KES " + fmt(String.valueOf(avgGiven)));
+            setMiniLabel(membersMonthMini, "KES " + fmt(String.valueOf(monthGivenAll)));
 
             if (members.isEmpty()) {
                 m.addRow(new Object[]{"No members found","","","","","","",""});
@@ -2123,20 +2371,28 @@ public class TreasurerDashboardFrame extends JFrame {
             }
 
             for (Map<String,Object> mem : members) {
-                String firstName = mem.getOrDefault("first_name", mem.getOrDefault("user_first_name","")).toString();
-                String lastName  = mem.getOrDefault("last_name",  mem.getOrDefault("user_last_name", "")).toString();
+                String memberId  = mem.getOrDefault("id", "").toString();
+                String firstName = mem.getOrDefault("first_name",
+                                   mem.getOrDefault("user_first_name","")).toString();
+                String lastName  = mem.getOrDefault("last_name",
+                                   mem.getOrDefault("user_last_name","")).toString();
                 String name      = (firstName + " " + lastName).trim();
-                if (name.isEmpty()) name = mem.getOrDefault("email", mem.getOrDefault("user_email","Unknown")).toString();
+                if (name.isEmpty()) name = mem.getOrDefault("email",
+                                            mem.getOrDefault("user_email","Unknown")).toString();
 
-                String email   = mem.getOrDefault("email", mem.getOrDefault("user_email","")).toString();
-                String phone   = mem.getOrDefault("phone", mem.getOrDefault("phone_number","")).toString();
+                String email   = mem.getOrDefault("email",
+                                 mem.getOrDefault("user_email","")).toString();
+                String phone   = mem.getOrDefault("phone",
+                                 mem.getOrDefault("phone_number","")).toString();
                 String joined  = mem.getOrDefault("date_joined","").toString();
-                if (joined.length() > 10) joined = joined.substring(0,10);
+                if (joined.length() > 10) joined = joined.substring(0, 10);
 
-                double totalGiven   = totalByMember.getOrDefault(name, 0.0);
-                double monthlyGiven = monthlyByMember.getOrDefault(name, 0.0);
-                String lastGiven    = lastDonation.getOrDefault(name, "—");
-                String status       = mem.getOrDefault("is_active","true").toString().equalsIgnoreCase("true") ? "Active" : "Inactive";
+                // Lookup by member PK — correct key
+                double totalGiven   = totalById.getOrDefault(memberId, 0.0);
+                double monthlyGiven = monthlyById.getOrDefault(memberId, 0.0);
+                String lastGiven    = lastById.getOrDefault(memberId, "—");
+                String status       = mem.getOrDefault("is_active","true")
+                                        .toString().equalsIgnoreCase("true") ? "Active" : "Inactive";
 
                 m.addRow(new Object[]{
                     name, email, phone, joined,
@@ -2153,12 +2409,11 @@ public class TreasurerDashboardFrame extends JFrame {
     }
 
     /**
-     * The members table is a local variable in buildMembersPage(), so we need
-     * to find it by walking the component tree of the "members" card.
-     * We identify it by its column count (8 columns).
+     * No longer used — membersPageTable is now a class field.
+     * Kept to avoid breaking any call sites that may exist elsewhere.
      */
     private JTable findMembersTable() {
-        return findTableByColumns(contentArea, 8);
+        return membersPageTable;
     }
 
     private JTable findTableByColumns(java.awt.Container root, int colCount) {
@@ -2175,6 +2430,165 @@ public class TreasurerDashboardFrame extends JFrame {
     }
 
     // ─── Dialogs ─────────────────────────────────────────────────────────────
+
+    // ── Giving Types Manager ──────────────────────────────────────────────────
+    private void showGivingTypesDialog() {
+        JDialog dlg = new JDialog(this, "Giving Types (Categories)", true);
+        dlg.setSize(700, 520);
+        dlg.setLocationRelativeTo(this);
+
+        JPanel root = new JPanel(new BorderLayout(0, 12));
+        root.setBackground(C_BG);
+        root.setBorder(new EmptyBorder(24, 28, 20, 28));
+
+        JLabel title = new JLabel("🏷  Giving Types / Categories");
+        title.setFont(F_H1); title.setForeground(C_GOLD);
+
+        // ── Category table ────────────────────────────────────────────────
+        String[] cols = {"Name", "Description", "Has Target", "Monthly Target (KES)", "Yearly Target (KES)", "Active"};
+        DefaultTableModel catModel = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable catTable = new JTable(catModel);
+        styleTable(catTable);
+        catTable.getColumnModel().getColumn(0).setPreferredWidth(140);
+        catTable.getColumnModel().getColumn(1).setPreferredWidth(200);
+
+        // Load categories from API
+        Runnable loadCats = () -> {
+            SanctumApiClient.getGivingCategories().thenAccept(cats -> SwingUtilities.invokeLater(() -> {
+                catModel.setRowCount(0);
+                if (cats.isEmpty()) {
+                    catModel.addRow(new Object[]{"No categories yet", "", "", "", "", ""});
+                } else {
+                    for (Map<String,Object> c : cats) {
+                        Object monthlyRaw = c.get("monthly_target");
+                        Object yearlyRaw  = c.get("yearly_target");
+                        catModel.addRow(new Object[]{
+                            c.getOrDefault("name",        ""),
+                            c.getOrDefault("description", ""),
+                            Boolean.TRUE.equals(c.get("has_target")) ? "Yes" : "No",
+                            monthlyRaw != null ? fmt(monthlyRaw.toString()) : "—",
+                            yearlyRaw  != null ? fmt(yearlyRaw.toString())  : "—",
+                            Boolean.TRUE.equals(c.get("is_active")) ? "✓" : "✗"
+                        });
+                    }
+                }
+            })).exceptionally(ex -> null);
+        };
+        loadCats.run();
+
+        JScrollPane scroll = styledScroll(catTable, 160);
+
+        // ── Add-new form ──────────────────────────────────────────────────
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBackground(C_CARD);
+        form.setBorder(new EmptyBorder(14, 14, 14, 14));
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.fill = GridBagConstraints.HORIZONTAL; gc.insets = new Insets(4, 4, 4, 4);
+
+        JTextField fCatName  = styledField("Category name e.g. Tithe, Offering");
+        JTextField fCatDesc  = styledField("Short description");
+        JTextField fMonthly  = styledField("0");
+        JTextField fYearly   = styledField("0");
+        JCheckBox  cbTarget  = new JCheckBox("Has Target");
+        cbTarget.setBackground(C_CARD); cbTarget.setForeground(C_TEXT_MID); cbTarget.setFont(F_LABEL);
+
+        int r = 0;
+        gc.gridx=0; gc.gridy=r; gc.weightx=0; gc.gridwidth=1;
+        form.add(label("Name *"), gc);
+        gc.gridx=1; gc.weightx=1; gc.gridwidth=3;
+        form.add(fCatName, gc);
+
+        r++;
+        gc.gridx=0; gc.gridy=r; gc.weightx=0; gc.gridwidth=1;
+        form.add(label("Description"), gc);
+        gc.gridx=1; gc.weightx=1; gc.gridwidth=3;
+        form.add(fCatDesc, gc);
+
+        r++;
+        gc.gridx=0; gc.gridy=r; gc.weightx=0; gc.gridwidth=1;
+        form.add(label("Monthly Target"), gc);
+        gc.gridx=1; gc.weightx=1; gc.gridwidth=1;
+        form.add(fMonthly, gc);
+        gc.gridx=2; gc.weightx=0;
+        form.add(label("Yearly Target"), gc);
+        gc.gridx=3; gc.weightx=1;
+        form.add(fYearly, gc);
+
+        r++;
+        gc.gridx=0; gc.gridy=r; gc.gridwidth=4; gc.weightx=1;
+        form.add(cbTarget, gc);
+
+        // ── Status + buttons ──────────────────────────────────────────────
+        JLabel statusLbl = new JLabel(" ");
+        statusLbl.setFont(F_SMALL);
+        statusLbl.setForeground(C_TEXT_DIM);
+
+        JButton addBtn  = buildPrimaryBtn("➕ Add Category", null);
+        JButton doneBtn = buildPrimaryBtn("✓ Done", e -> dlg.dispose());
+
+        addBtn.addActionListener(e -> {
+            String name = fCatName.getText().trim();
+            if (name.isEmpty()) { statusLbl.setText("Category name is required."); statusLbl.setForeground(C_DANGER); return; }
+            double monthly = parseDouble(fMonthly.getText().trim());
+            double yearly  = parseDouble(fYearly.getText().trim());
+            addBtn.setEnabled(false);
+            addBtn.setText("⏳ Saving…");
+            statusLbl.setText("Saving…"); statusLbl.setForeground(C_GOLD);
+
+            SanctumApiClient.addGivingCategory(name, fCatDesc.getText().trim(),
+                cbTarget.isSelected(), monthly, yearly)
+                .thenAccept(ok -> SwingUtilities.invokeLater(() -> {
+                    addBtn.setEnabled(true);
+                    addBtn.setText("➕ Add Category");
+                    if (ok) {
+                        statusLbl.setText("✓ Category '" + name + "' added.");
+                        statusLbl.setForeground(C_SUCCESS);
+                        fCatName.setText(""); fCatDesc.setText(""); fMonthly.setText("0"); fYearly.setText("0");
+                        cbTarget.setSelected(false);
+                        loadCats.run();   // refresh table
+                    } else {
+                        statusLbl.setText("Failed to save — check connection.");
+                        statusLbl.setForeground(C_DANGER);
+                    }
+                })).exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        addBtn.setEnabled(true);
+                        addBtn.setText("➕ Add Category");
+                        statusLbl.setText("Network error: " + ex.getMessage());
+                        statusLbl.setForeground(C_DANGER);
+                    });
+                    return null;
+                });
+        });
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        btnRow.setBackground(C_BG);
+        btnRow.add(statusLbl);
+        btnRow.add(addBtn);
+        btnRow.add(doneBtn);
+
+        JPanel south = new JPanel(new BorderLayout(0, 8));
+        south.setBackground(C_BG);
+        south.add(form,   BorderLayout.NORTH);
+        south.add(btnRow, BorderLayout.SOUTH);
+
+        root.add(title,  BorderLayout.NORTH);
+        root.add(scroll, BorderLayout.CENTER);
+        root.add(south,  BorderLayout.SOUTH);
+
+        dlg.setContentPane(root);
+        dlg.setVisible(true);
+    }
+
+    /** Quick plain label for form rows in dialogs */
+    private JLabel label(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(F_LABEL); l.setForeground(C_TEXT_MID);
+        return l;
+    }
+
     private void showAddDonationDialog() {
         JDialog dlg = new JDialog(this, "Add Donation", true);
         dlg.setSize(440, 360); dlg.setLocationRelativeTo(this);
@@ -2461,15 +2875,252 @@ public class TreasurerDashboardFrame extends JFrame {
         DialogManager.showDialogEnhanced(dlg);
     }
 
-    private void showBudgetStudioDialog() {
-        JDialog dialog = new JDialog(this, "Budget Studio", true);
-        dialog.setSize(1100, 700); dialog.setLocationRelativeTo(this);
-        BudgetStudio bs = new BudgetStudio(this);
-        bs.addPropertyChangeListener("budgetSaved", evt -> {
-            if (Boolean.TRUE.equals(evt.getNewValue())) { loadBudgetSummaryData(); loadKpiData(); }
+    // ─── Budget PIN Manager ───────────────────────────────────────────────────
+    private void showBudgetPinManagerDialog() {
+        JDialog dlg = new JDialog(this, "Budget Access PINs", true);
+        dlg.setSize(820, 600);
+        dlg.setLocationRelativeTo(this);
+
+        JPanel root = new JPanel(new BorderLayout(0, 16));
+        root.setBackground(C_BG);
+        root.setBorder(new EmptyBorder(24, 28, 20, 28));
+
+        // ── Header ────────────────────────────────────────────────────────
+        JLabel title = new JLabel("🔑  Budget Access PIN Manager");
+        title.setFont(F_H1); title.setForeground(C_GOLD);
+
+        JLabel subtitle = new JLabel(
+            "Generate a time-limited PIN so members can view the church budget summary on their phones.");
+        subtitle.setFont(F_SMALL); subtitle.setForeground(C_TEXT_DIM);
+
+        JPanel hdr = new JPanel(); hdr.setOpaque(false);
+        hdr.setLayout(new BoxLayout(hdr, BoxLayout.Y_AXIS));
+        hdr.add(title); hdr.add(Box.createVerticalStrut(4)); hdr.add(subtitle);
+
+        // ── Create-new form ───────────────────────────────────────────────
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBackground(C_CARD);
+        form.setBorder(new EmptyBorder(16, 20, 16, 20));
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.fill = GridBagConstraints.HORIZONTAL; gc.insets = new Insets(5, 5, 5, 5);
+
+        JTextField fLabel = styledField("e.g. Q2 Budget Review");
+
+        // Duration selector
+        String[] durations = {"1 hour","2 hours","6 hours","12 hours","24 hours","48 hours","7 days","30 days"};
+        int[]    durationH = {1,       2,        6,        12,        24,        48,        168,      720};
+        JComboBox<String> durCombo = new JComboBox<>(durations);
+        durCombo.setBackground(C_CARD); durCombo.setForeground(C_TEXT); durCombo.setFont(F_BODY);
+        durCombo.setSelectedIndex(4); // default 24 h
+
+        JTextField fMaxUses = styledField("Leave blank for unlimited");
+
+        int r = 0;
+        gc.gridx=0; gc.gridy=r; gc.weightx=0; gc.gridwidth=1;
+        form.add(label("Label"), gc);
+        gc.gridx=1; gc.weightx=1; gc.gridwidth=3;
+        form.add(fLabel, gc);
+
+        r++;
+        gc.gridx=0; gc.gridy=r; gc.weightx=0; gc.gridwidth=1;
+        form.add(label("Valid for"), gc);
+        gc.gridx=1; gc.weightx=1; gc.gridwidth=1;
+        form.add(durCombo, gc);
+        gc.gridx=2; gc.weightx=0;
+        form.add(label("Max uses"), gc);
+        gc.gridx=3; gc.weightx=1;
+        form.add(fMaxUses, gc);
+
+        // ── Active PINs table ─────────────────────────────────────────────
+        String[] cols = {"PIN", "Label", "Expires", "Uses", "Max Uses", "Status", "Action"};
+        DefaultTableModel pinModel = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int row, int col) { return false; }
+        };
+        JTable pinTable = new JTable(pinModel);
+        styleTable(pinTable);
+        int[] colWidths = {70, 200, 150, 55, 70, 70, 80};
+        for (int i = 0; i < colWidths.length; i++)
+            pinTable.getColumnModel().getColumn(i).setPreferredWidth(colWidths[i]);
+
+        // Store raw pin IDs for revoke action
+        java.util.List<Integer> pinIds = new java.util.ArrayList<>();
+
+        // Status label + refresh lambda
+        JLabel statusLbl = new JLabel("Loading PINs…");
+        statusLbl.setFont(F_SMALL); statusLbl.setForeground(C_TEXT_DIM);
+
+        Runnable loadPins = () -> {
+            statusLbl.setText("Loading…");
+            SanctumApiClient.getBudgetPins().thenAccept(pins -> SwingUtilities.invokeLater(() -> {
+                pinModel.setRowCount(0);
+                pinIds.clear();
+                if (pins.isEmpty()) {
+                    pinModel.addRow(new Object[]{"—", "No PINs yet", "", "", "", "", ""});
+                } else {
+                    for (Map<String,Object> p : pins) {
+                        String expires = p.getOrDefault("expires_at", "").toString();
+                        if (expires.length() > 16) expires = expires.substring(0, 16).replace("T", " ");
+                        boolean valid = Boolean.TRUE.equals(p.get("is_valid"));
+                        String pinStr = p.getOrDefault("pin", "").toString();
+                        // Only show PIN to treasurer while viewing the dialog
+                        pinModel.addRow(new Object[]{
+                            pinStr,
+                            p.getOrDefault("label",      "").toString(),
+                            expires,
+                            p.getOrDefault("view_count", "0").toString(),
+                            p.getOrDefault("max_uses",   "∞").toString(),
+                            valid ? "✓ Active" : "✗ Expired",
+                            valid ? "Revoke" : "—"
+                        });
+                        Object idObj = p.get("id");
+                        pinIds.add(idObj instanceof Number ? ((Number) idObj).intValue() : -1);
+                    }
+                }
+                statusLbl.setText(pins.size() + " PIN(s)");
+            })).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> statusLbl.setText("Failed to load PINs"));
+                return null;
+            });
+        };
+        loadPins.run();
+
+        // Revoke on row double-click
+        pinTable.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() != 2) return;
+                int row = pinTable.getSelectedRow();
+                if (row < 0 || row >= pinIds.size()) return;
+                int id = pinIds.get(row);
+                if (id < 0) return;
+                String pinVal = pinModel.getValueAt(row, 0).toString();
+                int confirm = JOptionPane.showConfirmDialog(dlg,
+                    "Revoke PIN " + pinVal + "? Members will no longer be able to use it.",
+                    "Confirm Revoke", JOptionPane.YES_NO_OPTION);
+                if (confirm != JOptionPane.YES_OPTION) return;
+                SanctumApiClient.revokeBudgetPin(id).thenAccept(ok -> SwingUtilities.invokeLater(() -> {
+                    if (ok) { statusLbl.setText("PIN " + pinVal + " revoked."); loadPins.run(); }
+                    else    { statusLbl.setText("Revoke failed — try again."); }
+                })).exceptionally(ex -> null);
+            }
         });
-        dialog.setContentPane(bs);
-        DialogManager.showDialogEnhanced(dialog);
+
+        JScrollPane scroll = styledScroll(pinTable, 220);
+
+        // ── Buttons ───────────────────────────────────────────────────────
+        JButton generateBtn = buildPrimaryBtn("⚡ Generate PIN", null);
+        JButton refreshBtn  = buildTopBtn("↻ Refresh", C_TEXT_MID);
+        JButton closeBtn    = buildTopBtn("✓ Close",   C_TEXT_MID);
+
+        generateBtn.addActionListener(e -> {
+            String lbl = fLabel.getText().trim();
+            int hours  = durationH[durCombo.getSelectedIndex()];
+            int maxU   = -1;
+            String mu  = fMaxUses.getText().trim();
+            if (!mu.isEmpty()) {
+                try { maxU = Integer.parseInt(mu); }
+                catch (NumberFormatException ex) { statusLbl.setText("Max uses must be a number."); return; }
+            }
+            generateBtn.setEnabled(false);
+            generateBtn.setText("⏳ Generating…");
+            statusLbl.setText("Creating PIN…"); statusLbl.setForeground(C_GOLD);
+
+            final int finalMaxU = maxU;
+            SanctumApiClient.createBudgetPin(lbl, hours, finalMaxU)
+                .thenAccept(result -> SwingUtilities.invokeLater(() -> {
+                    generateBtn.setEnabled(true);
+                    generateBtn.setText("⚡ Generate PIN");
+                    if (!result.isEmpty()) {
+                        String newPin = result.getOrDefault("pin", "?").toString();
+                        String expiry = result.getOrDefault("expires_at", "").toString();
+                        if (expiry.length() > 16) expiry = expiry.substring(0, 16).replace("T", " ");
+                        statusLbl.setForeground(C_SUCCESS);
+                        statusLbl.setText("✓ PIN created: " + newPin + "  (expires " + expiry + ")");
+                        // Show the PIN prominently
+                        JOptionPane.showMessageDialog(dlg,
+                            "New Budget Access PIN:\n\n"
+                          + "  " + newPin + "\n\n"
+                          + "Share this PIN with members.\n"
+                          + "Valid until: " + expiry + "\n"
+                          + "Members enter it in the app under: Giving → View Budget",
+                            "PIN Generated", JOptionPane.INFORMATION_MESSAGE);
+                        fLabel.setText("");
+                        loadPins.run();
+                    } else {
+                        statusLbl.setForeground(C_DANGER);
+                        statusLbl.setText("Failed to create PIN — check connection.");
+                    }
+                })).exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        generateBtn.setEnabled(true);
+                        generateBtn.setText("⚡ Generate PIN");
+                        statusLbl.setText("Error: " + ex.getMessage());
+                        statusLbl.setForeground(C_DANGER);
+                    });
+                    return null;
+                });
+        });
+
+        refreshBtn.addActionListener(e -> loadPins.run());
+        closeBtn.addActionListener(e -> dlg.dispose());
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        btnRow.setBackground(C_BG);
+        btnRow.add(statusLbl); btnRow.add(refreshBtn); btnRow.add(closeBtn); btnRow.add(generateBtn);
+
+        JPanel south = new JPanel(new BorderLayout(0, 8));
+        south.setBackground(C_BG);
+        south.add(form,   BorderLayout.NORTH);
+        south.add(btnRow, BorderLayout.SOUTH);
+
+        root.add(hdr,    BorderLayout.NORTH);
+        root.add(scroll, BorderLayout.CENTER);
+        root.add(south,  BorderLayout.SOUTH);
+
+        dlg.setContentPane(root);
+        dlg.setVisible(true);
+    }
+
+    private void showBudgetStudioDialog() {
+        // Embed BudgetStudio directly as the budget page content — full frame, no dialog clipping
+        JDialog dialog = new JDialog(this, "Budget Studio", true);
+        dialog.setUndecorated(false);
+        // Size to nearly full screen for comfortable two-column layout
+        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+        Rectangle screen = gd.getDefaultConfiguration().getBounds();
+        dialog.setSize(Math.min(screen.width - 80, 1440), Math.min(screen.height - 80, 900));
+        dialog.setLocationRelativeTo(this);
+
+        // Dark root panel matching treasurer theme
+        JPanel root = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                g.setColor(C_BG); g.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        root.setOpaque(true);
+
+        BudgetStudio bs = new BudgetStudio(this);
+        // Listen for saves → refresh treasurer KPIs + budget page
+        bs.addPropertyChangeListener("budgetSaved", evt -> {
+            if (Boolean.TRUE.equals(evt.getNewValue())) {
+                loadBudgetSummaryData();
+                loadKpiData();
+            }
+        });
+
+        JScrollPane scroll = new JScrollPane(bs);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setBorder(null);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        root.add(scroll, BorderLayout.CENTER);
+
+        dialog.setContentPane(root);
+        dialog.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+            .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close");
+        dialog.getRootPane().getActionMap().put("close", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { dialog.dispose(); }
+        });
+        dialog.setVisible(true);
     }
 
     private void performAutoReconciliation() {

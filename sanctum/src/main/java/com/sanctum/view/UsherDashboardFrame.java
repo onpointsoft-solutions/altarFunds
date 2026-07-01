@@ -13,8 +13,11 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Usher Dashboard - Attendance Management
@@ -538,16 +541,20 @@ public class UsherDashboardFrame extends JFrame {
         JPanel content = new JPanel(new GridLayout(2, 2, 10, 10));
         content.setOpaque(false);
 
-        String[][] actions = {
-            {"✅", "Check In Member", "checkin"},
-            {"👋", "Add Visitor", "visitor"},
-            {"📥", "Bulk Check In", "bulk"},
-            {"🚪", "Check Out", "checkout"}
-        };
+        JButton checkInBtn  = createActionButton("✅ Check In Member", C_SUCCESS);
+        JButton visitorBtn  = createActionButton("👋 Add Visitor",     C_GOLD);
+        JButton bulkBtn     = createActionButton("📥 Bulk Check In",   C_GOLD);
+        JButton checkOutBtn = createActionButton("🚪 Check Out",       C_DANGER);
 
-        for (String[] action : actions) {
-            content.add(createActionButton(action[0] + " " + action[1], C_SUCCESS));
-        }
+        checkInBtn .addActionListener(e -> showCheckInDialog());
+        visitorBtn .addActionListener(e -> showAddVisitorDialog());
+        bulkBtn    .addActionListener(e -> showBulkCheckInDialog());
+        checkOutBtn.addActionListener(e -> showCheckOutDialog());
+
+        content.add(checkInBtn);
+        content.add(visitorBtn);
+        content.add(bulkBtn);
+        content.add(checkOutBtn);
 
         card.add(content, BorderLayout.CENTER);
         return card;
@@ -676,14 +683,18 @@ public class UsherDashboardFrame extends JFrame {
         };
 
         // Load real activity data
-        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
+        String todayDate = java.time.LocalDate.now().toString();
+        SanctumApiClient.getMemberAttendances(todayDate).thenAccept(records -> SwingUtilities.invokeLater(() -> {
             if (records != null && !records.isEmpty()) {
-                model.setRowCount(0); // Clear existing data
+                model.setRowCount(0);
                 for (Map<String, Object> record : records) {
-                    String time = record.getOrDefault("check_in_time", "").toString();
-                    String member = record.getOrDefault("member_name", "").toString();
-                    String action = record.getOrDefault("status", "Check In").toString();
-                    String status = record.getOrDefault("attendance_status", "✅ Success").toString();
+                    Object at = record.get("arrival_time");
+                    String time   = (at != null && !at.toString().isEmpty()) ? at.toString() : "—";
+                    String member = record.getOrDefault("member_name", "Unknown").toString();
+                    boolean vis   = Boolean.TRUE.equals(record.get("is_visitor"));
+                    boolean pres  = Boolean.TRUE.equals(record.get("is_present"));
+                    String action = vis ? "Visitor" : pres ? "Check In" : "Check Out";
+                    String status = pres ? "✅ Present" : "❌ Absent";
                     model.addRow(new Object[]{time, member, action, status});
                 }
             }
@@ -691,40 +702,13 @@ public class UsherDashboardFrame extends JFrame {
             System.err.println("Failed to load activity data: " + ex.getMessage());
             return null;
         });
-        JTable table = new JTable(model);
-        table.setOpaque(false);
-        table.getTableHeader().setOpaque(false);
-        table.getTableHeader().setBackground(C_SURFACE);
-        table.getTableHeader().setForeground(C_TEXT);
-        table.getTableHeader().setFont(F_LABEL);
-        table.setForeground(C_TEXT);
-        table.setBackground(new Color(0, 0, 0, 0));
-        table.setRowHeight(30);
-        table.setSelectionBackground(C_GOLD_DIM);
-        table.setSelectionForeground(C_TEXT);
-        table.setGridColor(C_BORDER);
-        
-        // Custom renderer for better visibility
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (c instanceof JLabel) {
-                    JLabel label = (JLabel) c;
-                    label.setForeground(C_TEXT);
-                    label.setOpaque(false);
-                    if (isSelected) {
-                        label.setBackground(C_GOLD_DIM);
-                        label.setOpaque(true);
-                    }
-                }
-                return c;
-            }
-        });
+        JTable table = buildStyledTable(model);
 
         JScrollPane scroll = new JScrollPane(table);
         scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
+        scroll.getViewport().setOpaque(true);
+        scroll.getViewport().setBackground(C_CARD);
+        scroll.setBorder(BorderFactory.createLineBorder(C_BORDER));
 
         activityPanel.add(activityTitle, BorderLayout.NORTH);
         activityPanel.add(scroll, BorderLayout.CENTER);
@@ -738,94 +722,146 @@ public class UsherDashboardFrame extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(20, 20));
         panel.setOpaque(false);
 
-        // Statistics section
+        // ── Live stat cards (values filled by API) ────────────────────
+        JLabel[] statValues = new JLabel[4];
         JPanel statsPanel = new JPanel(new GridLayout(2, 2, 15, 15));
         statsPanel.setOpaque(false);
+        statsPanel.add(buildLiveStatCard("Present",   "…", C_SUCCESS,     statValues, 0));
+        statsPanel.add(buildLiveStatCard("Absent",    "…", C_DANGER,      statValues, 1));
+        statsPanel.add(buildLiveStatCard("Late",      "…", C_GOLD,        statValues, 2));
+        statsPanel.add(buildLiveStatCard("Visitors",  "…", C_GOLD_HOVER,  statValues, 3));
 
-        JPanel presentCard = createStatCard("Present", "45", C_SUCCESS);
-        JPanel absentCard = createStatCard("Absent", "8", C_DANGER);
-        JPanel lateCard = createStatCard("Late", "3", C_GOLD);
-        JPanel visitorCard = createStatCard("Visitors", "5", C_GOLD_HOVER);
+        // Load live summary counts
+        SanctumApiClient.getAttendanceSummaryForDate(java.time.LocalDate.now().toString())
+            .thenAccept(data -> SwingUtilities.invokeLater(() -> {
+                statValues[0].setText(data.getOrDefault("present_count",  "0").toString());
+                statValues[1].setText(data.getOrDefault("absent_count",   "0").toString());
+                statValues[2].setText(data.getOrDefault("late_count",     "0").toString());
+                statValues[3].setText(data.getOrDefault("visitor_count",  "0").toString());
+            }))
+            .exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> {
+                    for (JLabel v : statValues) v.setText("—");
+                });
+                return null;
+            });
 
-        statsPanel.add(presentCard);
-        statsPanel.add(absentCard);
-        statsPanel.add(lateCard);
-        statsPanel.add(visitorCard);
-
-        // Detailed attendance table
-        JPanel tablePanel = new JPanel(new BorderLayout());
+        // ── Detailed attendance table ─────────────────────────────────
+        JPanel tablePanel = new JPanel(new BorderLayout(0, 8));
         tablePanel.setOpaque(false);
         tablePanel.setBorder(new EmptyBorder(20, 0, 0, 0));
 
-        JLabel tableTitle = new JLabel("Detailed Attendance");
+        JPanel tableHeader = new JPanel(new BorderLayout(10, 0));
+        tableHeader.setOpaque(false);
+        JLabel tableTitle = new JLabel("Detailed Attendance — " + java.time.LocalDate.now());
         tableTitle.setFont(F_LABEL);
         tableTitle.setForeground(C_TEXT);
 
-        String[] columns = {"Name", "Check In", "Status", "Notes"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
+        JButton refreshTableBtn = createActionButton("↻ Refresh", C_TEXT_MID);
+        tableHeader.add(tableTitle,     BorderLayout.WEST);
+        tableHeader.add(refreshTableBtn, BorderLayout.EAST);
 
-        // Load real attendance data
-        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
-            if (records != null && !records.isEmpty()) {
-                model.setRowCount(0); // Clear existing data
-                for (Map<String, Object> record : records) {
-                    String name = record.getOrDefault("member_name", "").toString();
-                    String checkIn = record.getOrDefault("check_in_time", "").toString();
-                    String status = record.getOrDefault("attendance_status", "").toString();
-                    String notes = record.getOrDefault("notes", "").toString();
-                    model.addRow(new Object[]{name, checkIn, status, notes});
-                }
-            }
-        })).exceptionally(ex -> {
-            System.err.println("Failed to load attendance records: " + ex.getMessage());
-            return null;
-        });
-        JTable table = new JTable(model);
-        table.setOpaque(false);
-        table.getTableHeader().setOpaque(false);
-        table.getTableHeader().setBackground(C_SURFACE);
-        table.getTableHeader().setForeground(C_TEXT);
-        table.getTableHeader().setFont(F_LABEL);
-        table.setForeground(C_TEXT);
-        table.setBackground(new Color(0, 0, 0, 0));
-        table.setRowHeight(30);
-        table.setSelectionBackground(C_GOLD_DIM);
-        table.setSelectionForeground(C_TEXT);
-        table.setGridColor(C_BORDER);
-        
-        // Custom renderer for better visibility
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (c instanceof JLabel) {
-                    JLabel label = (JLabel) c;
-                    label.setForeground(C_TEXT);
-                    label.setOpaque(false);
-                    if (isSelected) {
-                        label.setBackground(C_GOLD_DIM);
-                        label.setOpaque(true);
-                    }
-                }
-                return c;
-            }
-        });
+        String[] columns = {"Member", "Check In", "Status", "Notes"};
+        DefaultTableModel tableModel = new DefaultTableModel(columns, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable table = buildStyledTable(tableModel);
 
         JScrollPane scroll = new JScrollPane(table);
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
+        scroll.getViewport().setBackground(C_CARD);
 
-        tablePanel.add(tableTitle, BorderLayout.NORTH);
-        tablePanel.add(scroll, BorderLayout.CENTER);
+        JLabel statusLbl = new JLabel("Loading today's records…");
+        statusLbl.setFont(F_MONO_SM);
+        statusLbl.setForeground(C_TEXT_DIM);
 
-        panel.add(statsPanel, BorderLayout.NORTH);
-        panel.add(tablePanel, BorderLayout.CENTER);
+        // Loader — calls /api/attendance/members/?service_date=today
+        // Response fields: member_name, arrival_time, is_present, is_visitor, notes
+        Runnable loadRecords = () -> {
+            statusLbl.setText("Loading…");
+            tableModel.setRowCount(0);
+            String today = java.time.LocalDate.now().toString();
+            SanctumApiClient.getMemberAttendances(today).thenAccept(records ->
+                SwingUtilities.invokeLater(() -> {
+                    tableModel.setRowCount(0);
+                    long present = 0, absent = 0, late = 0, visitors = 0;
+                    for (Map<String, Object> r : records) {
+                        // member_name from serializer's SerializerMethodField
+                        String member  = r.getOrDefault("member_name", "Unknown").toString();
+                        // arrival_time is a TimeField, may be null
+                        Object at = r.get("arrival_time");
+                        String checkIn = (at != null && !at.toString().isEmpty()) ? at.toString() : "—";
+                        // is_present boolean
+                        boolean isPresent = Boolean.TRUE.equals(r.get("is_present"));
+                        boolean isVisitor = Boolean.TRUE.equals(r.get("is_visitor"));
+                        String status;
+                        if (isVisitor)       { status = "Visitor";  visitors++; }
+                        else if (isPresent)  { status = "Present";  present++; }
+                        else                 { status = "Absent";   absent++; }
+                        String notes   = r.getOrDefault("notes", "").toString();
+                        tableModel.addRow(new Object[]{member, checkIn, status, notes});
+                    }
+                    int count = tableModel.getRowCount();
+                    statusLbl.setText(count + " record(s) today");
+                    statValues[0].setText(String.valueOf(present));
+                    statValues[1].setText(String.valueOf(absent));
+                    statValues[2].setText(String.valueOf(late));
+                    statValues[3].setText(String.valueOf(visitors));
+                })
+            ).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> statusLbl.setText("Failed to load records"));
+                return null;
+            });
+        };
+
+        refreshTableBtn.addActionListener(e -> loadRecords.run());
+
+        tablePanel.add(tableHeader, BorderLayout.NORTH);
+        tablePanel.add(statusLbl,   BorderLayout.CENTER);
+        tablePanel.add(scroll,      BorderLayout.SOUTH);
+
+        // Make scroll take the space, not statusLbl
+        tablePanel.setLayout(new BorderLayout(0, 6));
+        tablePanel.add(tableHeader, BorderLayout.NORTH);
+        tablePanel.add(scroll,      BorderLayout.CENTER);
+        tablePanel.add(statusLbl,   BorderLayout.SOUTH);
+
+        panel.add(statsPanel,  BorderLayout.NORTH);
+        panel.add(tablePanel,  BorderLayout.CENTER);
+
+        // Initial load
+        SwingUtilities.invokeLater(loadRecords::run);
         return panel;
+    }
+
+    /** Builds a stat card with an externally-held value label for later update. */
+    private JPanel buildLiveStatCard(String title, String initial, Color color,
+                                     JLabel[] out, int index) {
+        JPanel card = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(C_CARD);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(color);
+                g2.fillRoundRect(0, 0, 4, getHeight(), 4, 4);
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(new EmptyBorder(15, 20, 15, 20));
+        JLabel titleLbl = new JLabel(title);
+        titleLbl.setFont(F_MONO_SM);
+        titleLbl.setForeground(C_TEXT_MID);
+        JLabel valueLbl = new JLabel(initial);
+        valueLbl.setFont(F_MONO_LG);
+        valueLbl.setForeground(C_TEXT);
+        out[index] = valueLbl;
+        card.add(titleLbl, BorderLayout.NORTH);
+        card.add(valueLbl, BorderLayout.CENTER);
+        return card;
     }
 
     private JPanel createVisitorManagementPanel() {
@@ -866,16 +902,26 @@ public class UsherDashboardFrame extends JFrame {
             }
         };
 
-        // Load real visitor data (using attendance records as visitor data)
-        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
+        // Load real visitor data from MemberAttendance (is_visitor=true)
+        String todayForVisitors = java.time.LocalDate.now().toString();
+        SanctumApiClient.getMemberAttendances(todayForVisitors).thenAccept(records -> SwingUtilities.invokeLater(() -> {
             if (records != null && !records.isEmpty()) {
-                model.setRowCount(0); // Clear existing data
+                model.setRowCount(0);
                 for (Map<String, Object> record : records) {
-                    String name = record.getOrDefault("member_name", "").toString();
-                    String checkInTime = record.getOrDefault("check_in_time", "").toString();
-                    String purpose = record.getOrDefault("service_type", "Sunday Service").toString();
-                    String host = record.getOrDefault("notes", "Usher Team").toString();
-                    model.addRow(new Object[]{name, checkInTime, purpose, host});
+                    if (!Boolean.TRUE.equals(record.get("is_visitor"))) continue;
+                    String name    = record.getOrDefault("member_name", "Visitor").toString();
+                    Object at      = record.get("arrival_time");
+                    String checkIn = (at != null && !at.toString().isEmpty()) ? at.toString() : "—";
+                    // notes format: "Name | Phone | Purpose | Host: X"
+                    String notes   = record.getOrDefault("notes", "").toString();
+                    String purpose = "Visit";
+                    String host    = "Usher Team";
+                    if (!notes.isEmpty()) {
+                        String[] parts = notes.split("\\|");
+                        if (parts.length >= 3) purpose = parts[2].trim();
+                        if (parts.length >= 4) host    = parts[3].replace("Host:", "").trim();
+                    }
+                    model.addRow(new Object[]{name, checkIn, purpose, host});
                 }
             }
         })).exceptionally(ex -> {
@@ -962,11 +1008,11 @@ public class UsherDashboardFrame extends JFrame {
         JLabel title = new JLabel("Members Directory");
         title.setFont(F_TITLE);
         title.setForeground(C_TEXT);
-        title.setBorder(new EmptyBorder(0, 0, 30, 0));
+        title.setBorder(new EmptyBorder(0, 0, 20, 0));
 
-        // Create member search and list
-        JPanel searchPanel = new JPanel(new BorderLayout(10, 10));
-        searchPanel.setOpaque(false);
+        // ── Search bar ────────────────────────────────────────────────
+        JPanel searchRow = new JPanel(new BorderLayout(8, 0));
+        searchRow.setOpaque(false);
 
         JTextField searchField = new JTextField();
         searchField.setFont(F_LABEL);
@@ -977,71 +1023,124 @@ public class UsherDashboardFrame extends JFrame {
             BorderFactory.createLineBorder(C_BORDER),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
-        searchField.putClientProperty("JTextField.placeholderText", "Search members...");
 
-        JButton searchBtn = createActionButton("🔍 Search", C_GOLD);
-        searchBtn.addActionListener(e -> searchMembers(searchField.getText()));
+        JButton searchBtn  = createActionButton("🔍 Search",   C_GOLD);
+        JButton checkInBtn = createActionButton("✅ Check In",  C_SUCCESS);
+        JButton refreshBtn = createActionButton("↻ Refresh",   C_TEXT_MID);
 
-        JPanel searchRow = new JPanel(new BorderLayout());
-        searchRow.setOpaque(false);
+        JPanel btnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        btnBar.setOpaque(false);
+        btnBar.add(refreshBtn);
+        btnBar.add(searchBtn);
+        btnBar.add(checkInBtn);
+
         searchRow.add(searchField, BorderLayout.CENTER);
-        searchRow.add(searchBtn, BorderLayout.EAST);
+        searchRow.add(btnBar,      BorderLayout.EAST);
 
-        searchPanel.add(new JLabel("Search:"), BorderLayout.WEST);
-        searchPanel.add(searchRow, BorderLayout.CENTER);
-
-        // Members table
-        String[] columns = {"ID", "Name", "Phone", "Email", "Status", "Join Date"};
-        Object[][] data = {
-            {"001", "John Doe", "+254712345678", "john.doe@church.com", "Active", "2023-01-15"},
-            {"002", "Jane Smith", "+254723456789", "jane.smith@church.com", "Active", "2023-02-20"},
-            {"003", "Mike Johnson", "+254734567890", "mike.j@church.com", "Active", "2023-03-10"},
-            {"004", "Sarah Wilson", "+254745678901", "sarah.w@church.com", "Inactive", "2023-04-05"}
+        // ── Members table (live data) ─────────────────────────────────
+        String[] cols = {"ID", "Name", "Phone", "Email", "Status"};
+        DefaultTableModel membersModel = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
         };
+        JTable membersTable = buildStyledTable(membersModel);
 
-        DefaultTableModel model = new DefaultTableModel(data, columns);
-        JTable table = new JTable(model);
-        table.setOpaque(false);
-        table.getTableHeader().setOpaque(false);
-        table.getTableHeader().setBackground(C_SURFACE);
-        table.getTableHeader().setForeground(C_TEXT);
-        table.getTableHeader().setFont(F_LABEL);
-        table.setForeground(C_TEXT);
-        table.setBackground(new Color(0, 0, 0, 0));
-        table.setRowHeight(30);
-        table.setSelectionBackground(C_GOLD_DIM);
-        table.setSelectionForeground(C_TEXT);
-        table.setGridColor(C_BORDER);
-        
-        // Custom renderer for better visibility
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (c instanceof JLabel) {
-                    JLabel label = (JLabel) c;
-                    label.setForeground(C_TEXT);
-                    label.setOpaque(false);
-                    if (isSelected) {
-                        label.setBackground(C_GOLD_DIM);
-                        label.setOpaque(true);
-                    }
-                }
-                return c;
-            }
-        });
-
-        JScrollPane scroll = new JScrollPane(table);
+        JScrollPane scroll = new JScrollPane(membersTable);
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
+        scroll.getViewport().setBackground(C_CARD);
 
-        JPanel headerPanel = new JPanel(new BorderLayout(0, 10));
-        headerPanel.setOpaque(false);
-        headerPanel.add(title, BorderLayout.NORTH);
-        headerPanel.add(searchPanel, BorderLayout.CENTER);
-        
-        panel.add(headerPanel, BorderLayout.NORTH);
+        JLabel statusLbl = new JLabel("Loading members…");
+        statusLbl.setFont(F_MONO_SM);
+        statusLbl.setForeground(C_TEXT_DIM);
+
+        // ── Load all members from API ─────────────────────────────────
+        Runnable loadAllMembers = () -> {
+            statusLbl.setText("Loading…");
+            membersModel.setRowCount(0);
+            SanctumApiClient.getMembers().thenAccept(members ->
+                SwingUtilities.invokeLater(() -> {
+                    membersModel.setRowCount(0);
+                    String q = searchField.getText().trim().toLowerCase();
+                    members.stream()
+                        .filter(m -> {
+                            if (q.isEmpty()) return true;
+                            String fn = m.getOrDefault("first_name","").toString().toLowerCase();
+                            String ln = m.getOrDefault("last_name", "").toString().toLowerCase();
+                            String em = m.getOrDefault("email",     "").toString().toLowerCase();
+                            return fn.contains(q) || ln.contains(q) || em.contains(q);
+                        })
+                        .forEach(m -> membersModel.addRow(new Object[]{
+                            m.getOrDefault("id",               ""),
+                            m.getOrDefault("first_name", "") + " " + m.getOrDefault("last_name", ""),
+                            m.getOrDefault("phone_number",     "N/A"),
+                            m.getOrDefault("email",            ""),
+                            m.getOrDefault("membership_status","")
+                        }));
+                    statusLbl.setText(membersModel.getRowCount() + " member(s)");
+                })
+            ).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> statusLbl.setText("Failed to load members"));
+                return null;
+            });
+        };
+
+        // ── Button actions ────────────────────────────────────────────
+        refreshBtn.addActionListener(e -> loadAllMembers.run());
+        searchBtn.addActionListener(e  -> loadAllMembers.run());
+        searchField.addActionListener(e -> loadAllMembers.run()); // Enter key
+
+        checkInBtn.addActionListener(e -> {
+            int row = membersTable.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(panel, "Select a member first.", "No Selection", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            String idStr = membersModel.getValueAt(row, 0).toString();
+            String name  = membersModel.getValueAt(row, 1).toString();
+            int memberId;
+            try { memberId = Integer.parseInt(idStr); }
+            catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(panel, "Invalid member ID.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            checkInBtn.setEnabled(false);
+            checkInBtn.setText("⏳ Checking in…");
+            SanctumApiClient.getOrCreateAttendanceRecord("Sunday Service")
+                .thenCompose(recordId -> recordId < 0
+                    ? CompletableFuture.completedFuture(false)
+                    : SanctumApiClient.markMemberPresent(recordId, memberId, "Checked in by usher"))
+                .thenAccept(ok -> SwingUtilities.invokeLater(() -> {
+                    checkInBtn.setEnabled(true);
+                    checkInBtn.setText("✅ Check In");
+                    if (ok) {
+                        statusLbl.setText("✓ " + name + " checked in");
+                        loadData(); // refresh KPIs
+                    } else {
+                        JOptionPane.showMessageDialog(panel,
+                            "Check-in failed. Please try again.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                })).exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        checkInBtn.setEnabled(true);
+                        checkInBtn.setText("✅ Check In");
+                        statusLbl.setText("Network error: " + ex.getMessage());
+                    });
+                    return null;
+                });
+        });
+
+        // ── Layout ────────────────────────────────────────────────────
+        JPanel north = new JPanel(new BorderLayout(0, 8));
+        north.setOpaque(false);
+        north.add(title,     BorderLayout.NORTH);
+        north.add(searchRow, BorderLayout.CENTER);
+        north.add(statusLbl, BorderLayout.SOUTH);
+
+        panel.add(north,  BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
+
+        // Initial load
+        SwingUtilities.invokeLater(loadAllMembers::run);
         return panel;
     }
 
@@ -1050,28 +1149,241 @@ public class UsherDashboardFrame extends JFrame {
         panel.setOpaque(false);
         panel.setBorder(new EmptyBorder(30, 30, 30, 30));
 
+        // ── Title row ─────────────────────────────────────────────────
         JLabel title = new JLabel("Service Management");
         title.setFont(F_TITLE);
         title.setForeground(C_TEXT);
-        title.setBorder(new EmptyBorder(0, 0, 30, 0));
+        title.setBorder(new EmptyBorder(0, 0, 20, 0));
 
-        // Service list
-        JPanel servicesPanel = new JPanel(new GridLayout(2, 2, 20, 20));
-        servicesPanel.setOpaque(false);
+        JButton addBtn     = createActionButton("➕ Add Service", C_GOLD);
+        JButton refreshBtn = createActionButton("↻ Refresh",     C_TEXT_MID);
 
-        JPanel service1 = createServiceCard("Sunday Service", "9:00 AM", "Main Sanctuary", "Active");
-        JPanel service2 = createServiceCard("Wednesday Service", "7:00 PM", "Main Sanctuary", "Active");
-        JPanel service3 = createServiceCard("Youth Service", "5:00 PM", "Youth Hall", "Active");
-        JPanel service4 = createServiceCard("Prayer Meeting", "6:00 AM", "Prayer Room", "Weekly");
+        JPanel btnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        btnBar.setOpaque(false);
+        btnBar.add(refreshBtn);
+        btnBar.add(addBtn);
 
-        servicesPanel.add(service1);
-        servicesPanel.add(service2);
-        servicesPanel.add(service3);
-        servicesPanel.add(service4);
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setOpaque(false);
+        titleRow.add(title,  BorderLayout.WEST);
+        titleRow.add(btnBar, BorderLayout.EAST);
 
-        panel.add(title, BorderLayout.NORTH);
-        panel.add(servicesPanel, BorderLayout.CENTER);
+        // ── Grid container — rebuilt each refresh ─────────────────────
+        JPanel servicesGrid = new JPanel(new GridLayout(0, 2, 20, 20));
+        servicesGrid.setOpaque(false);
+
+        JLabel statusLbl = new JLabel("Loading services…");
+        statusLbl.setFont(F_MONO_SM);
+        statusLbl.setForeground(C_TEXT_DIM);
+        statusLbl.setBorder(new EmptyBorder(10, 0, 0, 0));
+
+        // ── Loader lambda ─────────────────────────────────────────────
+        Runnable loadServices = () -> {
+            statusLbl.setText("Loading…");
+            servicesGrid.removeAll();
+            SanctumApiClient.getChurchServices().thenAccept(services ->
+                SwingUtilities.invokeLater(() -> {
+                    servicesGrid.removeAll();
+                    if (services.isEmpty()) {
+                        JPanel empty = new JPanel(new BorderLayout());
+                        empty.setOpaque(false);
+                        JLabel emptyLbl = new JLabel(
+                            "<html><center>No services configured yet.<br>" +
+                            "Click <b>➕ Add Service</b> to create the first one.</center></html>",
+                            SwingConstants.CENTER);
+                        emptyLbl.setFont(F_LABEL);
+                        emptyLbl.setForeground(C_TEXT_DIM);
+                        empty.add(emptyLbl, BorderLayout.CENTER);
+                        servicesGrid.add(empty);
+                        statusLbl.setText("0 services");
+                    } else {
+                        for (Map<String, Object> svc : services) {
+                            String name     = svc.getOrDefault("name",       "Service").toString();
+                            String time     = svc.getOrDefault("start_time", "").toString();
+                            String location = svc.getOrDefault("location",   "").toString();
+                            String active   = Boolean.TRUE.equals(svc.get("is_active")) ? "Active" : "Inactive";
+                            servicesGrid.add(createServiceCard(name, time,
+                                location.isEmpty() ? "Main Sanctuary" : location, active));
+                        }
+                        statusLbl.setText(services.size() + " service(s)");
+                    }
+                    servicesGrid.revalidate();
+                    servicesGrid.repaint();
+                })
+            ).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> {
+                    servicesGrid.removeAll();
+                    JLabel err = new JLabel("Failed to load services — check connection.");
+                    err.setFont(F_LABEL);
+                    err.setForeground(C_DANGER);
+                    servicesGrid.add(err);
+                    servicesGrid.revalidate();
+                    statusLbl.setText("Error");
+                });
+                return null;
+            });
+        };
+
+        refreshBtn.addActionListener(e -> loadServices.run());
+        addBtn.addActionListener(e -> showAddServiceDialog(loadServices));
+
+        JScrollPane scroll = new JScrollPane(servicesGrid);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setBorder(null);
+
+        panel.add(titleRow,  BorderLayout.NORTH);
+        panel.add(scroll,    BorderLayout.CENTER);
+        panel.add(statusLbl, BorderLayout.SOUTH);
+
+        SwingUtilities.invokeLater(loadServices::run);
         return panel;
+    }
+
+    // ─── Add Service Dialog ────────────────────────────────────────────
+    private void showAddServiceDialog(Runnable onSuccess) {
+        JDialog dialog = new JDialog(this, "Add New Service", true);
+        dialog.setSize(480, 420);
+        dialog.setLocationRelativeTo(this);
+        dialog.getContentPane().setBackground(C_BG);
+
+        JPanel panel = new JPanel(new BorderLayout(0, 12));
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(24, 24, 20, 24));
+
+        JLabel titleLbl = new JLabel("⛪ Add New Church Service");
+        titleLbl.setFont(withEmojiFont(F_TITLE));
+        titleLbl.setForeground(C_GOLD);
+
+        // ── Form ──────────────────────────────────────────────────────
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setOpaque(false);
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.insets = new Insets(6, 4, 6, 4);
+
+        // Service name
+        JTextField nameField = styledTextField();
+        nameField.setToolTipText("e.g. Sunday Morning Service");
+        // Service type
+        String[] typeOptions = {"sunday_morning","sunday_evening","midweek",
+                                "prayer","youth","children","special","other"};
+        JComboBox<String> typeCombo = styledComboBox(typeOptions);
+        // Day of week
+        String[] days = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday",""};
+        JComboBox<String> dayCombo = styledComboBox(days);
+        // Start time
+        JTextField startField = styledTextField();
+        startField.setText("09:00");
+        startField.setToolTipText("HH:MM — e.g. 09:00");
+        // End time
+        JTextField endField = styledTextField();
+        endField.setText("11:00");
+        endField.setToolTipText("HH:MM — e.g. 11:00");
+        // Location
+        JTextField locationField = styledTextField();
+        locationField.setToolTipText("e.g. Main Sanctuary");
+
+        int row = 0;
+        addFormRow(form, gc, row++, "Service Name *", nameField);
+        addFormRow(form, gc, row++, "Type",           typeCombo);
+        addFormRow(form, gc, row++, "Day of Week",    dayCombo);
+        addFormRow(form, gc, row++, "Start Time *",   startField);
+        addFormRow(form, gc, row++, "End Time",       endField);
+        addFormRow(form, gc, row++, "Location",       locationField);
+
+        // ── Status label ──────────────────────────────────────────────
+        JLabel statusLbl = new JLabel(" ");
+        statusLbl.setFont(F_MONO_SM);
+        statusLbl.setForeground(C_TEXT_DIM);
+
+        // ── Buttons ───────────────────────────────────────────────────
+        JButton saveBtn   = createActionButton("💾 Save Service", C_GOLD);
+        JButton cancelBtn = createActionButton("✕ Cancel",        C_DANGER);
+        JPanel btnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnBar.setOpaque(false);
+        btnBar.add(cancelBtn);
+        btnBar.add(saveBtn);
+
+        saveBtn.addActionListener(e -> {
+            String name      = nameField.getText().trim();
+            String startTime = startField.getText().trim();
+
+            if (name.isEmpty()) {
+                statusLbl.setText("Service name is required.");
+                statusLbl.setForeground(C_DANGER);
+                nameField.requestFocusInWindow();
+                return;
+            }
+            if (!startTime.matches("\\d{1,2}:\\d{2}")) {
+                statusLbl.setText("Start time must be HH:MM (e.g. 09:00).");
+                statusLbl.setForeground(C_DANGER);
+                startField.requestFocusInWindow();
+                return;
+            }
+
+            String type     = typeCombo.getSelectedItem().toString();
+            String day      = dayCombo.getSelectedItem().toString();
+            String endTime  = endField.getText().trim();
+            String location = locationField.getText().trim();
+
+            saveBtn.setEnabled(false);
+            saveBtn.setText("⏳ Saving…");
+            statusLbl.setText("Saving…");
+            statusLbl.setForeground(C_GOLD);
+
+            SanctumApiClient.createChurchService(name, type, day, startTime, endTime, location)
+                .thenAccept(newId -> SwingUtilities.invokeLater(() -> {
+                    saveBtn.setEnabled(true);
+                    saveBtn.setText("💾 Save Service");
+                    if (newId > 0) {
+                        statusLbl.setText("✓ Service created successfully!");
+                        statusLbl.setForeground(C_SUCCESS);
+                        // Refresh the services grid and close after a brief pause
+                        if (onSuccess != null) onSuccess.run();
+                        javax.swing.Timer t = new javax.swing.Timer(900, ev -> dialog.dispose());
+                        t.setRepeats(false);
+                        t.start();
+                    } else {
+                        statusLbl.setText("Failed to save — check connection and try again.");
+                        statusLbl.setForeground(C_DANGER);
+                    }
+                })).exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        saveBtn.setEnabled(true);
+                        saveBtn.setText("💾 Save Service");
+                        statusLbl.setText("Network error: " + ex.getMessage());
+                        statusLbl.setForeground(C_DANGER);
+                    });
+                    return null;
+                });
+        });
+
+        cancelBtn.addActionListener(ev -> dialog.dispose());
+
+        JPanel south = new JPanel(new BorderLayout(0, 6));
+        south.setOpaque(false);
+        south.add(statusLbl, BorderLayout.NORTH);
+        south.add(btnBar,    BorderLayout.SOUTH);
+
+        panel.add(titleLbl, BorderLayout.NORTH);
+        panel.add(form,     BorderLayout.CENTER);
+        panel.add(south,    BorderLayout.SOUTH);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    /** Helper: adds a label + field pair as a form row. */
+    private void addFormRow(JPanel p, GridBagConstraints gc, int row,
+                            String label, JComponent field) {
+        gc.gridx = 0; gc.gridy = row; gc.weightx = 0;
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(F_LABEL);
+        lbl.setForeground(C_TEXT_MID);
+        p.add(lbl, gc);
+        gc.gridx = 1; gc.weightx = 1.0;
+        p.add(field, gc);
     }
 
     private JPanel createServiceCard(String name, String time, String location, String status) {
@@ -1139,82 +1451,75 @@ public class UsherDashboardFrame extends JFrame {
     private JButton createActionButton(String text, Color color) {
         JButton btn = new JButton(text) {
             @Override protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
+                // 1. Paint background gradient FIRST so text renders on top
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Enhanced button background with gradient
-                Color topColor = color;
-                Color bottomColor = new Color(
-                    Math.max(0, color.getRed() - 20),
-                    Math.max(0, color.getGreen() - 20),
-                    Math.max(0, color.getBlue() - 20)
+
+                // Use the button's current background if set (hover/press), else the base color
+                Color base = getBackground();
+                if (base == null || base.equals(javax.swing.UIManager.getColor("Button.background"))) {
+                    base = color;
+                }
+                Color darker = new Color(
+                    Math.max(0, base.getRed()   - 20),
+                    Math.max(0, base.getGreen() - 20),
+                    Math.max(0, base.getBlue()  - 20)
                 );
-                
-                Paint gradient = new GradientPaint(0, 0, topColor, 0, getHeight(), bottomColor);
-                g2.setPaint(gradient);
+
+                g2.setPaint(new GradientPaint(0, 0, base, 0, getHeight(), darker));
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                
-                // Add subtle border
-                g2.setColor(new Color(0, 0, 0, 50));
+
+                // Subtle dark border
+                g2.setColor(new Color(0, 0, 0, 60));
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
-                
-                // Add top highlight
-                Color highlightColor = new Color(255, 255, 255, 30);
-                g2.setColor(highlightColor);
+
+                // Top highlight gleam
+                g2.setColor(new Color(255, 255, 255, 40));
                 g2.fillRoundRect(1, 1, getWidth() - 3, 3, 6, 6);
-                
+
                 g2.dispose();
+
+                // 2. Let Swing draw the text label ON TOP of the background
+                super.paintComponent(g);
             }
         };
-        
+
         btn.setFont(withEmojiFont(F_LABEL));
-        btn.setForeground(C_TEXT);
-        btn.setContentAreaFilled(false);
+        btn.setForeground(Color.WHITE);           // always white on coloured background
+        btn.setBackground(color);                 // initial background = base color
+        btn.setContentAreaFilled(false);          // we handle fill ourselves
+        btn.setBorderPainted(false);
         btn.setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setOpaque(false);
-        
-        // Enhanced hover effects
+
+        // Hover / press effects via background colour swap (picked up by paintComponent)
         btn.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) {
-                // Brighten color on hover
-                Color hoverColor = new Color(
-                    Math.min(255, color.getRed() + 25),
-                    Math.min(255, color.getGreen() + 25),
-                    Math.min(255, color.getBlue() + 25)
-                );
-                btn.setBackground(hoverColor);
-                btn.revalidate();
+                btn.setBackground(new Color(
+                    Math.min(255, color.getRed()   + 30),
+                    Math.min(255, color.getGreen() + 30),
+                    Math.min(255, color.getBlue()  + 30)));
                 btn.repaint();
             }
-            
             @Override public void mouseExited(MouseEvent e) {
                 btn.setBackground(color);
-                btn.revalidate();
                 btn.repaint();
             }
-            
             @Override public void mousePressed(MouseEvent e) {
-                // Darken color on press
-                Color pressColor = new Color(
-                    Math.max(0, color.getRed() - 30),
+                btn.setBackground(new Color(
+                    Math.max(0, color.getRed()   - 30),
                     Math.max(0, color.getGreen() - 30),
-                    Math.max(0, color.getBlue() - 30)
-                );
-                btn.setBackground(pressColor);
-                btn.revalidate();
+                    Math.max(0, color.getBlue()  - 30)));
                 btn.repaint();
             }
-            
             @Override public void mouseReleased(MouseEvent e) {
                 btn.setBackground(color);
-                btn.revalidate();
                 btn.repaint();
             }
         });
-        
+
         return btn;
     }
 
@@ -1228,6 +1533,8 @@ public class UsherDashboardFrame extends JFrame {
         );
 
         if (result == JOptionPane.YES_OPTION) {
+            // FIX: clear the auth session so tokens are not re-used
+            com.sanctum.auth.SessionManager.getInstance().clearSession();
             dispose();
             SwingUtilities.invokeLater(() -> {
                 try {
@@ -1262,82 +1569,74 @@ public class UsherDashboardFrame extends JFrame {
 
     // ─── Data Loading ─────────────────────────────────────────────────
     private void loadData() {
-        // Show loading state on EDT
-        setKpiLabels("Loading...");
+        setKpiLabels("…");
+        String today = java.time.LocalDate.now().toString();
 
-        // Load attendance data with proper error handling
-        SanctumApiClient.getAttendanceData().thenAccept(data -> SwingUtilities.invokeLater(() -> {
-            if (data != null) {
-                // Update KPI labels with real data and polished formatting
-                lblTotalCheckedIn .setText(formatNumber(data.getOrDefault("total_checked_in",  "0")));
-                lblTodayAttendance.setText(formatNumber(data.getOrDefault("today_attendance", "0")));
-                lblActiveServices .setText(formatNumber(data.getOrDefault("active_services",   "0")));
-                lblNewVisitors    .setText(formatNumber(data.getOrDefault("new_visitors",       "0")));
-                
-                // Add revalidate and repaint for UI refresh
-                if (lblTotalCheckedIn != null) {
-                    lblTotalCheckedIn.revalidate();
-                    lblTotalCheckedIn.repaint();
-                }
-                if (lblTodayAttendance != null) {
-                    lblTodayAttendance.revalidate();
-                    lblTodayAttendance.repaint();
-                }
-                if (lblActiveServices != null) {
-                    lblActiveServices.revalidate();
-                    lblActiveServices.repaint();
-                }
-                if (lblNewVisitors != null) {
-                    lblNewVisitors.revalidate();
-                    lblNewVisitors.repaint();
-                }
-                
-                System.out.println("Usher dashboard data loaded successfully.");
-                System.out.println("Total Checked In: " + data.getOrDefault("total_checked_in", "0"));
-                System.out.println("Today's Attendance: " + data.getOrDefault("today_attendance", "0"));
-                System.out.println("Active Services: " + data.getOrDefault("active_services", "0"));
-                System.out.println("New Visitors: " + data.getOrDefault("new_visitors", "0"));
-                
-                // Update attendance page with real data
-                updateAttendancePageWithRealData();
-            } else {
-                setKpiLabels("—");
-                System.err.println("Attendance data was null");
-            }
-        })).exceptionally(ex -> {
+        // ── 1. Count today's check-ins, visitors, total from MemberAttendance ──
+        SanctumApiClient.getMemberAttendances(today).thenAccept(records ->
             SwingUtilities.invokeLater(() -> {
-                System.err.println("Failed to load attendance data: " + ex.getMessage());
-                setKpiLabels("—");
-                // Show user-friendly error message
-                JOptionPane.showMessageDialog(this, 
-                    "Unable to load attendance data. Please check your connection and try again.", 
-                    "Data Loading Error", 
-                    JOptionPane.WARNING_MESSAGE);
+                long checkedIn = 0, visitors = 0;
+                for (Map<String, Object> r : records) {
+                    boolean pres = Boolean.TRUE.equals(r.get("is_present"));
+                    boolean vis  = Boolean.TRUE.equals(r.get("is_visitor"));
+                    if (pres || vis) checkedIn++;
+                    if (vis) visitors++;
+                }
+                if (lblTotalCheckedIn  != null) lblTotalCheckedIn .setText(formatNumber(checkedIn));
+                if (lblTodayAttendance != null) lblTodayAttendance.setText(formatNumber(checkedIn));
+                if (lblNewVisitors     != null) lblNewVisitors    .setText(formatNumber(visitors));
+            })
+        ).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                if (lblTotalCheckedIn  != null) lblTotalCheckedIn .setText("—");
+                if (lblTodayAttendance != null) lblTodayAttendance.setText("—");
+                if (lblNewVisitors     != null) lblNewVisitors    .setText("—");
             });
             return null;
         });
+
+        // ── 2. Count active services ──────────────────────────────────────
+        SanctumApiClient.getChurchServices().thenAccept(services ->
+            SwingUtilities.invokeLater(() -> {
+                long active = services.stream()
+                    .filter(s -> Boolean.TRUE.equals(s.get("is_active")))
+                    .count();
+                if (lblActiveServices != null) lblActiveServices.setText(formatNumber(active));
+            })
+        ).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                if (lblActiveServices != null) lblActiveServices.setText("—");
+            });
+            return null;
+        });
+
+        // ── 3. Refresh recent-activity card on dashboard ──────────────────
+        loadDashboardCardsData();
     }
     
     private void loadDashboardCardsData() {
-        // Load recent activity for the dashboard
-        SanctumApiClient.getAttendanceRecords().thenAccept(records -> SwingUtilities.invokeLater(() -> {
+        String today = java.time.LocalDate.now().toString();
+        SanctumApiClient.getMemberAttendances(today).thenAccept(records -> SwingUtilities.invokeLater(() -> {
             JPanel activityContent = findNamedComponent("activityContent", JPanel.class);
             if (activityContent != null) {
                 activityContent.removeAll();
-                
+
                 if (records != null && !records.isEmpty()) {
+                    // Show the 5 most-recent entries
+                    int shown = 0;
                     for (Map<String, Object> record : records) {
+                        if (shown++ >= 5) break;
                         JPanel activityItem = createActivityItem(record);
                         activityContent.add(activityItem);
-                        activityContent.add(Box.createVerticalStrut(8));
+                        activityContent.add(Box.createVerticalStrut(6));
                     }
                 } else {
-                    JLabel noActivity = new JLabel("No recent activity");
+                    JLabel noActivity = new JLabel("No activity today");
                     noActivity.setForeground(C_TEXT_DIM);
                     noActivity.setFont(F_MONO_SM);
                     activityContent.add(noActivity);
                 }
-                
+
                 activityContent.revalidate();
                 activityContent.repaint();
             }
@@ -1349,33 +1648,33 @@ public class UsherDashboardFrame extends JFrame {
     
     private JPanel createActivityItem(Map<String, Object> record) {
         JPanel panel = new JPanel(new BorderLayout(10, 0));
-        panel.setOpaque(false);
-        panel.setBorder(new EmptyBorder(8, 12, 8, 12));
-        panel.setBackground(C_CARD.darker());
-        
+        panel.setOpaque(true);
+        panel.setBackground(C_CARD);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(0, 0, 1, 0, C_BORDER),
+            new EmptyBorder(8, 12, 8, 12)
+        ));
+
+        // MemberAttendance fields: member_name, arrival_time, is_present, is_visitor
         String memberName = record.getOrDefault("member_name", "Unknown").toString();
-        String checkInTime = record.getOrDefault("check_in_time", "").toString();
-        String serviceType = record.getOrDefault("service_type", "Service").toString();
-        String status = record.getOrDefault("status", "present").toString();
-        
-        String type = status.equals("present") ? "Check In" : "Check Out";
-        String description = memberName + " - " + serviceType;
-        
-        JLabel typeLabel = new JLabel(getActivityIcon(type) + " " + type);
+        Object at         = record.get("arrival_time");
+        String time       = (at != null && !at.toString().isEmpty()) ? at.toString() : "—";
+        boolean isVisitor = Boolean.TRUE.equals(record.get("is_visitor"));
+        boolean isPresent = Boolean.TRUE.equals(record.get("is_present"));
+
+        String type = isVisitor ? "Visitor" : isPresent ? "Check In" : "Check Out";
+        String icon = isVisitor ? "👋" : isPresent ? "✅" : "🚪";
+
+        JLabel typeLabel = new JLabel(icon + "  " + memberName);
         typeLabel.setFont(withEmojiFont(F_MONO_SM));
-        typeLabel.setForeground(C_GOLD);
-        
-        JLabel descLabel = new JLabel(description);
-        descLabel.setFont(F_MONO_SM);
-        descLabel.setForeground(C_TEXT_MID);
-        
-        JLabel timeLabel = new JLabel(checkInTime);
+        typeLabel.setForeground(isVisitor ? C_GOLD_HOVER : isPresent ? C_SUCCESS : C_TEXT_MID);
+
+        JLabel timeLabel = new JLabel(time);
         timeLabel.setFont(F_MONO_SM);
         timeLabel.setForeground(C_TEXT_DIM);
-        
+
         panel.add(typeLabel, BorderLayout.WEST);
         panel.add(timeLabel, BorderLayout.EAST);
-        
         return panel;
     }
     
@@ -1454,98 +1753,240 @@ public class UsherDashboardFrame extends JFrame {
     }
 
     // Dialog methods - Now implemented with actual functionality
+    // Dialog methods — member attendance with real API calls
+    
+    /**
+     * Searches live members from the API and shows a selection dialog.
+     * On selection, marks the member present using the attendance record ID.
+     */
     private void showCheckInDialog() {
         JDialog dialog = new JDialog(this, "Check In Member", true);
-        dialog.setSize(400, 300);
+        dialog.setSize(520, 480);
         dialog.setLocationRelativeTo(this);
         dialog.getContentPane().setBackground(C_BG);
-        
-        JPanel panel = new JPanel(new BorderLayout(20, 20));
+
+        JPanel panel = new JPanel(new BorderLayout(0, 12));
         panel.setOpaque(false);
         panel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        
+
         JLabel title = new JLabel("✅ Member Check-In");
         title.setFont(withEmojiFont(F_TITLE));
         title.setForeground(C_TEXT);
-        
-        // Input fields
-        JPanel inputPanel = new JPanel(new GridLayout(3, 2, 10, 10));
-        inputPanel.setOpaque(false);
-        
-        inputPanel.add(createLabel("Member ID/Name:"));
-        JTextField memberField = new JTextField();
-        memberField.setFont(F_LABEL);
-        memberField.setForeground(C_TEXT);
-        memberField.setBackground(C_CARD);
-        memberField.setCaretColor(C_GOLD);
-        inputPanel.add(memberField);
-        
-        inputPanel.add(createLabel("Check-in Time:"));
-        JTextField timeField = new JTextField(java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("hh:mm a")));
-        timeField.setFont(F_LABEL);
-        timeField.setForeground(C_TEXT);
-        timeField.setBackground(C_CARD);
-        timeField.setEditable(false);
-        inputPanel.add(timeField);
-        
-        inputPanel.add(createLabel("Service:"));
-        String[] services = {"Sunday Service", "Wednesday Service", "Youth Service", "Prayer Meeting"};
-        JComboBox<String> serviceCombo = new JComboBox<>(services);
+
+        // Service selector row — populated from API
+        JPanel serviceRow = new JPanel(new BorderLayout(10, 0));
+        serviceRow.setOpaque(false);
+        serviceRow.add(createLabel("Service:"), BorderLayout.WEST);
+        DefaultComboBoxModel<String> serviceNameModel = new DefaultComboBoxModel<>();
+        // We store the mapping name→id in a parallel list
+        List<Map<String, Object>> loadedServices = new ArrayList<>();
+        JComboBox<String> serviceCombo = new JComboBox<>(serviceNameModel);
         serviceCombo.setFont(F_LABEL);
         serviceCombo.setForeground(C_TEXT);
         serviceCombo.setBackground(C_CARD);
-        inputPanel.add(serviceCombo);
-        
+        serviceCombo.addItem("Loading services…");
+        serviceRow.add(serviceCombo, BorderLayout.CENTER);
+        // Load services from backend
+        SanctumApiClient.getChurchServices().thenAccept(svcs -> SwingUtilities.invokeLater(() -> {
+            serviceNameModel.removeAllElements();
+            loadedServices.clear();
+            if (svcs.isEmpty()) {
+                serviceNameModel.addElement("No services — add via Services page");
+            } else {
+                for (Map<String, Object> s : svcs) {
+                    serviceNameModel.addElement(s.getOrDefault("name", "Service").toString());
+                    loadedServices.add(s);
+                }
+            }
+        })).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                serviceNameModel.removeAllElements();
+                serviceNameModel.addElement("Could not load services");
+            });
+            return null;
+        });
+
+        // Search row
+        JPanel searchRow = new JPanel(new BorderLayout(8, 0));
+        searchRow.setOpaque(false);
+        JTextField searchField = new JTextField();
+        searchField.setFont(F_LABEL);
+        searchField.setForeground(C_TEXT);
+        searchField.setBackground(C_CARD);
+        searchField.setCaretColor(C_GOLD);
+        searchField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(C_BORDER),
+            BorderFactory.createEmptyBorder(6, 10, 6, 10)
+        ));
+        JButton searchBtn = createActionButton("🔍 Search", C_GOLD);
+        searchRow.add(searchField, BorderLayout.CENTER);
+        searchRow.add(searchBtn,   BorderLayout.EAST);
+
+        // Members table
+        String[] cols = {"ID", "Name", "Phone", "Status"};
+        DefaultTableModel tableModel = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable memberTable = new JTable(tableModel);
+        memberTable.setBackground(C_CARD);
+        memberTable.setForeground(C_TEXT);
+        memberTable.setGridColor(C_BORDER);
+        memberTable.setRowHeight(28);
+        memberTable.getTableHeader().setBackground(C_SURFACE);
+        memberTable.getTableHeader().setForeground(C_TEXT);
+        memberTable.getTableHeader().setFont(F_LABEL);
+        memberTable.setSelectionBackground(C_GOLD_DIM);
+        memberTable.setSelectionForeground(C_TEXT);
+        memberTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, sel, foc, r, c);
+                lbl.setForeground(C_TEXT);
+                lbl.setOpaque(!sel);
+                if (sel) { lbl.setBackground(C_GOLD_DIM); lbl.setOpaque(true); }
+                return lbl;
+            }
+        });
+        JScrollPane scroll = new JScrollPane(memberTable);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getViewport().setBackground(C_CARD);
+
+        // Status label
+        JLabel statusLbl = new JLabel("Search for a member to check in");
+        statusLbl.setFont(F_MONO_SM);
+        statusLbl.setForeground(C_TEXT_DIM);
+
         // Buttons
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setOpaque(false);
-        
-        JButton checkInBtn = createActionButton("✅ Check In", C_SUCCESS);
-        JButton cancelBtn = createActionButton("❌ Cancel", C_DANGER);
-        
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
+        JButton checkInBtn = createActionButton("✅ Check In Selected", C_SUCCESS);
+        JButton cancelBtn  = createActionButton("✕ Cancel", C_DANGER);
+
+        // Load all members initially
+        Runnable loadMembers = () -> {
+            statusLbl.setText("Loading members…");
+            tableModel.setRowCount(0);
+            String query = searchField.getText().trim();
+            SanctumApiClient.getMembers().thenAccept(members -> SwingUtilities.invokeLater(() -> {
+                tableModel.setRowCount(0);
+                members.stream()
+                    .filter(m -> {
+                        if (query.isEmpty()) return true;
+                        String fn = m.getOrDefault("first_name", "").toString().toLowerCase();
+                        String ln = m.getOrDefault("last_name",  "").toString().toLowerCase();
+                        String email = m.getOrDefault("email",   "").toString().toLowerCase();
+                        String q = query.toLowerCase();
+                        return fn.contains(q) || ln.contains(q) || email.contains(q);
+                    })
+                    .forEach(m -> {
+                        // Prefer user_id (User pk) over id (Member profile pk)
+                        // — mark_member_present expects the User pk
+                        String id     = m.containsKey("user_id") && !m.get("user_id").toString().isEmpty()
+                                        ? m.get("user_id").toString()
+                                        : m.getOrDefault("id", "").toString();
+                        String fn     = m.getOrDefault("first_name", "").toString();
+                        String ln     = m.getOrDefault("last_name",  "").toString();
+                        String phone  = m.getOrDefault("phone_number","N/A").toString();
+                        String status = m.getOrDefault("membership_status","").toString();
+                        tableModel.addRow(new Object[]{id, fn + " " + ln, phone, status});
+                    });
+                statusLbl.setText(tableModel.getRowCount() + " member(s) found");
+            })).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> statusLbl.setText("Failed to load members"));
+                return null;
+            });
+        };
+
+        searchBtn.addActionListener(e -> loadMembers.run());
+        searchField.addActionListener(e -> loadMembers.run()); // Enter key
+
         checkInBtn.addActionListener(e -> {
-            String member = memberField.getText().trim();
-            if (!member.isEmpty()) {
-                // Show loading state
-                checkInBtn.setEnabled(false);
-                checkInBtn.setText("⏳ Checking in...");
-                
-                // Use real API call
-                SanctumApiClient.checkInMember(member, "Sunday Service").thenAccept(success -> SwingUtilities.invokeLater(() -> {
+            int row = memberTable.getSelectedRow();
+            if (row < 0) { statusLbl.setText("Please select a member first"); return; }
+            String idStr = tableModel.getValueAt(row, 0).toString();
+            String name  = tableModel.getValueAt(row, 1).toString();
+            int memberId;
+            try { memberId = Integer.parseInt(idStr); }
+            catch (NumberFormatException ex) { statusLbl.setText("Invalid member ID"); return; }
+
+            String serviceType = serviceCombo.getSelectedItem().toString();
+            checkInBtn.setEnabled(false);
+            checkInBtn.setText("⏳ Checking in…");
+            statusLbl.setText("Getting attendance record…");
+
+            // Resolve the selected service ID from the loaded list
+            int selectedServiceId = -1;
+            int selectedIdx = serviceCombo.getSelectedIndex();
+            if (selectedIdx >= 0 && selectedIdx < loadedServices.size()) {
+                Object id = loadedServices.get(selectedIdx).get("id");
+                if (id instanceof Number) selectedServiceId = ((Number) id).intValue();
+            }
+            final int serviceId = selectedServiceId;
+
+            CompletableFuture<Integer> recordFuture = serviceId > 0
+                ? SanctumApiClient.getOrCreateAttendanceRecord(serviceId)
+                : SanctumApiClient.getOrCreateAttendanceRecord(serviceType);
+
+            recordFuture.thenCompose(recordId -> {
+                    if (recordId < 0) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    return SanctumApiClient.markMemberPresent(recordId, memberId, "Checked in by usher");
+                })
+                .thenAccept(success -> SwingUtilities.invokeLater(() -> {
                     checkInBtn.setEnabled(true);
-                    checkInBtn.setText("✅ Check In");
-                    
+                    checkInBtn.setText("✅ Check In Selected");
                     if (success) {
-                        JOptionPane.showMessageDialog(dialog, "✅ " + member + " checked in successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.showMessageDialog(dialog,
+                            "✅ " + name + " checked in for " + serviceType,
+                            "Success", JOptionPane.INFORMATION_MESSAGE);
                         dialog.dispose();
-                        // Refresh data
                         loadData();
                     } else {
-                        JOptionPane.showMessageDialog(dialog, "❌ Failed to check in " + member + ". Please try again.", "Error", JOptionPane.ERROR_MESSAGE);
+                        statusLbl.setText("Check-in failed — see log for details");
                     }
                 })).exceptionally(ex -> {
                     SwingUtilities.invokeLater(() -> {
                         checkInBtn.setEnabled(true);
-                        checkInBtn.setText("✅ Check In");
-                        JOptionPane.showMessageDialog(dialog, "❌ Network error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                        checkInBtn.setText("✅ Check In Selected");
+                        statusLbl.setText("Network error: " + ex.getMessage());
                     });
                     return null;
                 });
-            } else {
-                JOptionPane.showMessageDialog(dialog, "Please enter member ID or name", "Error", JOptionPane.ERROR_MESSAGE);
-            }
         });
-        
+
         cancelBtn.addActionListener(e -> dialog.dispose());
-        
-        buttonPanel.add(checkInBtn);
-        buttonPanel.add(cancelBtn);
-        
-        panel.add(title, BorderLayout.NORTH);
-        panel.add(inputPanel, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
+        btnPanel.add(cancelBtn);
+        btnPanel.add(checkInBtn);
+
+        JPanel topFields = new JPanel(new GridLayout(2, 1, 0, 8));
+        topFields.setOpaque(false);
+        topFields.add(serviceRow);
+        topFields.add(searchRow);
+
+        panel.add(title,     BorderLayout.NORTH);
+        panel.add(topFields, BorderLayout.NORTH); // will overlay — fix with BoxLayout
+        // Rebuild with BoxLayout for proper stacking
+        panel.removeAll();
+        panel.setLayout(new BorderLayout(0, 12));
+
+        JPanel topSection = new JPanel();
+        topSection.setLayout(new BoxLayout(topSection, BoxLayout.Y_AXIS));
+        topSection.setOpaque(false);
+        topSection.add(title);
+        topSection.add(Box.createVerticalStrut(12));
+        topSection.add(serviceRow);
+        topSection.add(Box.createVerticalStrut(8));
+        topSection.add(searchRow);
+        topSection.add(Box.createVerticalStrut(4));
+        topSection.add(statusLbl);
+
+        panel.add(topSection, BorderLayout.NORTH);
+        panel.add(scroll,     BorderLayout.CENTER);
+        panel.add(btnPanel,   BorderLayout.SOUTH);
+
         dialog.add(panel);
+        loadMembers.run(); // load all members on open
         dialog.setVisible(true);
     }
     
@@ -1621,83 +2062,159 @@ public class UsherDashboardFrame extends JFrame {
 
     private void showBulkCheckInDialog() {
         JDialog dialog = new JDialog(this, "Bulk Check-In", true);
-        dialog.setSize(500, 400);
+        dialog.setSize(560, 520);
         dialog.setLocationRelativeTo(this);
         dialog.getContentPane().setBackground(C_BG);
-        
-        JPanel panel = new JPanel(new BorderLayout(20, 20));
+
+        JPanel panel = new JPanel(new BorderLayout(0, 12));
         panel.setOpaque(false);
         panel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        
+
         JLabel title = new JLabel("📥 Bulk Member Check-In");
-        title.setFont(F_TITLE);
+        title.setFont(withEmojiFont(F_TITLE));
         title.setForeground(C_TEXT);
-        
-        // Input area for multiple members
-        JLabel descLabel = new JLabel("Enter member IDs or names (one per line):");
-        descLabel.setFont(F_LABEL);
-        descLabel.setForeground(C_TEXT_MID);
-        
-        JTextArea membersArea = new JTextArea(8, 30);
-        membersArea.setFont(F_LABEL);
-        membersArea.setForeground(C_TEXT);
-        membersArea.setBackground(C_CARD);
-        membersArea.setCaretColor(C_GOLD);
-        membersArea.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(C_BORDER),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-        
-        // Service selection
-        JPanel servicePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        servicePanel.setOpaque(false);
-        servicePanel.add(createLabel("Service:"));
-        String[] services = {"Sunday Service", "Wednesday Service", "Youth Service", "Prayer Meeting"};
-        JComboBox<String> serviceCombo = new JComboBox<>(services);
-        serviceCombo.setFont(F_LABEL);
-        serviceCombo.setForeground(C_TEXT);
-        serviceCombo.setBackground(C_CARD);
-        servicePanel.add(serviceCombo);
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setOpaque(false);
-        
-        JButton bulkCheckInBtn = createActionButton("📥 Check In All", C_GOLD);
-        JButton cancelBtn = createActionButton("❌ Cancel", C_DANGER);
-        
-        bulkCheckInBtn.addActionListener(e -> {
-            String members = membersArea.getText().trim();
-            if (!members.isEmpty()) {
-                String[] memberList = members.split("\n");
-                int count = 0;
-                for (String member : memberList) {
-                    if (!member.trim().isEmpty()) {
-                        count++;
-                    }
-                }
-                JOptionPane.showMessageDialog(dialog, "✅ Successfully checked in " + count + " members!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                dialog.dispose();
-                loadData();
+
+        // Service selector — populated from API
+        JPanel svcRow = new JPanel(new BorderLayout(10, 0));
+        svcRow.setOpaque(false);
+        svcRow.add(createLabel("Service:"), BorderLayout.WEST);
+        DefaultComboBoxModel<String> bulkServiceModel = new DefaultComboBoxModel<>();
+        List<Map<String, Object>> bulkLoadedServices = new ArrayList<>();
+        JComboBox<String> serviceCombo = new JComboBox<>(bulkServiceModel);
+        serviceCombo.setFont(F_LABEL); serviceCombo.setForeground(C_TEXT); serviceCombo.setBackground(C_CARD);
+        serviceCombo.addItem("Loading services…");
+        svcRow.add(serviceCombo, BorderLayout.CENTER);
+        SanctumApiClient.getChurchServices().thenAccept(svcs -> SwingUtilities.invokeLater(() -> {
+            bulkServiceModel.removeAllElements();
+            bulkLoadedServices.clear();
+            if (svcs.isEmpty()) {
+                bulkServiceModel.addElement("No services — add via Services page");
             } else {
-                JOptionPane.showMessageDialog(dialog, "Please enter at least one member", "Error", JOptionPane.ERROR_MESSAGE);
+                for (Map<String, Object> s : svcs) {
+                    bulkServiceModel.addElement(s.getOrDefault("name", "Service").toString());
+                    bulkLoadedServices.add(s);
+                }
             }
+        })).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> { bulkServiceModel.removeAllElements(); bulkServiceModel.addElement("Could not load services"); });
+            return null;
         });
-        
+
+        // Member table with checkboxes
+        String[] cols = {"✓", "ID", "Name", "Status"};
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override public Class<?> getColumnClass(int c) { return c == 0 ? Boolean.class : String.class; }
+            @Override public boolean isCellEditable(int r, int c) { return c == 0; }
+        };
+        JTable table = new JTable(model);
+        table.setBackground(C_CARD); table.setForeground(C_TEXT);
+        table.setGridColor(C_BORDER); table.setRowHeight(28);
+        table.getTableHeader().setBackground(C_SURFACE); table.getTableHeader().setForeground(C_TEXT);
+        table.getColumnModel().getColumn(0).setMaxWidth(36);
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setOpaque(false); scroll.getViewport().setOpaque(false);
+        scroll.getViewport().setBackground(C_CARD);
+
+        JLabel statusLbl = new JLabel("Loading members…");
+        statusLbl.setFont(F_MONO_SM); statusLbl.setForeground(C_TEXT_DIM);
+
+        // Load members into table
+        SanctumApiClient.getMembers().thenAccept(members -> SwingUtilities.invokeLater(() -> {
+            model.setRowCount(0);
+            members.forEach(m -> model.addRow(new Object[]{
+                Boolean.FALSE,
+                m.getOrDefault("id", "").toString(),
+                m.getOrDefault("first_name", "") + " " + m.getOrDefault("last_name", ""),
+                m.getOrDefault("membership_status", "")
+            }));
+            statusLbl.setText(members.size() + " members loaded — select those present");
+        })).exceptionally(ex -> { SwingUtilities.invokeLater(() -> statusLbl.setText("Failed to load members")); return null; });
+
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
+        JButton checkAllBtn = createActionButton("☑ Select All", C_TEXT_MID);
+        JButton submitBtn   = createActionButton("📥 Mark Selected Present", C_GOLD);
+        JButton cancelBtn   = createActionButton("✕ Cancel", C_DANGER);
+
+        checkAllBtn.addActionListener(e -> {
+            boolean anyUnchecked = false;
+            for (int i = 0; i < model.getRowCount(); i++) if (!(Boolean) model.getValueAt(i, 0)) { anyUnchecked = true; break; }
+            for (int i = 0; i < model.getRowCount(); i++) model.setValueAt(anyUnchecked, i, 0);
+        });
+
+        submitBtn.addActionListener(e -> {
+            List<Integer> selectedIds = new ArrayList<>();
+            List<String> selectedNames = new ArrayList<>();
+            for (int i = 0; i < model.getRowCount(); i++) {
+                if ((Boolean) model.getValueAt(i, 0)) {
+                    try { selectedIds.add(Integer.parseInt(model.getValueAt(i, 1).toString())); }
+                    catch (NumberFormatException ignored) {}
+                    selectedNames.add(model.getValueAt(i, 2).toString());
+                }
+            }
+            if (selectedIds.isEmpty()) { statusLbl.setText("Please select at least one member"); return; }
+
+            submitBtn.setEnabled(false);
+            submitBtn.setText("⏳ Submitting…");
+            statusLbl.setText("Getting attendance record…");
+            String serviceType = serviceCombo.getSelectedItem().toString();
+            String today = java.time.LocalDate.now().toString();
+
+            // Resolve service ID
+            int bulkServiceId = -1;
+            int bulkIdx = serviceCombo.getSelectedIndex();
+            if (bulkIdx >= 0 && bulkIdx < bulkLoadedServices.size()) {
+                Object id = bulkLoadedServices.get(bulkIdx).get("id");
+                if (id instanceof Number) bulkServiceId = ((Number) id).intValue();
+            }
+            final int bServiceId = bulkServiceId;
+
+            CompletableFuture<Integer> recordFuture = bServiceId > 0
+                ? SanctumApiClient.getOrCreateAttendanceRecord(bServiceId)
+                : SanctumApiClient.getOrCreateAttendanceRecord(serviceType);
+
+            recordFuture
+                .thenCompose(recordId -> {
+                    if (recordId < 0) return CompletableFuture.completedFuture(new HashMap<String, Object>());
+                    // Mark each member present via markMemberPresent in parallel
+                    List<CompletableFuture<Boolean>> futures = new ArrayList<>();
+                    selectedIds.forEach(id -> futures.add(SanctumApiClient.markMemberPresent(recordId, id, "Bulk check-in by usher")));
+                    return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                        .thenApply(v -> {
+                            long successCount = futures.stream().mapToLong(f -> { try { return f.get() ? 1 : 0; } catch (Exception ex) { return 0; } }).sum();
+                            Map<String, Object> r = new HashMap<>();
+                            r.put("message", successCount + " of " + selectedIds.size() + " members marked present");
+                            return r;
+                        });
+                })
+                .thenAccept(result -> SwingUtilities.invokeLater(() -> {
+                    submitBtn.setEnabled(true);
+                    submitBtn.setText("📥 Mark Selected Present");
+                    String msg = result.getOrDefault("message", "Done").toString();
+                    JOptionPane.showMessageDialog(dialog, "✅ " + msg, "Bulk Check-In Complete", JOptionPane.INFORMATION_MESSAGE);
+                    dialog.dispose();
+                    loadData();
+                })).exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> { submitBtn.setEnabled(true); submitBtn.setText("📥 Mark Selected Present"); statusLbl.setText("Error: " + ex.getMessage()); });
+                    return null;
+                });
+        });
+
         cancelBtn.addActionListener(e -> dialog.dispose());
-        
-        buttonPanel.add(bulkCheckInBtn);
-        buttonPanel.add(cancelBtn);
-        
-        JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
-        centerPanel.setOpaque(false);
-        centerPanel.add(descLabel, BorderLayout.NORTH);
-        centerPanel.add(new JScrollPane(membersArea), BorderLayout.CENTER);
-        centerPanel.add(servicePanel, BorderLayout.SOUTH);
-        
-        panel.add(title, BorderLayout.NORTH);
-        panel.add(centerPanel, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
+        btnPanel.add(checkAllBtn); btnPanel.add(cancelBtn); btnPanel.add(submitBtn);
+
+        JPanel topSection = new JPanel();
+        topSection.setLayout(new BoxLayout(topSection, BoxLayout.Y_AXIS));
+        topSection.setOpaque(false);
+        topSection.add(title);
+        topSection.add(Box.createVerticalStrut(10));
+        topSection.add(svcRow);
+        topSection.add(Box.createVerticalStrut(6));
+        topSection.add(statusLbl);
+
+        panel.add(topSection, BorderLayout.NORTH);
+        panel.add(scroll,     BorderLayout.CENTER);
+        panel.add(btnPanel,   BorderLayout.SOUTH);
         dialog.add(panel);
         dialog.setVisible(true);
     }
@@ -2009,8 +2526,8 @@ public class UsherDashboardFrame extends JFrame {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setOpaque(false);
         
-        JButton exportBtn = createActionButton("📊 Export Report", C_GOLD);
-        JButton closeBtn = createActionButton("❌ Close", C_DANGER);
+        JButton exportBtn = createActionButton("Export Report", C_GOLD);
+        JButton closeBtn = createActionButton(" Close", C_DANGER);
         
         exportBtn.addActionListener(e -> {
             JOptionPane.showMessageDialog(dialog, "📊 Visitor report exported successfully!\n\nFormat: PDF\nLocation: Downloads folder", "Export Complete", JOptionPane.INFORMATION_MESSAGE);
@@ -2040,115 +2557,168 @@ public class UsherDashboardFrame extends JFrame {
     }
 
     private void searchMembers(String searchTerm) {
-        if (searchTerm == null || searchTerm.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter a search term", "Search Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        
-        JDialog dialog = new JDialog(this, "Member Search Results", true);
-        dialog.setSize(700, 400);
+        // Delegate to the members page load — the inline search in buildMembersPage
+        // already handles filtering. This standalone method is kept for any external callers.
+        JDialog dialog = new JDialog(this, "Member Search — " + searchTerm, true);
+        dialog.setSize(720, 480);
         dialog.setLocationRelativeTo(this);
         dialog.getContentPane().setBackground(C_BG);
-        
-        JPanel panel = new JPanel(new BorderLayout(20, 20));
+
+        JPanel panel = new JPanel(new BorderLayout(0, 12));
         panel.setOpaque(false);
         panel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        
-        JLabel title = new JLabel("🔍 Search Results for: " + searchTerm);
-        title.setFont(F_TITLE);
-        title.setForeground(C_TEXT);
-        
-        // Simulated search results
-        String[] columns = {"ID", "Name", "Phone", "Email", "Status", "Join Date"};
-        Object[][] data = {
-            {"001", "John Doe", "+254712345678", "john.doe@church.com", "Active", "2023-01-15"},
-            {"002", "Jane Smith", "+254723456789", "jane.smith@church.com", "Active", "2023-02-20"},
-            {"003", "Mike Johnson", "+254734567890", "mike.j@church.com", "Active", "2023-03-10"},
-            {"004", "Sarah Wilson", "+254745678901", "sarah.w@church.com", "Inactive", "2023-04-05"},
-            {"005", "Tom Brown", "+254756789012", "tom.brown@church.com", "Active", "2023-05-12"}
+
+        JLabel titleLbl = new JLabel("🔍 Results for: " + searchTerm);
+        titleLbl.setFont(withEmojiFont(F_TITLE));
+        titleLbl.setForeground(C_TEXT);
+
+        JLabel statusLbl = new JLabel("Searching…");
+        statusLbl.setFont(F_MONO_SM);
+        statusLbl.setForeground(C_TEXT_DIM);
+
+        String[] cols = {"ID", "Name", "Phone", "Email", "Status"};
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
         };
-        
-        DefaultTableModel model = new DefaultTableModel(data, columns);
-        JTable table = new JTable(model);
-        table.setOpaque(false);
-        table.getTableHeader().setOpaque(false);
-        table.getTableHeader().setBackground(C_SURFACE);
-        table.getTableHeader().setForeground(C_TEXT);
-        table.getTableHeader().setFont(F_LABEL);
-        table.setForeground(C_TEXT);
-        table.setBackground(new Color(0, 0, 0, 0));
-        table.setRowHeight(30);
-        table.setSelectionBackground(C_GOLD_DIM);
-        table.setSelectionForeground(C_TEXT);
-        table.setGridColor(C_BORDER);
-        
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (c instanceof JLabel) {
-                    JLabel label = (JLabel) c;
-                    label.setForeground(C_TEXT);
-                    label.setOpaque(false);
-                    if (isSelected) {
-                        label.setBackground(C_GOLD_DIM);
-                        label.setOpaque(true);
-                    }
-                }
-                return c;
-            }
-        });
-        
+        JTable table = buildStyledTable(model);
         JScrollPane scroll = new JScrollPane(table);
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setOpaque(false);
-        
-        JButton checkInBtn = createActionButton("✅ Check In Selected", C_SUCCESS);
-        JButton viewDetailsBtn = createActionButton("👁️ View Details", C_GOLD);
-        JButton closeBtn = createActionButton("❌ Close", C_DANGER);
-        
+        scroll.getViewport().setBackground(C_CARD);
+
+        // Load + filter live data
+        SanctumApiClient.getMembers().thenAccept(members ->
+            SwingUtilities.invokeLater(() -> {
+                String q = searchTerm.trim().toLowerCase();
+                model.setRowCount(0);
+                members.stream()
+                    .filter(m -> {
+                        String fn = m.getOrDefault("first_name","").toString().toLowerCase();
+                        String ln = m.getOrDefault("last_name", "").toString().toLowerCase();
+                        String em = m.getOrDefault("email",     "").toString().toLowerCase();
+                        String ph = m.getOrDefault("phone_number","").toString();
+                        return fn.contains(q) || ln.contains(q) || em.contains(q) || ph.contains(q);
+                    })
+                    .forEach(m -> model.addRow(new Object[]{
+                        m.getOrDefault("id",               ""),
+                        m.getOrDefault("first_name","") + " " + m.getOrDefault("last_name",""),
+                        m.getOrDefault("phone_number",     "N/A"),
+                        m.getOrDefault("email",            ""),
+                        m.getOrDefault("membership_status","")
+                    }));
+                statusLbl.setText(model.getRowCount() + " result(s)");
+            })
+        ).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> statusLbl.setText("Search failed: " + ex.getMessage()));
+            return null;
+        });
+
+        // Action buttons
+        JButton checkInBtn    = createActionButton("✅ Check In Selected",  C_SUCCESS);
+        JButton viewDetailBtn = createActionButton("👁 View Details",        C_GOLD);
+        JButton closeBtn      = createActionButton("✕ Close",               C_DANGER);
+
         checkInBtn.addActionListener(e -> {
-            int selectedRow = table.getSelectedRow();
-            if (selectedRow != -1) {
-                String memberName = (String) table.getValueAt(selectedRow, 1);
-                JOptionPane.showMessageDialog(dialog, "✅ " + memberName + " checked in successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                dialog.dispose();
-                loadData();
-            } else {
-                JOptionPane.showMessageDialog(dialog, "Please select a member to check in", "Error", JOptionPane.ERROR_MESSAGE);
-            }
+            int row = table.getSelectedRow();
+            if (row < 0) { statusLbl.setText("Select a member first."); return; }
+            String idStr = model.getValueAt(row, 0).toString();
+            String name  = model.getValueAt(row, 1).toString();
+            int memberId;
+            try { memberId = Integer.parseInt(idStr); }
+            catch (NumberFormatException ex) { statusLbl.setText("Invalid ID"); return; }
+            checkInBtn.setEnabled(false);
+            checkInBtn.setText("⏳ Checking in…");
+            SanctumApiClient.getOrCreateAttendanceRecord("Sunday Service")
+                .thenCompose(rid -> rid < 0
+                    ? CompletableFuture.completedFuture(false)
+                    : SanctumApiClient.markMemberPresent(rid, memberId, "Checked in by usher"))
+                .thenAccept(ok -> SwingUtilities.invokeLater(() -> {
+                    checkInBtn.setEnabled(true);
+                    checkInBtn.setText("✅ Check In Selected");
+                    if (ok) {
+                        statusLbl.setText("✓ " + name + " checked in");
+                        loadData();
+                    } else {
+                        statusLbl.setText("Check-in failed — try again");
+                    }
+                })).exceptionally(ex -> {
+                    SwingUtilities.invokeLater(() -> {
+                        checkInBtn.setEnabled(true);
+                        checkInBtn.setText("✅ Check In Selected");
+                        statusLbl.setText("Network error");
+                    });
+                    return null;
+                });
         });
-        
-        viewDetailsBtn.addActionListener(e -> {
-            int selectedRow = table.getSelectedRow();
-            if (selectedRow != -1) {
-                String memberName = (String) table.getValueAt(selectedRow, 1);
-                String memberId = (String) table.getValueAt(selectedRow, 0);
-                JOptionPane.showMessageDialog(dialog, "👁️ Member Details:\n\nID: " + memberId + "\nName: " + memberName + "\n\nFull member profile would be displayed here with attendance history, contact information, and membership status.", "Member Details", JOptionPane.INFORMATION_MESSAGE);
-            } else {
-                JOptionPane.showMessageDialog(dialog, "Please select a member to view details", "Error", JOptionPane.ERROR_MESSAGE);
-            }
+
+        viewDetailBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) { statusLbl.setText("Select a member first."); return; }
+            String id    = model.getValueAt(row, 0).toString();
+            String name  = model.getValueAt(row, 1).toString();
+            String phone = model.getValueAt(row, 2).toString();
+            String email = model.getValueAt(row, 3).toString();
+            String stat  = model.getValueAt(row, 4).toString();
+            JOptionPane.showMessageDialog(dialog,
+                "Name:    " + name  + "\n" +
+                "ID:      " + id    + "\n" +
+                "Phone:   " + phone + "\n" +
+                "Email:   " + email + "\n" +
+                "Status:  " + stat,
+                "Member Details", JOptionPane.INFORMATION_MESSAGE);
         });
-        
+
         closeBtn.addActionListener(e -> dialog.dispose());
-        
-        buttonPanel.add(checkInBtn);
-        buttonPanel.add(viewDetailsBtn);
-        buttonPanel.add(closeBtn);
-        
-        panel.add(title, BorderLayout.NORTH);
+
+        JPanel btnBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnBar.setOpaque(false);
+        btnBar.add(viewDetailBtn);
+        btnBar.add(checkInBtn);
+        btnBar.add(closeBtn);
+
+        JPanel north = new JPanel(new BorderLayout(0, 6));
+        north.setOpaque(false);
+        north.add(titleLbl,  BorderLayout.NORTH);
+        north.add(statusLbl, BorderLayout.SOUTH);
+
+        panel.add(north,  BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
+        panel.add(btnBar, BorderLayout.SOUTH);
+
         dialog.add(panel);
         dialog.setVisible(true);
     }
 
     // ─── Dialog Field Factories (DRY helpers) ─────────────────────────
     /** Themed text field used in all dialogs. */
+    /** Shared helper: builds a JTable pre-styled for the dark Sanctum theme. */
+    private JTable buildStyledTable(DefaultTableModel model) {
+        JTable table = new JTable(model);
+        table.setBackground(C_CARD);
+        table.setForeground(C_TEXT);
+        table.setGridColor(C_BORDER);
+        table.setRowHeight(30);
+        table.setOpaque(true);
+        table.setSelectionBackground(new Color(212, 175, 55, 60));
+        table.setSelectionForeground(C_TEXT);
+        table.getTableHeader().setBackground(C_SURFACE);
+        table.getTableHeader().setForeground(C_GOLD);
+        table.getTableHeader().setFont(F_LABEL);
+        table.getTableHeader().setOpaque(true);
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override public Component getTableCellRendererComponent(
+                    JTable t, Object v, boolean sel, boolean foc, int r, int c) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, sel, foc, r, c);
+                lbl.setForeground(C_TEXT);
+                lbl.setBackground(sel ? new Color(212, 175, 55, 60) : (r % 2 == 0 ? C_CARD : C_SURFACE));
+                lbl.setOpaque(true);
+                lbl.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+                return lbl;
+            }
+        });
+        return table;
+    }
+
     private JTextField styledTextField() {
         JTextField f = new JTextField(20);
         f.setBackground(C_SURFACE);

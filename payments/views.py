@@ -125,7 +125,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def verify_payment(self, request):
-        """Verify Paystack payment"""
+        """Verify Paystack payment and mark GivingTransaction complete"""
         reference = request.query_params.get('reference')
         
         if not reference:
@@ -139,38 +139,36 @@ class PaymentViewSet(viewsets.ModelViewSet):
             result = paystack_service.verify_payment(reference)
             
             if result['success']:
-                # Update payment record
+                paystack_status = result.get('status', '')
+
+                # ── Update Payment record ─────────────────────────────────
                 try:
                     payment = Payment.objects.get(reference=reference)
-                    
-                    if result['status'] == 'success':
+                    if paystack_status == 'success':
                         payment.status = 'completed'
                         payment.paid_at = timezone.now()
                         payment.transaction_id = result.get('reference')
                         payment.save()
-                        
-                        # Update associated giving record if exists
-                        if hasattr(payment, 'giving'):
-                            giving = payment.giving
-                            giving.status = 'completed'
-                            giving.payment_date = timezone.now()
-                            giving.save()
-                    
-                    return Response({
-                        'success': True,
-                        'data': {
-                            'status': result['status'],
-                            'amount': result['amount'],
-                            'reference': reference,
-                            'paid_at': result.get('paid_at')
-                        }
-                    }, status=status.HTTP_200_OK)
-                    
                 except Payment.DoesNotExist:
-                    return Response({
-                        'success': False,
-                        'message': 'Payment record not found'
-                    }, status=status.HTTP_404_NOT_FOUND)
+                    pass  # not every flow creates a Payment row
+
+                # ── Update GivingTransaction record ───────────────────────
+                from giving.models import GivingTransaction as GivingTx
+                giving_tx = GivingTx.objects.filter(
+                    payment_reference=reference
+                ).first()
+                if giving_tx and paystack_status == 'success' and giving_tx.status != 'completed':
+                    giving_tx.mark_completed(payment_reference=reference)
+
+                return Response({
+                    'success': True,
+                    'data': {
+                        'status': paystack_status,
+                        'amount': result.get('amount'),
+                        'reference': reference,
+                        'paid_at': result.get('paid_at')
+                    }
+                }, status=status.HTTP_200_OK)
             else:
                 return Response({
                     'success': False,

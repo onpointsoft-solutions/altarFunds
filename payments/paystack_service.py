@@ -7,6 +7,7 @@ import hmac
 import hashlib
 from django.conf import settings
 from django.utils import timezone
+from django.db.models import Q as models_Q
 from decimal import Decimal
 import logging
 
@@ -51,14 +52,17 @@ class PaystackService:
             dict: Response containing authorization_url and access_code
         """
         try:
-            # Convert amount to kobo (Paystack uses kobo)
-            amount_in_kobo = int(Decimal(amount) * 100)
-            
+            # Convert amount to smallest unit (cents for KES, kobo for NGN)
+            amount_in_smallest = int(Decimal(str(amount)) * 100)
+
+            # Determine currency from settings (default KES for Kenya)
+            currency = getattr(settings, 'PAYSTACK_CURRENCY', 'KES')
+
             payload = {
                 "email": email,
-                "amount": amount_in_kobo,
+                "amount": amount_in_smallest,
                 "reference": reference,
-                "currency": "NGN",
+                "currency": currency,
                 "metadata": metadata or {},
             }
             
@@ -126,7 +130,7 @@ class PaystackService:
             if data.get("status"):
                 transaction_data = data["data"]
                 
-                # Convert amount from kobo to naira
+                # Convert amount from smallest unit back to base currency
                 amount = Decimal(transaction_data["amount"]) / 100
                 
                 logger.info(f"Payment verified successfully: {reference}")

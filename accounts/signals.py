@@ -2,11 +2,19 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from .models import Member, UserSession
-from .services import AuthService, NotificationService
 import logging
 
 logger = logging.getLogger('altar_funds')
 User = get_user_model()
+
+
+def _get_notification_service():
+    """Lazy import so a missing common.services never breaks app startup."""
+    try:
+        from common.services import NotificationService
+        return NotificationService
+    except ImportError:
+        return None
 
 
 @receiver(post_save, sender=User)
@@ -19,8 +27,13 @@ def user_created(sender, instance, created, **kwargs):
         # Log user creation
         logger.info(f"New user created: {instance.email} (ID: {instance.id})")
         
-        # Send welcome notification
-        NotificationService.send_welcome_notification(instance)
+        # Send welcome notification (non-fatal if service unavailable)
+        ns = _get_notification_service()
+        if ns:
+            try:
+                ns.send_welcome_notification(instance)
+            except Exception as exc:
+                logger.warning("Could not send welcome notification: %s", exc)
 
 
 @receiver(pre_save, sender=User)
@@ -39,12 +52,17 @@ def user_updated(sender, instance, created, **kwargs):
         if hasattr(instance, '_original_role') and instance._original_role != instance.role:
             logger.info(f"User role changed: {instance.email} - {instance._original_role} -> {instance.role}")
             
-            # Send role change notification
-            NotificationService.send_role_change_notification(
-                instance,
-                instance._original_role,
-                instance.role
-            )
+            # Send role change notification (non-fatal)
+            ns = _get_notification_service()
+            if ns:
+                try:
+                    ns.send_role_change_notification(
+                        instance,
+                        instance._original_role,
+                        instance.role
+                    )
+                except Exception as exc:
+                    logger.warning("Could not send role change notification: %s", exc)
 
 
 @receiver(post_save, sender=Member)

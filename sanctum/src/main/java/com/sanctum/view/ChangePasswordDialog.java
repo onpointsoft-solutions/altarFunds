@@ -62,8 +62,10 @@ public class ChangePasswordDialog extends JDialog {
         super(owner, "Change Password", true);
         buildUI();
         wireEvents();
-        pack();
-        setResizable(false);
+        // Use a fixed generous size so all fields are fully visible
+        setSize(500, 560);
+        setMinimumSize(new Dimension(460, 500));
+        setResizable(true);
         setLocationRelativeTo(owner);
     }
 
@@ -95,8 +97,8 @@ public class ChangePasswordDialog extends JDialog {
             }
         };
         root.setOpaque(false);
-        root.setBorder(new EmptyBorder(20, 28, 20, 28));
-        root.setPreferredSize(new Dimension(440, 0));
+        root.setBorder(new EmptyBorder(24, 32, 24, 32));
+        // No fixed preferred size — let the dialog size drive layout
 
         root.add(buildHeader(),  BorderLayout.NORTH);
         root.add(buildForm(),    BorderLayout.CENTER);

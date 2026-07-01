@@ -1,312 +1,219 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp">
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@color/white"
+    app:strokeWidth="0dp">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
-        <!-- Professional Banner Container -->
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <!-- ── Banner ──────────────────────────────────────────────── -->
+        <FrameLayout
             android:id="@+id/bannerContainer"
-            android:layout_width="0dp"
-            android:layout_height="120dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            android:layout_width="match_parent"
+            android:layout_height="160dp">
 
-            <!-- Banner Background -->
-            <ImageView
-                android:id="@+id/ivBannerBackground"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:scaleType="centerCrop"
-                android:src="@drawable/bg_professional_banner"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- Banner Image (if available) -->
+            <!-- Tinted image / placeholder -->
             <ImageView
                 android:id="@+id/ivBanner"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                android:alpha="0.7"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:src="@drawable/bg_gradient_primary" />
 
-            <!-- Professional overlay gradient -->
+            <!-- Dark scrim so text is always readable -->
             <View
-                android:id="@+id/bannerOverlay"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:background="@drawable/gradient_professional_overlay"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/gradient_overlay_bottom" />
 
-            <!-- Banner Icon -->
-            <ImageView
-                android:id="@+id/ivBannerIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="16dp"
-                android:src="@drawable/ic_devotional_banner"
-                app:tint="#FFFFFF"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- Banner Title -->
-            <TextView
-                android:id="@+id/tvBannerTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="16dp"
-                android:text="Daily Devotional"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:fontFamily="@font/dm_sans_medium"
-                android:maxLines="2"
-                android:ellipsize="end"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@id/ivBannerIcon" />
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <!-- Content Container -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:padding="16dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/bannerContainer">
-
-            <TextView
-                android:id="@+id/tvTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="Devotional Title"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <TextView
-                android:id="@+id/tvScripture"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="John 3:16"
-                android:textColor="@color/primary"
-                android:textSize="14sp"
-                android:textStyle="italic"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvTitle" />
-
-            <TextView
-                android:id="@+id/tvPreview"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Devotional content preview..."
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvScripture" />
-
-            <!-- Author and Date Row -->
-            <TextView
-                android:id="@+id/tvAuthor"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="By Author Name"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                app:layout_constraintEnd_toStartOf="@id/tvDate"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvPreview" />
-
+            <!-- Date badge — top-right -->
             <TextView
                 android:id="@+id/tvDate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Jan 01, 2024"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvPreview" />
+                android:layout_gravity="top|end"
+                android:layout_margin="12dp"
+                android:background="#66000000"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:text="JAN 24"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold" />
 
-            <!-- Reaction Buttons -->
-            <LinearLayout
-                android:id="@+id/reactionButtons"
-                android:layout_width="0dp"
+            <!-- Author / category — bottom-left -->
+            <TextView
+                android:id="@+id/tvBannerTitle"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvAuthor">
+                android:layout_gravity="bottom"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="12dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="By Author"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:alpha="0.85" />
+        </FrameLayout>
 
-                <!-- Like Button -->
+        <!-- ── Content ────────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="Strength for the Journey"
+                android:textColor="@color/ink_primary"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:letterSpacing="-0.01" />
+
+            <TextView
+                android:id="@+id/tvScripture"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Isaiah 40:31"
+                android:textColor="@color/gold_primary"
+                android:textSize="13sp"
+                android:textStyle="italic" />
+
+            <TextView
+                android:id="@+id/tvPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:lineSpacingExtra="4sp"
+                android:maxLines="3"
+                android:text="But those who hope in the Lord will renew their strength…"
+                android:textColor="@color/ink_soft"
+                android:textSize="14sp" />
+
+            <!-- ── Divider ── -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="14dp"
+                android:background="#1A000000" />
+
+            <!-- ── Reaction bar ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Like -->
                 <LinearLayout
                     android:id="@+id/btnLike"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="16dp"
-                    android:background="@drawable/reaction_button_background"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:padding="8dp"
-                    android:gravity="center_vertical">
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="6dp">
 
                     <ImageView
                         android:id="@+id/ivLike"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="4dp"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
                         android:src="@drawable/ic_heart_outline"
-                        app:tint="@color/text_secondary" />
+                        app:tint="@color/ink_soft" />
 
                     <TextView
                         android:id="@+id/tvLikeCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
                         android:text="0"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-
+                        android:textColor="@color/ink_soft"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
-                <!-- Reactions Display -->
-                <LinearLayout
-                    android:id="@+id/llReactions"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="16dp"
-                    android:background="@drawable/reaction_button_background"
-                    android:orientation="horizontal"
-                    android:padding="8dp"
-                    android:gravity="center_vertical"
-                    android:visibility="gone">
+                <View android:layout_width="20dp" android:layout_height="1dp" />
 
-                    <TextView
-                        android:id="@+id/tvReactions"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp"
-                        android:layout_marginEnd="4dp" />
-
-                    <TextView
-                        android:id="@+id/tvReactionEmoji"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-
-                </LinearLayout>
-
-                <!-- Comment Button -->
+                <!-- Comment -->
                 <LinearLayout
                     android:id="@+id/btnComment"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="16dp"
-                    android:background="@drawable/reaction_button_background"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:padding="8dp"
-                    android:gravity="center_vertical">
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="6dp">
 
                     <ImageView
                         android:id="@+id/ivComment"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="4dp"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
                         android:src="@drawable/ic_comment_outline"
-                        app:tint="@color/text_secondary" />
+                        app:tint="@color/ink_soft" />
 
                     <TextView
                         android:id="@+id/tvCommentCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
                         android:text="0"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-
-                </LinearLayout>
-
-                <!-- Share Button -->
-                <LinearLayout
-                    android:id="@+id/btnShare"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/reaction_button_background"
-                    android:orientation="horizontal"
-                    android:padding="8dp"
-                    android:gravity="center_vertical">
-
-                    <ImageView
-                        android:id="@+id/ivShare"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:src="@drawable/ic_share_outline"
-                        app:tint="@color/text_secondary" />
-
+                        android:textColor="@color/ink_soft"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
                 <!-- Spacer -->
                 <View
                     android:layout_width="0dp"
-                    android:layout_height="1dp"
+                    android:layout_height="0dp"
                     android:layout_weight="1" />
 
-                <!-- Bookmark Button -->
-                <LinearLayout
-                    android:id="@+id/btnBookmark"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/reaction_button_background"
-                    android:orientation="horizontal"
-                    android:padding="8dp"
-                    android:gravity="center_vertical">
+                <!-- Share -->
+                <ImageView
+                    android:id="@+id/ivShare"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="18dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:src="@drawable/ic_share_outline"
+                    app:tint="@color/ink_soft" />
 
-                    <ImageView
-                        android:id="@+id/ivBookmark"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:src="@drawable/ic_bookmark_outline"
-                        app:tint="@color/text_secondary" />
-
-                </LinearLayout>
-
+                <!-- Bookmark -->
+                <ImageView
+                    android:id="@+id/ivBookmark"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:src="@drawable/ic_bookmark_outline"
+                    app:tint="@color/ink_soft" />
             </LinearLayout>
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-</androidx.cardview.widget.CardView>
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

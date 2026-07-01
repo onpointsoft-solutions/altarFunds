@@ -217,3 +217,63 @@ def expense_breakdown(request):
             'is_active': church.is_active
         }
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_stats(request):
+    """
+    GET /api/dashboard/stats/
+    Returns a concise dashboard summary for the mobile app.
+    Response shape matches the Android DashboardStats model exactly.
+    """
+    from announcements.models import Announcement
+    from devotionals.models import Devotional
+    from giving.serializers import GivingTransactionSerializer
+
+    user = request.user
+    church = user.church
+
+    # ── Donation totals ──────────────────────────────────────────────────
+    giving_qs = GivingTransaction.objects.filter(
+        member__user=user
+    ).order_by('-transaction_date')
+
+    total_donations = giving_qs.aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+
+    donation_count = giving_qs.count()
+
+    # Most recent 5 donations
+    recent_raw = giving_qs[:5]
+    try:
+        recent_donations = GivingTransactionSerializer(recent_raw, many=True).data
+    except Exception:
+        recent_donations = []
+
+    # ── Announcements count ───────────────────────────────────────────────
+    try:
+        ann_qs = Announcement.objects.filter(is_active=True)
+        if church:
+            ann_qs = ann_qs.filter(church=church)
+        announcements_count = ann_qs.count()
+    except Exception:
+        announcements_count = 0
+
+    # ── Devotionals count ─────────────────────────────────────────────────
+    try:
+        dev_qs = Devotional.objects.all()
+        if church:
+            dev_qs = dev_qs.filter(church=church)
+        devotionals_count = dev_qs.count()
+    except Exception:
+        devotionals_count = 0
+
+    return Response({
+        'total_donations':    str(total_donations),
+        'donation_count':     donation_count,
+        'recent_donations':   recent_donations,
+        'announcements_count': announcements_count,
+        'devotionals_count':  devotionals_count,
+    })

@@ -37,6 +37,9 @@ class ExpenseListCreateView(generics.ListCreateAPIView):
             return ExpenseCreateSerializer
         return ExpenseSerializer
 
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
 
 class ExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Retrieve, update, delete expense"""
@@ -91,6 +94,25 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
 
 class ExpenseCreateSerializer(serializers.ModelSerializer):
+    # Accept a category name string — resolved to an ExpenseCategory PK
+    # so the client never needs to know the database PK.
+    category_name = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model = Expense
-        fields = ['title', 'description', 'amount', 'category', 'date', 'receipt']
+        fields = ['title', 'description', 'amount', 'category', 'date', 'receipt', 'category_name']
+        extra_kwargs = {'category': {'required': False}}
+
+    def validate(self, attrs):
+        # Resolve category_name → ExpenseCategory (auto-create if new)
+        cat_name = attrs.pop('category_name', None)
+        if cat_name and 'category' not in attrs:
+            category, _ = ExpenseCategory.objects.get_or_create(
+                name=cat_name.strip().title()
+            )
+            attrs['category'] = category
+        if 'category' not in attrs:
+            # Fallback: use or create a "General" category
+            category, _ = ExpenseCategory.objects.get_or_create(name='General')
+            attrs['category'] = category
+        return attrs

@@ -26,6 +26,7 @@ import com.sanctum.member.databinding.ActivityMainBinding
 import com.sanctum.member.ui.announcements.AnnouncementsFragment
 import com.sanctum.member.ui.auth.LoginActivity
 import com.sanctum.member.ui.dashboard.DashboardFragment
+import com.sanctum.member.ui.devotionals.DevotionalDetailsActivity
 import com.sanctum.member.ui.devotionals.DevotionalsFragment
 import com.sanctum.member.ui.giving.GivingFragment
 import com.sanctum.member.ui.profile.ProfileFragment
@@ -33,6 +34,7 @@ import com.sanctum.member.utils.ThemeManager
 import com.sanctum.member.utils.showToast
 import com.sanctum.member.viewmodel.GivingViewModel
 import com.sanctum.member.viewmodel.Resource
+import kotlin.jvm.java
 
 class MainActivity : AppCompatActivity() {
     
@@ -174,40 +176,39 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun handleNotificationIntent(intent: Intent?) {
-        intent?.let {
-            val notificationType = it.getStringExtra("notification_type")
-            val devotionalId = it.getStringExtra("devotional_id")
-            val title = it.getStringExtra("title")
-            val message = it.getStringExtra("message")
-            
-            when (notificationType) {
-                "devotional_new" -> {
-                    // Navigate to devotionals tab and highlight new devotional
-                    navigateToDevotional(devotionalId)
-                }
-                "devotional_shared" -> {
-                    // Navigate to specific devotional
-                    navigateToDevotional(devotionalId)
-                }
-                "announcement" -> {
-                    // Navigate to announcements tab
-                    navigateToAnnouncements()
-                }
-                else -> {
-                    // Handle general notifications
+        val type    = intent?.getStringExtra("notification_type")
+        val title   = intent?.getStringExtra("title")
+        val message = intent?.getStringExtra("message")
+
+        // If no notification data, this is a normal app launch — do nothing
+        if (type == null && title == null && message == null) return
+
+        when (type) {
+            "devotional_new", "devotional_shared" -> {
+                navigateToDevotional(intent?.getStringExtra("devotional_id"))
+            }
+            "announcement" -> {
+                navigateToAnnouncements()
+            }
+            else -> {
+                // General notifications show a dialog, but only if they have actual content
+                if (!title.isNullOrBlank() || !message.isNullOrBlank()) {
                     showNotificationDialog(title, message)
                 }
             }
         }
     }
-    
+
     private fun navigateToDevotional(devotionalId: String?) {
-        devotionalId?.let { id ->
-            binding.bottomNav.selectedItemId = R.id.nav_devotionals
-            loadFragment(DevotionalsFragment().apply {
-                // Pass devotional ID to highlight or open specific devotional
-                arguments = Bundle().apply { putString("highlight_devotional_id", id) }
-            })
+        // First select the tab so it's ready when user goes back
+        binding.bottomNav.selectedItemId = R.id.nav_devotionals
+
+        // If we have a specific ID, open that devotional details directly
+        devotionalId?.toIntOrNull()?.let { id ->
+            val intent = Intent(this, DevotionalDetailsActivity::class.java).apply {
+                putExtra("devotional_id", id)
+            }
+            startActivity(intent)
         }
     }
     
@@ -326,21 +327,19 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun loadChurchTheme() {
-        // Load church theme colors
         viewModel.loadThemeColors()
-        
-        // Observe theme changes
         viewModel.themeColors.observe(this) { result ->
             when (result) {
-                is Resource.Success -> {
-                    // Apply theme to the entire app
-                    ThemeManager.applyChurchTheme(this, result.data)
-                }
-                is Resource.Error -> {
-                    // Continue with default theme
-                }
+                is Resource.Success -> ThemeManager.applyChurchTheme(this, result.data)
+                is Resource.Error   -> { /* keep default colours */ }
                 else -> {}
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-apply theme in case it was loaded after the initial layout pass
+        ThemeManager.getCurrentTheme()?.let { ThemeManager.applyChurchTheme(this, it) }
     }
 }

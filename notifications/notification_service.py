@@ -16,7 +16,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from django.db import transaction
@@ -101,7 +101,7 @@ class NotificationService:
         # ── 3. Persist before enqueue ─────────────────────────────────────
         expires_at = None
         if expires_in_hours:
-            expires_at = timezone.now() + timezone.timedelta(hours=expires_in_hours)
+            expires_at = timezone.now() + timedelta(hours=expires_in_hours)
 
         notification = PushNotification.objects.create(
             user=user,
@@ -310,7 +310,7 @@ class NotificationService:
             },
             android=fb_messaging.AndroidConfig(
                 priority=android_priority,
-                ttl=timezone.timedelta(hours=48),
+                ttl=timedelta(hours=48),
                 notification=fb_messaging.AndroidNotification(
                     icon='ic_notifications',
                     color='#B8935A',
@@ -331,10 +331,10 @@ class NotificationService:
         )
 
         try:
-            batch_response = fb_messaging.send_multicast(multicast)
+            batch_response = fb_messaging.send_each_for_multicast(multicast)
         except Exception as exc:
             logger.exception(
-                "Firebase send_multicast raised an exception for notification %d: %s",
+                "Firebase send_each_for_multicast raised an exception for notification %d: %s",
                 notification.pk, exc
             )
             return False

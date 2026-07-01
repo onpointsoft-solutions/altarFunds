@@ -1,8 +1,9 @@
 """URL Configuration for AltarFunds project"""
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.static import serve
 from django.http import JsonResponse
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -90,7 +91,20 @@ urlpatterns = [
     path('', include('accounts.auth_urls')),
 ]
 
-# Serve static and media files in development
+# ── Media file serving ────────────────────────────────────────────────────────
+# Use Django's `serve` view directly — this works on PythonAnywhere regardless
+# of DEBUG=True/False because it bypasses the staticfiles infrastructure entirely.
+# For PythonAnywhere production: you can ALSO add a Static Files mapping in the
+# Web tab (URL=/media/ → Dir=/home/oamsmxjt/altarfunds/media) which is faster.
+# Both can coexist safely.
+urlpatterns += [
+    re_path(
+        r'^media/(?P<path>.*)$',
+        serve,
+        {'document_root': settings.MEDIA_ROOT, 'show_indexes': False},
+    ),
+]
+
+# Static files in development
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

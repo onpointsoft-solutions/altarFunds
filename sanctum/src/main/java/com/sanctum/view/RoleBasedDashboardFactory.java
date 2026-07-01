@@ -19,23 +19,40 @@ public class RoleBasedDashboardFactory {
      * @return A configured dashboard frame
      */
     public static JFrame createRoleBasedDashboard(String userRole, String authToken) {
-        if (userRole == null) return new ChurchAdminFrame();
-        
-        switch (userRole.toLowerCase()) {
+        System.out.println("RoleBasedDashboardFactory: role='" + userRole + "'");
+        if (userRole == null) {
+            System.err.println("WARNING: userRole is null — falling back to ChurchAdminFrame");
+            return new ChurchAdminFrame();
+        }
+
+        switch (userRole.toLowerCase().trim()) {
+            case "system_admin":
+            case "superadmin":
+            case "super_admin":
+                System.out.println(" → SystemAdminDashboardFrame");
+                return new SystemAdminDashboardFrame();
             case "denomination_admin":
-            case "admin":
+                System.out.println(" → ChurchAdminFrame");
                 return new ChurchAdminFrame();
+            case "admin":
+                return new SystemAdminDashboardFrame();
             case "pastor":
-                return PastorDashboard.createDashboard(authToken);
+                System.out.println(" → PastorDashboardFrame");
+                return new PastorDashboardFrame();
             case "treasurer":
+                System.out.println(" → TreasurerDashboardFrame");
                 return new TreasurerDashboardFrame();
             case "usher":
-                return UsherDashboard.createDashboard(authToken);
+                System.out.println(" → UsherDashboardFrame");
+                return new UsherDashboardFrame();
             case "youth_leader":
+                System.out.println(" → YouthLeaderDashboard");
                 return YouthLeaderDashboard.createDashboard(authToken);
             case "secretary":
+                System.out.println(" → SecretaryDashboard");
                 return SecretaryDashboard.createDashboard(authToken);
             default:
+                System.err.println("WARNING: unrecognised role '" + userRole + "' — falling back to ChurchAdminFrame");
                 return new ChurchAdminFrame();
         }
     }
@@ -306,6 +323,10 @@ class PastorDashboard extends BaseDashboard {
 class TreasurerDashboard extends BaseDashboard {
     
     public static JFrame createDashboard(String authToken) {
+        if (authToken != null || authToken == null) {
+            return new TreasurerDashboardFrame();
+        }
+        /*
         JFrame dashboard = createBaseDashboard("Sanctum TREASURER — Financial Management", new Color(90, 60, 160));
         
         JPanel mainPanel = createStyledPanel(new Color(90, 60, 160));
@@ -356,6 +377,8 @@ class TreasurerDashboard extends BaseDashboard {
         JButton viewDonationsBtn = createStyledButton("📊 View All Donations", new Color(75, 0, 130));
         JButton reportsBtn = createStyledButton("📈 Financial Reports", new Color(75, 0, 130));
         
+        */
+        JFrame dashboard = new TreasurerDashboardFrame();
         return dashboard;
     }
 }

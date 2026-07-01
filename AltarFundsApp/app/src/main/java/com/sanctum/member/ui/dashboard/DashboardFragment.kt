@@ -52,8 +52,11 @@ class DashboardFragment : Fragment() {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = announcementAdapter
         }
-        
+
         devotionalAdapter = DevotionalAdapter()
+        // When user reacts inside the card, refresh the devotionals list so
+        // updated counts are visible immediately.
+        devotionalAdapter.onDevotionalUpdated = { loadRecentDevotionals() }
         binding.rvRecentDevotionals.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = devotionalAdapter
@@ -93,10 +96,7 @@ class DashboardFragment : Fragment() {
         binding.swipeRefresh.isRefreshing = true
         
         lifecycleScope.launch {
-            // Clear stale cache first to ensure fresh data
-            app.database.announcementDao().deleteAllAnnouncements()
-            app.database.devotionalDao().deleteAllDevotionals()
-            app.database.dashboardStatsDao().deleteDashboardStats()
+            showCachedDashboardData()
             
             // Check network availability
             val isOnline = NetworkUtils.isNetworkAvailable(requireContext())
@@ -236,7 +236,38 @@ class DashboardFragment : Fragment() {
         _binding?.tvAnnouncementsCount?.text = stats.announcementsCount.toString()
         _binding?.tvDevotionalsCount?.text = stats.devotionalsCount.toString()
     }
+
+    private suspend fun showCachedDashboardData() {
+        // Load cached stats
+        val cachedStats = app.database.dashboardStatsDao().getDashboardStats().firstOrNull()
+        cachedStats?.let { updateUI(it.toModel()) }
+        
+        // Load cached announcements
+        val cachedAnnouncements = app.database.announcementDao().getAllAnnouncements().firstOrNull()
+        if (!cachedAnnouncements.isNullOrEmpty()) {
+            val models = cachedAnnouncements.take(3).map { it.toModel() }
+            _binding?.rvRecentAnnouncements?.visible()
+            _binding?.tvEmptyAnnouncements?.gone()
+            announcementAdapter.submitList(models)
+        }
+        
+        // Load cached devotionals
+        val cachedDevotionals = app.database.devotionalDao().getAllDevotionals().firstOrNull()
+        if (!cachedDevotionals.isNullOrEmpty()) {
+            val models = cachedDevotionals.take(3).map { it.toModel() }
+            _binding?.rvRecentDevotionals?.visible()
+            _binding?.tvEmptyDevotionals?.gone()
+            devotionalAdapter.submitList(models)
+        }
+    }
     
+    override fun onResume() {
+        super.onResume()
+        // Refresh devotionals when returning from DevotionalDetailsActivity
+        // so any new reactions/comments are reflected in the counts.
+        if (_binding != null) loadRecentDevotionals()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

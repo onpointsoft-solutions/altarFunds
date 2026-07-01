@@ -42,6 +42,7 @@ class DevotionalsFragment : Fragment() {
     
     private fun setupRecyclerView() {
         devotionalAdapter = DevotionalAdapter()
+        devotionalAdapter.onDevotionalUpdated = { loadDevotionals() }
         binding.rvDevotionals.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = devotionalAdapter

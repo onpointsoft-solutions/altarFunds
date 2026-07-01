@@ -44,7 +44,9 @@ class MemberAttendance(TimeStampedModel, SoftDeleteModel):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     attendance_record = models.ForeignKey(AttendanceRecord, on_delete=models.CASCADE, related_name='member_attendances')
-    member = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attendances')
+    member = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attendances',
+                               null=True, blank=True,
+                               help_text='Null for walk-in visitors without a user account')
     is_present = models.BooleanField(_('Present'), default=True)
     arrival_time = models.TimeField(_('Arrival Time'), null=True, blank=True)
     departure_time = models.TimeField(_('Departure Time'), null=True, blank=True)
@@ -55,7 +57,7 @@ class MemberAttendance(TimeStampedModel, SoftDeleteModel):
         db_table = 'member_attendances'
         verbose_name = _('Member Attendance')
         verbose_name_plural = _('Member Attendances')
-        unique_together = ['attendance_record', 'member']
+        # unique_together removed: null member (visitor) rows must be allowed multiple times
         indexes = [
             models.Index(fields=['attendance_record', 'is_present']),
             models.Index(fields=['member', 'is_present']),

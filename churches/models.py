@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from common.models import TimeStampedModel, SoftDeleteModel, FinancialModel
 from common.validators import validate_phone_number, validate_paybill_number, validate_till_number, validate_bank_account_number
@@ -176,7 +177,13 @@ class Church(TimeStampedModel, SoftDeleteModel):
     )
     
     # Branding
-    logo = models.CharField(_('Church Logo'), max_length=500, null=True, blank=True)
+    logo = models.ImageField(
+        _('Church Logo'),
+        upload_to='church_logos/',
+        null=True,
+        blank=True,
+        help_text=_('Upload a PNG or JPEG logo (recommended: 200×200px square)')
+    )
     primary_color = models.CharField(_('Primary Theme Color'), max_length=7, default='#3B82F6', help_text=_('Hex color code (e.g., #3B82F6)'))
     secondary_color = models.CharField(_('Secondary Theme Color'), max_length=7, default='#10B981', help_text=_('Hex color code (e.g., #10B981)'))
     accent_color = models.CharField(_('Accent Color'), max_length=7, default='#F59E0B', help_text=_('Hex color code (e.g., #F59E0B)'))
@@ -296,7 +303,6 @@ class Church(TimeStampedModel, SoftDeleteModel):
     def total_giving_this_month(self):
         """Get total giving for current month"""
         from giving.models import GivingTransaction
-        from django.utils import timezone
         
         now = timezone.now()
         return GivingTransaction.objects.filter(

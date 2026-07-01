@@ -40,14 +40,23 @@ class IsDenominationAdmin(permissions.BasePermission):
         return request.user.role in ['denomination_admin', 'system_admin']
 
 
+def _is_system_admin(user) -> bool:
+    """
+    Returns True for any user that should have platform-wide super-admin access.
+    Accepts both role='system_admin' (canonical) and role='admin' with is_superuser=True
+    (legacy — accounts created via Django's createsuperuser or the shell before the
+    role field existed).
+    """
+    if not user or isinstance(user, AnonymousUser) or not user.is_authenticated:
+        return False
+    return user.role == 'system_admin' or (user.role == 'admin' and user.is_superuser)
+
+
 class IsSystemAdmin(permissions.BasePermission):
-    """Allow access only to system administrators"""
-    
+    """Allow access only to system administrators (role='system_admin' or superuser admin)."""
+
     def has_permission(self, request, view):
-        if not request.user or isinstance(request.user, AnonymousUser):
-            return False
-        
-        return request.user.role == 'system_admin'
+        return _is_system_admin(request.user)
 
 
 class IsMemberOfChurch(permissions.BasePermission):
@@ -111,13 +120,10 @@ class IsMember(permissions.BasePermission):
 
 
 class CanApproveChurches(permissions.BasePermission):
-    """Allow access to users who can approve church registrations"""
-    
+    """Allow access to users who can approve church registrations."""
+
     def has_permission(self, request, view):
-        if not request.user or isinstance(request.user, AnonymousUser):
-            return False
-        
-        return request.user.role == 'system_admin' or request.user.is_superuser
+        return _is_system_admin(request.user)
 
 
 class CanManageChurch(permissions.BasePermission):

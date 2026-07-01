@@ -11,22 +11,28 @@ import com.sanctum.member.R
 /**
  * Processes and displays a single push notification in the background.
  *
- * Marked as expedited so WorkManager runs it promptly even when the app
- * is not in the foreground. getForegroundInfo() is the mandatory fallback
- * for devices that cannot grant expedited quota.
+ * Runs as an expedited worker so WorkManager schedules it immediately even
+ * when the system is under memory pressure. [getForegroundInfo] provides the
+ * mandatory silent foreground notification fallback for devices where expedited
+ * quota is exhausted.
  *
- * Retry policy: returns Result.retry() on transient errors so WorkManager
- * will back off and re-attempt rather than silently dropping the notification.
+ * Deduplication: the work name in [NotificationService] uses
+ * [ExistingWorkPolicy.KEEP], so a second identical FCM delivery is silently
+ * dropped before this worker even starts.
+ *
+ * Retry policy: transient exceptions return [Result.retry] (max 3 attempts
+ * via [runAttemptCount] guard). Permanent failures (e.g. permission denied)
+ * return [Result.failure] immediately.
  */
 class NotificationWorker(
     appContext: Context,
-    workerParams: WorkerParameters
+    workerParams: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
         private const val TAG = "NotificationWorker"
 
-        // Input data keys — must match what NotificationService puts in
+        // Keys that match what NotificationService writes to inputData
         const val KEY_TYPE          = "type"
         const val KEY_TITLE         = "title"
         const val KEY_MESSAGE       = "message"
@@ -34,13 +40,11 @@ class NotificationWorker(
         const val KEY_USER_ID       = "user_id"
         const val KEY_DEVOTIONAL_ID = "devotional_id"
         const val KEY_TARGET_URL    = "target_url"
+        const val KEY_NOTIF_ID      = "notification_id"   // optional stable DB id from backend
     }
 
-    /**
-     * Foreground info shown while the worker is executing on devices where
-     * expedited quota is unavailable. Kept silent / low-priority so it does
-     * not interfere with the real notification we are about to post.
-     */
+    // ── Foreground info (required for expedited workers) ──────────────────
+
     override suspend fun getForegroundInfo(): ForegroundInfo {
         NotificationHelper.createChannels(applicationContext)
 
@@ -53,15 +57,17 @@ class NotificationWorker(
             .setContentText("Delivering your notification…")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setSilent(true)
+            .setAutoCancel(false)
             .build()
 
         return ForegroundInfo(NotificationHelper.NID_PROCESSING, notification)
     }
 
+    // ── Main work ─────────────────────────────────────────────────────────
+
     override suspend fun doWork(): Result {
-        // Honour WorkManager's retry limit — give up after too many attempts
         if (runAttemptCount >= 3) {
-            Log.w(TAG, "Giving up after $runAttemptCount attempts")
+            Log.w(TAG, "Max retry count reached — dropping notification")
             return Result.failure()
         }
 
@@ -73,18 +79,24 @@ class NotificationWorker(
             val userId       = inputData.getString(KEY_USER_ID)
             val devotionalId = inputData.getString(KEY_DEVOTIONAL_ID)
             val targetUrl    = inputData.getString(KEY_TARGET_URL)
+            val backendId    = inputData.getString(KEY_NOTIF_ID)
 
-            Log.d(TAG, "Processing notification: type=$type title=$title attempt=$runAttemptCount")
+            Log.d(TAG, "Processing: type=$type title='$title' attempt=$runAttemptCount")
 
-            // Skip notifications that don't belong to this user / church
             if (!isRelevantToUser(churchId, userId)) {
-                Log.d(TAG, "Notification skipped — not relevant to user")
+                Log.d(TAG, "Skipped — not relevant to this user")
                 return Result.success()
             }
+
+            // Use the backend notification ID for stable dedup if available,
+            // otherwise hash the title.
+            val notifId = backendId?.toIntOrNull()?.let { Math.abs(it) }
+                ?: NotificationHelper.stableId(title)
 
             val extras = buildMap<String, String> {
                 devotionalId?.let { put(KEY_DEVOTIONAL_ID, it) }
                 targetUrl?.let    { put(KEY_TARGET_URL,    it) }
+                backendId?.let    { put(KEY_NOTIF_ID,      it) }
             }
 
             NotificationHelper.show(
@@ -92,35 +104,30 @@ class NotificationWorker(
                 type     = type,
                 title    = title,
                 message  = message,
-                extras   = extras
+                extras   = extras,
+                notifId  = notifId,
             )
 
-            Log.d(TAG, "Notification delivered successfully: $title")
+            Log.d(TAG, "Delivered: '$title' (id=$notifId)")
             Result.success()
 
         } catch (e: SecurityException) {
-            // POST_NOTIFICATIONS not granted — retrying won't help
-            Log.w(TAG, "POST_NOTIFICATIONS permission denied, dropping notification", e)
+            // POST_NOTIFICATIONS not granted — retrying won't fix this
+            Log.w(TAG, "POST_NOTIFICATIONS denied — dropping notification", e)
             Result.failure()
         } catch (e: Exception) {
-            // Transient error — let WorkManager retry with back-off
-            Log.e(TAG, "Transient error processing notification, will retry", e)
+            Log.e(TAG, "Transient error — will retry (attempt=$runAttemptCount)", e)
             Result.retry()
         }
     }
 
-    /**
-     * Returns true when this notification should be shown to the current user.
-     * A notification with no churchId / userId targets everyone and is always shown.
-     */
+    // ── Relevance ─────────────────────────────────────────────────────────
+
     private fun isRelevantToUser(churchId: String?, userId: String?): Boolean {
-        // No targeting constraints → show to everyone
         if (churchId == null && userId == null) return true
-
-        val prefs         = applicationContext.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val userChurchId  = prefs.getString("church_id", null)
-        val currentUserId = prefs.getString("user_id",   null)
-
-        return churchId == userChurchId || userId == currentUserId
+        val prefs   = applicationContext.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val myChurch = prefs.getString("church_id", null)
+        val myUser   = prefs.getString("user_id",   null)
+        return churchId == myChurch || userId == myUser
     }
 }

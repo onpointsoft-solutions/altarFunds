@@ -10,7 +10,8 @@ from .views import (
     church_summary, church_options, department_options, small_group_options,
     ChurchRegistrationView, join_church, join_church_by_id, transfer_church, pending_churches,
     approve_church, reject_church, church_members,
-    upload_church_logo, update_church_branding
+    upload_church_logo, update_church_branding,
+    ChurchServiceListView,
 )
 from .search_views import search_churches
 from .mobile_views import church_payment_details, church_theme_colors
@@ -53,4 +54,7 @@ urlpatterns = [
     # Mobile API endpoints
     path('mobile/payment-details/', church_payment_details, name='church_payment_details'),
     path('mobile/theme-colors/', church_theme_colors, name='church_theme_colors'),
+
+    # Church services (for attendance record FK)
+    path('services/', ChurchServiceListView.as_view(), name='church_services'),
 ]

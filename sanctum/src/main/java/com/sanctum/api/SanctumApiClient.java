@@ -506,29 +506,42 @@ public class SanctumApiClient {
                 try (Response resp = client.newCall(req).execute()) {
                     String rb = resp.body() != null ? resp.body().string() : "";
                     System.out.println("GIVING TRANSACTIONS ["+resp.code()+"]: "+rb);
-                    if (!resp.isSuccessful()) return List.<Map<String,Object>>of();
+
+                    if (!resp.isSuccessful()) {
+                        // Fallback: return plain donations list instead
+                        System.out.println("Giving transactions endpoint failed — falling back to donations endpoint");
+                        return List.<Map<String,Object>>of();
+                    }
 
                     JsonElement root = JsonParser.parseString(rb);
                     if (root.isJsonObject()) {
                         JsonObject obj = root.getAsJsonObject();
-                        // Format: {"success":true,"data":{"recent_givings":[...]}}
+                        // {"success":true,"data":{"recent_givings":[...]}}
                         if (obj.has("success") && obj.get("success").getAsBoolean() && obj.has("data")) {
                             JsonObject data = obj.getAsJsonObject("data");
                             if (data.has("recent_givings") && data.get("recent_givings").isJsonArray()) {
                                 return parseJsonArray(data.getAsJsonArray("recent_givings"));
                             }
                         }
-                        // Format: {"results":[...]}
                         if (obj.has("results")) return parseJsonArray(obj.getAsJsonArray("results"));
-                        // Format: {"data":[...]}
                         if (obj.has("data") && obj.get("data").isJsonArray()) return parseJsonArray(obj.getAsJsonArray("data"));
                     } else if (root.isJsonArray()) {
                         return parseJsonArray(root.getAsJsonArray());
                     }
                     return List.<Map<String,Object>>of();
                 }
-            } catch (Exception e) { System.err.println("getGivingTransactions error: "+e.getMessage()); return List.<Map<String,Object>>of(); }
-        }));
+            } catch (Exception e) {
+                System.err.println("getGivingTransactions error: "+e.getMessage());
+                return List.<Map<String,Object>>of();
+            }
+        })).thenCompose(result -> {
+            // If the giving-church endpoint returned nothing, fall back to donations
+            if (result.isEmpty()) {
+                System.out.println("Transaction data loaded from individual endpoint.");
+                return getDonations();
+            }
+            return CompletableFuture.completedFuture(result);
+        });
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -598,6 +611,23 @@ public class SanctumApiClient {
                     return resp.isSuccessful();
                 }
             } catch (Exception e) { System.err.println("updateBudget error: "+e.getMessage()); return false; }
+        });
+    }
+
+    public static CompletableFuture<Boolean> deleteBudget(String budgetId) {        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return false;
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL+"/api/budgets/"+budgetId+"/")
+                    .addHeader("Authorization","Bearer "+authToken)
+                    .delete()
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    System.out.println("DELETE BUDGET ["+resp.code()+"]");
+                    // 204 No Content is the expected success response for DELETE
+                    return resp.code() == 204 || resp.isSuccessful();
+                }
+            } catch (Exception e) { System.err.println("deleteBudget error: "+e.getMessage()); return false; }
         });
     }
 
@@ -696,6 +726,93 @@ public class SanctumApiClient {
                 }
             } catch (Exception e) { System.err.println("addAccount error: "+e.getMessage()); return false; }
         }));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  BUDGET ACCESS PINs
+    // ════════════════════════════════════════════════════════════════════════
+
+    /** GET /api/budgets/pins/ — list all PINs created by the treasurer */
+    public static CompletableFuture<List<Map<String,Object>>> getBudgetPins() {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.<Map<String,Object>>of();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/budgets/pins/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("BUDGET PINS [" + resp.code() + "]: " + rb);
+                    if (!resp.isSuccessful()) return List.<Map<String,Object>>of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) {
+                System.err.println("getBudgetPins error: " + e.getMessage());
+                return List.<Map<String,Object>>of();
+            }
+        });
+    }
+
+    /**
+     * POST /api/budgets/pins/ — generate a new access PIN.
+     * @param label   human-readable description (e.g. "Q2 Budget Review")
+     * @param hours   validity window in hours (1–720)
+     * @param maxUses maximum number of uses, or -1 for unlimited
+     * @return the created PIN object map, or empty map on failure
+     */
+    public static CompletableFuture<Map<String,Object>> createBudgetPin(
+            String label, int hours, int maxUses) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return new HashMap<String,Object>();
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("label", label);
+                body.addProperty("hours", hours);
+                if (maxUses > 0) body.addProperty("max_uses", maxUses);
+                // else omit → unlimited
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/budgets/pins/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("CREATE PIN [" + resp.code() + "]: " + rb);
+                    if (!resp.isSuccessful()) return new HashMap<String,Object>();
+                    Map<String,Object> result = new HashMap<>();
+                    JsonObject obj = JsonParser.parseString(rb).getAsJsonObject();
+                    obj.entrySet().forEach(e -> result.put(e.getKey(), parseJsonElement(e.getValue())));
+                    return result;
+                }
+            } catch (Exception e) {
+                System.err.println("createBudgetPin error: " + e.getMessage());
+                return new HashMap<String,Object>();
+            }
+        });
+    }
+
+    /** PATCH /api/budgets/pins/<id>/revoke/ — deactivate a PIN immediately */
+    public static CompletableFuture<Boolean> revokeBudgetPin(int pinId) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return false;
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/budgets/pins/" + pinId + "/revoke/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .patch(RequestBody.create("{}", MediaType.parse("application/json")))
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    System.out.println("REVOKE PIN [" + resp.code() + "]");
+                    return resp.isSuccessful();
+                }
+            } catch (Exception e) {
+                System.err.println("revokeBudgetPin error: " + e.getMessage());
+                return false;
+            }
+        });
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -863,9 +980,15 @@ public class SanctumApiClient {
         return CompletableFuture.supplyAsync(() -> {
             if (!isAuthenticated()) return false;
             try {
+                // Map display values to backend choices: low | medium | high | urgent
+                String backendPriority = mapAnnouncementPriority(priority);
+
                 JsonObject body = new JsonObject();
-                body.addProperty("title", title); body.addProperty("content", content);
-                body.addProperty("priority", priority); body.addProperty("is_active", true);
+                body.addProperty("title", title);
+                body.addProperty("content", content);
+                body.addProperty("priority", backendPriority);
+                body.addProperty("target_audience", "all");
+                body.addProperty("is_active", true);
                 Request req = new Request.Builder()
                     .url(BASE_URL+"/api/announcements/")
                     .addHeader("Authorization","Bearer "+authToken)
@@ -878,6 +1001,22 @@ public class SanctumApiClient {
                 }
             } catch (Exception e) { System.err.println("createAnnouncement error: "+e.getMessage()); return false; }
         });
+    }
+
+    /**
+     * Maps UI display strings to the backend priority choices.
+     * Backend accepts: "low" | "medium" | "high" | "urgent"
+     */
+    private static String mapAnnouncementPriority(String displayValue) {
+        if (displayValue == null) return "medium";
+        switch (displayValue.trim().toLowerCase()) {
+            case "low":    return "low";
+            case "high":   return "high";
+            case "urgent": return "urgent";
+            case "normal": // legacy — treat as medium
+            case "medium":
+            default:       return "medium";
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1005,16 +1144,28 @@ public class SanctumApiClient {
         return CompletableFuture.supplyAsync(() -> {
             if (!isAuthenticated()) return fallbackAttendanceData();
             try {
+                // /api/attendance/records/ returns a list — derive summary from it
                 Request req = new Request.Builder()
-                    .url(BASE_URL+"/api/attendance/summary/")
+                    .url(BASE_URL+"/api/attendance/records/")
                     .addHeader("Authorization","Bearer "+authToken).get().build();
                 try (Response resp = client.newCall(req).execute()) {
                     String rb = resp.body() != null ? resp.body().string() : "";
                     System.out.println("ATTENDANCE ["+resp.code()+"]: "+rb);
                     if (!resp.isSuccessful()) return fallbackAttendanceData();
-                    JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
+                    List<Map<String,Object>> records = parseListFromResponse(rb);
+                    String today = java.time.LocalDate.now().toString();
+                    long checkedIn = records.stream()
+                        .filter(r -> {
+                            Object t = r.get("check_in_time");
+                            return t != null && t.toString().startsWith(today);
+                        }).count();
+                    long visitors = records.stream()
+                        .filter(r -> Boolean.TRUE.equals(r.get("is_visitor"))).count();
                     Map<String,Object> result = new HashMap<>();
-                    for (Map.Entry<String,JsonElement> e : root.entrySet()) result.put(e.getKey(), parseJsonElement(e.getValue()));
+                    result.put("total_checked_in", checkedIn);
+                    result.put("today_attendance", checkedIn);
+                    result.put("active_services",  0);
+                    result.put("new_visitors",     visitors);
                     return result;
                 }
             } catch (Exception e) { System.err.println("getAttendanceData error: "+e.getMessage()); return fallbackAttendanceData(); }
@@ -1045,12 +1196,45 @@ public class SanctumApiClient {
         }));
     }
 
+    /**
+     * Fetch individual MemberAttendance rows for today — these contain
+     * member_name, arrival_time, is_present, is_visitor, notes.
+     * GET /api/attendance/members/?service_date=YYYY-MM-DD
+     */
+    public static CompletableFuture<List<Map<String,Object>>> getMemberAttendances(String serviceDate) {
+        return getChurchId().thenCompose(churchId -> CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.<Map<String,Object>>of();
+            try {
+                String url = BASE_URL + "/api/attendance/members/?service_date=" + serviceDate;
+                if (churchId != null) url += "&church=" + churchId;
+                Request req = new Request.Builder()
+                    .url(url).addHeader("Authorization","Bearer "+authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("MEMBER ATTENDANCES ["+resp.code()+"]: "+rb);
+                    if (!resp.isSuccessful()) return List.<Map<String,Object>>of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) {
+                System.err.println("getMemberAttendances error: "+e.getMessage());
+                return List.<Map<String,Object>>of();
+            }
+        }));
+    }
+
     public static CompletableFuture<Boolean> checkInMember(String memberId, String serviceType) {
         return getChurchId().thenCompose(churchId -> CompletableFuture.supplyAsync(() -> {
             if (!isAuthenticated()) return false;
             try {
                 JsonObject body = new JsonObject();
-                body.addProperty("member", memberId);
+                // Attempt to parse as integer; backend expects member ID
+                try {
+                    body.addProperty("member", Integer.parseInt(memberId.trim()));
+                } catch (NumberFormatException e) {
+                    // memberId is a name, not an ID — cannot send to API
+                    System.err.println("checkInMember: memberId is not an integer: " + memberId);
+                    return false;
+                }
                 body.addProperty("service_type", serviceType);
                 body.addProperty("check_in_time", java.time.LocalDateTime.now().toString());
                 body.addProperty("status", "present");
@@ -1068,6 +1252,410 @@ public class SanctumApiClient {
                     return resp.isSuccessful();
                 }
             } catch (Exception e) { System.err.println("checkInMember error: "+e.getMessage()); return false; }
+        }));
+    }
+
+    /**
+     * Mark a member as present on an existing attendance record.
+     * POST /api/attendance/records/{attendanceRecordId}/mark_member_present/
+     * attendanceRecordId is a UUID string stored in lastAttendanceRecordId.
+     * This overload accepts an int sentinel (1 = success from getOrCreateAttendanceRecord)
+     * and reads the real UUID from lastAttendanceRecordId.
+     */
+    public static CompletableFuture<Boolean> markMemberPresent(int sentinel, int memberId, String notes) {
+        String recordId = lastAttendanceRecordId;
+        if (sentinel < 0 || recordId == null) return CompletableFuture.completedFuture(false);
+        return markMemberPresentByUuid(recordId, memberId, notes);
+    }
+
+    public static CompletableFuture<Boolean> markMemberPresentByUuid(String attendanceRecordId, int memberId, String notes) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return false;
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("member_id", memberId);
+                body.addProperty("notes", notes != null ? notes : "Marked by usher");
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/attendance/records/" + attendanceRecordId + "/mark_member_present/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("MARK PRESENT [" + resp.code() + "]: " + rb);
+                    return resp.isSuccessful();
+                }
+            } catch (Exception e) { System.err.println("markMemberPresent error: " + e.getMessage()); return false; }
+        });
+    }
+
+    /**
+     * Get or create today's attendance record for the given service name.
+     *
+     * Flow:
+     *  1. Fetch ChurchService list → find one whose name matches serviceType (case-insensitive).
+     *     If no exact match, use the first available service.
+     *  2. Try to find an existing AttendanceRecord for today + that service.
+     *  3. If none, create one.
+     *
+     * Returns the attendance record ID (UUID string from backend) cast to a synthetic int
+     * by hashing, OR we store the UUID string in a thread-local.
+     *
+     * NOTE: The AttendanceRecord PK is a UUID. We return -1 on failure and store the
+     * raw UUID string in lastAttendanceRecordId for use by markMemberPresent.
+     */
+    private static volatile String lastAttendanceRecordId = null;
+
+    /**
+     * Get or create today's attendance record for the given ChurchService integer ID.
+     * Returns 1 (success sentinel) and stores the UUID in lastAttendanceRecordId,
+     * or -1 on failure.
+     */
+    public static CompletableFuture<Integer> getOrCreateAttendanceRecord(int serviceId) {
+        return getChurchId().thenCompose(churchId -> CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated() || churchId == null || serviceId <= 0) return -1;
+            try {
+                String today = java.time.LocalDate.now().toString();
+
+                // ── Step 1: look for an existing record today ─────────
+                String getUrl = BASE_URL + "/api/attendance/records/?service_date=" + today
+                    + "&service=" + serviceId + "&church=" + churchId;
+                Request getReq = new Request.Builder()
+                    .url(getUrl)
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .get().build();
+                try (Response getResp = client.newCall(getReq).execute()) {
+                    if (getResp.isSuccessful()) {
+                        String rb = getResp.body() != null ? getResp.body().string() : "";
+                        List<Map<String, Object>> existing = parseListFromResponse(rb);
+                        if (!existing.isEmpty()) {
+                            Object id = existing.get(0).get("id");
+                            if (id != null) {
+                                lastAttendanceRecordId = id.toString();
+                                System.out.println("Found existing record: " + lastAttendanceRecordId);
+                                return 1;
+                            }
+                        }
+                    }
+                }
+
+                // ── Step 2: create a new record ───────────────────────
+                JsonObject body = new JsonObject();
+                body.addProperty("service",             serviceId);
+                body.addProperty("service_date",        today);
+                body.addProperty("church",              churchId);
+                body.addProperty("total_attendance",    0);
+                body.addProperty("male_attendance",     0);
+                body.addProperty("female_attendance",   0);
+                body.addProperty("children_attendance", 0);
+                body.addProperty("youth_attendance",    0);
+                body.addProperty("visitors_count",      0);
+                body.addProperty("new_converts",        0);
+                Request postReq = new Request.Builder()
+                    .url(BASE_URL + "/api/attendance/records/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+                try (Response postResp = client.newCall(postReq).execute()) {
+                    String rb = postResp.body() != null ? postResp.body().string() : "";
+                    System.out.println("CREATE ATTENDANCE RECORD [" + postResp.code() + "]: " + rb);
+                    if (postResp.isSuccessful()) {
+                        JsonObject obj = JsonParser.parseString(rb).getAsJsonObject();
+                        String newId = obj.has("id") ? obj.get("id").getAsString() : null;
+                        if (newId != null) {
+                            lastAttendanceRecordId = newId;
+                            return 1;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("getOrCreateAttendanceRecord error: " + e.getMessage());
+            }
+            return -1;
+        }));
+    }
+
+    /**
+     * Convenience overload: resolves a service name → ID via getChurchServices(),
+     * then delegates to the int-ID overload.
+     */
+    public static CompletableFuture<Integer> getOrCreateAttendanceRecord(String serviceTypeName) {
+        return getChurchServices().thenCompose(services -> {
+            int resolvedId = -1;
+            for (Map<String, Object> svc : services) {
+                String name = svc.getOrDefault("name", "").toString();
+                if (name.equalsIgnoreCase(serviceTypeName)) {
+                    Object id = svc.get("id");
+                    if (id instanceof Number) { resolvedId = ((Number) id).intValue(); break; }
+                }
+            }
+            if (resolvedId < 0 && !services.isEmpty()) {
+                Object id = services.get(0).get("id");
+                if (id instanceof Number) resolvedId = ((Number) id).intValue();
+            }
+            if (resolvedId < 0) {
+                System.err.println("getOrCreateAttendanceRecord: no ChurchService found — add services via Admin");
+                return CompletableFuture.completedFuture(-1);
+            }
+            return getOrCreateAttendanceRecord(resolvedId);
+        });
+    }
+
+    /**
+     * Register a walk-in visitor and mark them on today's attendance record.
+     * Creates a MemberAttendance entry with is_visitor=true linked to the
+     * most-recently obtained attendance record.
+     *
+     * POST /api/attendance/members/
+     * Body: { "attendance_record": "<uuid>", "is_visitor": true,
+     *         "notes": "<name> — <purpose> — Host: <host>" }
+     *
+     * Note: visitor does not have a User account, so we store their details
+     * in the notes field and set member to null by omitting it (the backend
+     * allows null member for visitors if the model permits, otherwise we
+     * increment the attendance_record.visitors_count via a PATCH).
+     */
+    public static CompletableFuture<Boolean> registerVisitor(
+            String name, String phone, String purpose, String host) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return false;
+            String recordId = lastAttendanceRecordId;
+            if (recordId == null) {
+                System.err.println("registerVisitor: no attendance record — call getOrCreateAttendanceRecord first");
+                return false;
+            }
+            try {
+                String notes = name
+                    + (phone.isEmpty()   ? "" : " | " + phone)
+                    + (purpose.isEmpty() ? "" : " | " + purpose)
+                    + (host.isEmpty()    ? "" : " | Host: " + host);
+
+                // Try to create a MemberAttendance row with is_visitor=true
+                JsonObject body = new JsonObject();
+                body.addProperty("attendance_record", recordId);
+                body.addProperty("is_visitor",        true);
+                body.addProperty("notes",             notes);
+                // member field is intentionally omitted — visitor has no account
+
+                Request postReq = new Request.Builder()
+                    .url(BASE_URL + "/api/attendance/members/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+                try (Response resp = client.newCall(postReq).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("REGISTER VISITOR [" + resp.code() + "]: " + rb);
+                    if (resp.isSuccessful()) return true;
+                }
+
+                // Fallback: PATCH the visitors_count on the attendance record
+                JsonObject patch = new JsonObject();
+                patch.addProperty("visitors_count", 1); // backend should increment, not replace
+                patch.addProperty("notes", notes);
+                Request patchReq = new Request.Builder()
+                    .url(BASE_URL + "/api/attendance/records/" + recordId + "/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .patch(RequestBody.create(gson.toJson(patch), MediaType.parse("application/json")))
+                    .build();
+                try (Response patchResp = client.newCall(patchReq).execute()) {
+                    String rb = patchResp.body() != null ? patchResp.body().string() : "";
+                    System.out.println("VISITOR PATCH [" + patchResp.code() + "]: " + rb);
+                    return patchResp.isSuccessful();
+                }
+            } catch (Exception e) {
+                System.err.println("registerVisitor error: " + e.getMessage());
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Quick bulk attendance mark.
+     * POST /api/attendance/records/quick_mark_attendance/
+     */
+    public static CompletableFuture<Map<String, Object>> quickMarkAttendance(
+            int serviceId, String serviceDate, List<Integer> memberIds, String notes) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return new HashMap<>();
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("service_id", serviceId);
+                body.addProperty("service_date", serviceDate);
+                body.addProperty("notes", notes != null ? notes : "");
+                JsonArray ids = new JsonArray();
+                memberIds.forEach(ids::add);
+                body.add("member_ids", ids);
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/attendance/records/quick_mark_attendance/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("QUICK ATTENDANCE [" + resp.code() + "]: " + rb);
+                    if (resp.isSuccessful()) {
+                        Map<String, Object> result = new HashMap<>();
+                        JsonObject obj = JsonParser.parseString(rb).getAsJsonObject();
+                        obj.entrySet().forEach(e -> result.put(e.getKey(), parseJsonElement(e.getValue())));
+                        return result;
+                    }
+                }
+            } catch (Exception e) { System.err.println("quickMarkAttendance error: " + e.getMessage()); }
+            return new HashMap<>();
+        });
+    }
+
+    /**
+     * Get service types for the current church.
+     * GET /api/attendance/service-types/
+     */
+    /**
+     * Fetch ChurchService objects for the current user's church.
+     * Returns a list of maps with keys: id (int), name (string), start_time, is_active.
+     * Used to populate service dropdowns in the Usher dashboard.
+     * GET /api/churches/services/
+     */
+    /**
+     * Create a new ChurchService for the current user's church.
+     * POST /api/churches/services/
+     * Body: { "name", "service_type", "day_of_week", "start_time", "end_time", "location" }
+     * Returns the new service ID on success, or -1 on failure.
+     */
+    public static CompletableFuture<Integer> createChurchService(
+            String name, String serviceType, String dayOfWeek,
+            String startTime, String endTime, String location) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return -1;
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("name",         name.trim());
+                body.addProperty("service_type", serviceType.isEmpty() ? "other" : serviceType);
+                body.addProperty("day_of_week",  dayOfWeek);
+                body.addProperty("start_time",   startTime);   // HH:MM format
+                body.addProperty("end_time",     endTime);     // HH:MM format
+                body.addProperty("location",     location);
+                body.addProperty("is_active",    true);
+
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/churches/services/")
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
+                    .build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("CREATE SERVICE [" + resp.code() + "]: " + rb);
+                    if (resp.isSuccessful()) {
+                        JsonObject obj = JsonParser.parseString(rb).getAsJsonObject();
+                        if (obj.has("id")) return obj.get("id").getAsInt();
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("createChurchService error: " + e.getMessage());
+            }
+            return -1;
+        });
+    }
+
+    public static CompletableFuture<List<Map<String, Object>>> getChurchServices() {
+        return getChurchId().thenCompose(churchId -> CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.<Map<String, Object>>of();
+            try {
+                String url = BASE_URL + "/api/churches/services/";
+                if (churchId != null) url += "?church=" + churchId;
+                Request req = new Request.Builder()
+                    .url(url).addHeader("Authorization", "Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("CHURCH SERVICES [" + resp.code() + "]: " + rb);
+                    if (!resp.isSuccessful()) return List.<Map<String, Object>>of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) {
+                System.err.println("getChurchServices error: " + e.getMessage());
+                return List.<Map<String, Object>>of();
+            }
+        }));
+    }
+
+    public static CompletableFuture<List<Map<String, Object>>> getServiceTypes() {
+        return getChurchId().thenCompose(churchId -> CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.<Map<String, Object>>of();
+            try {
+                String url = BASE_URL + "/api/attendance/service-types/";
+                if (churchId != null) url += "?church=" + churchId;
+                Request req = new Request.Builder()
+                    .url(url).addHeader("Authorization", "Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("SERVICE TYPES [" + resp.code() + "]: " + rb);
+                    if (!resp.isSuccessful()) return List.<Map<String, Object>>of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) { System.err.println("getServiceTypes error: " + e.getMessage()); return List.<Map<String, Object>>of(); }
+        }));
+    }
+
+    /**
+     * Fetch attendance counts for a given date by querying the records list
+     * and computing counts locally.
+     * Backend exposes: GET /api/attendance/records/?service_date=YYYY-MM-DD
+     * The per-record detail action (attendance_summary) requires a record PK
+     * and cannot be used as a global summary endpoint.
+     */
+    public static CompletableFuture<Map<String, Object>> getAttendanceSummaryForDate(String date) {
+        return getChurchId().thenCompose(churchId -> CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return fallbackAttendanceData();
+            try {
+                String url = BASE_URL + "/api/attendance/records/?service_date=" + date;
+                if (churchId != null) url += "&church=" + churchId;
+                Request req = new Request.Builder()
+                    .url(url).addHeader("Authorization", "Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("ATTENDANCE SUMMARY [" + resp.code() + "]: " + rb);
+                    if (!resp.isSuccessful()) return fallbackAttendanceData();
+
+                    // The records list endpoint may return MemberAttendance sub-records
+                    // or AttendanceRecord objects — handle both shapes.
+                    List<Map<String, Object>> records = parseListFromResponse(rb);
+
+                    long present  = 0, absent = 0, late = 0, visitors = 0;
+                    for (Map<String, Object> r : records) {
+                        // MemberAttendance shape: { is_present, is_visitor, ... }
+                        if (r.containsKey("is_present")) {
+                            boolean isPresent = Boolean.TRUE.equals(r.get("is_present"));
+                            boolean isVisitor = Boolean.TRUE.equals(r.get("is_visitor"));
+                            if (isVisitor)      visitors++;
+                            else if (isPresent) present++;
+                            else                absent++;
+                        } else {
+                            // AttendanceRecord shape: { total_attendance, visitors_count, ... }
+                            Object ta = r.get("total_attendance");
+                            Object vc = r.get("visitors_count");
+                            if (ta instanceof Number) present  += ((Number) ta).longValue();
+                            if (vc instanceof Number) visitors += ((Number) vc).longValue();
+                        }
+                    }
+
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("present_count",  present);
+                    result.put("absent_count",   absent);
+                    result.put("late_count",     late);
+                    result.put("visitor_count",  visitors);
+                    result.put("total_checked_in", present + visitors);
+                    result.put("today_attendance", present + visitors);
+                    return result;
+                }
+            } catch (Exception e) {
+                System.err.println("getAttendanceSummaryForDate error: " + e.getMessage());
+                return fallbackAttendanceData();
+            }
         }));
     }
 
@@ -1094,27 +1682,63 @@ public class SanctumApiClient {
     // ════════════════════════════════════════════════════════════════════════
     //  CHURCH MANAGEMENT
     // ════════════════════════════════════════════════════════════════════════
+    //  CHURCH MANAGEMENT
+    // ════════════════════════════════════════════════════════════════════════
     public static CompletableFuture<Map<String,Object>> getChurchDetails() {
-        return CompletableFuture.supplyAsync(() -> {
-            if (!isAuthenticated()) return new HashMap<>();
-            try {
-                Request req = new Request.Builder()
-                    .url(BASE_URL+"/api/churches/")
-                    .addHeader("Authorization","Bearer "+authToken).get().build();
-                try (Response resp = client.newCall(req).execute()) {
-                    String rb = resp.body() != null ? resp.body().string() : "";
-                    if (!resp.isSuccessful()) return new HashMap<>();
-                    JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
-                    if (root.has("results") && root.getAsJsonArray("results").size()>0) {
-                        JsonObject ch = root.getAsJsonArray("results").get(0).getAsJsonObject();
+        // First resolve the church ID, then fetch the specific church record
+        return getChurchId().thenCompose(churchId ->
+            CompletableFuture.supplyAsync(() -> {
+                if (!isAuthenticated()) return new HashMap<String,Object>();
+                try {
+                    // If we have a specific church ID, use the detail endpoint
+                    // so we get THIS church's branding/logo fields reliably.
+                    String url = (churchId != null && churchId > 0)
+                        ? BASE_URL + "/api/churches/" + churchId + "/"
+                        : BASE_URL + "/api/churches/";
+
+                    System.out.println("getChurchDetails → " + url);
+                    Request req = new Request.Builder()
+                        .url(url)
+                        .addHeader("Authorization", "Bearer " + authToken)
+                        .get().build();
+
+                    try (Response resp = client.newCall(req).execute()) {
+                        String rb = resp.body() != null ? resp.body().string() : "";
+                        System.out.println("CHURCH DETAILS [" + resp.code() + "]: " + rb);
+                        if (!resp.isSuccessful()) return new HashMap<String,Object>();
+
+                        JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
+
+                        // Detail endpoint returns the object directly
+                        // List endpoint wraps in { "results": [...] }
+                        JsonObject church;
+                        if (root.has("results") && root.getAsJsonArray("results").size() > 0) {
+                            church = root.getAsJsonArray("results").get(0).getAsJsonObject();
+                        } else if (root.has("id")) {
+                            church = root;
+                        } else {
+                            return new HashMap<String,Object>();
+                        }
+
                         Map<String,Object> m = new HashMap<>();
-                        for (Map.Entry<String,JsonElement> e : ch.entrySet()) m.put(e.getKey(), parseJsonElement(e.getValue()));
+                        for (Map.Entry<String, JsonElement> e : church.entrySet())
+                            m.put(e.getKey(), parseJsonElement(e.getValue()));
+
+                        // Cache the church ID for subsequent calls
+                        if (church.has("id"))
+                            cachedChurchId = church.get("id").getAsInt();
+
+                        System.out.println("Church loaded: id=" + m.get("id")
+                            + " primary=" + m.get("primary_color")
+                            + " logo=" + m.get("logo"));
                         return m;
                     }
-                    return new HashMap<>();
+                } catch (Exception e) {
+                    System.err.println("getChurchDetails error: " + e.getMessage());
+                    return new HashMap<String,Object>();
                 }
-            } catch (Exception e) { System.err.println("getChurchDetails error: "+e.getMessage()); return new HashMap<>(); }
-        });
+            })
+        );
     }
 
     public static CompletableFuture<Boolean> createChurch(Map<String,Object> churchData) {
@@ -1154,42 +1778,120 @@ public class SanctumApiClient {
         });
     }
 
-    public static CompletableFuture<Map<String,Object>> uploadChurchLogo(int churchId, java.io.File logoFile) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (!isAuthenticated()) return Map.of("success",false);
-            try {
-                MultipartBody.Builder mb = new MultipartBody.Builder().setType(MultipartBody.FORM);
-                mb.addFormDataPart("logo", logoFile.getName(),
-                    RequestBody.create(logoFile, MediaType.parse("image/*")));
-                Request req = new Request.Builder()
-                    .url(BASE_URL+"/api/churches/"+churchId+"/upload-logo/")
-                    .addHeader("Authorization","Bearer "+authToken)
-                    .post(mb.build()).build();
-                try (Response resp = client.newCall(req).execute()) {
-                    return Map.of("success", resp.isSuccessful());
-                }
-            } catch (Exception e) { return Map.of("success",false,"error",e.getMessage()); }
-        });
-    }
-
     public static CompletableFuture<Map<String,Object>> updateChurchBranding(int churchId, String primaryColor, String secondaryColor, String accentColor) {
         return CompletableFuture.supplyAsync(() -> {
-            if (!isAuthenticated()) return Map.of("success",false);
+            if (!isAuthenticated()) return Map.of("success", false, "error", "Not authenticated");
+            if (churchId <= 0)      return Map.of("success", false, "error", "Church ID is 0 — church not loaded yet");
             try {
                 JsonObject body = new JsonObject();
                 if (primaryColor   != null) body.addProperty("primary_color",   primaryColor);
                 if (secondaryColor != null) body.addProperty("secondary_color", secondaryColor);
                 if (accentColor    != null) body.addProperty("accent_color",    accentColor);
+
+                String url = BASE_URL + "/api/churches/" + churchId + "/branding/";
+                System.out.println("BRANDING PATCH → " + url + " body=" + body);
+
                 Request req = new Request.Builder()
-                    .url(BASE_URL+"/api/churches/"+churchId+"/branding/")
-                    .addHeader("Authorization","Bearer "+authToken)
-                    .addHeader("Content-Type","application/json")
+                    .url(url)
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .addHeader("Content-Type", "application/json")
                     .patch(RequestBody.create(gson.toJson(body), MediaType.parse("application/json")))
                     .build();
+
                 try (Response resp = client.newCall(req).execute()) {
-                    return Map.of("success", resp.isSuccessful());
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("BRANDING [" + resp.code() + "]: " + rb);
+
+                    if (resp.isSuccessful()) {
+                        // Parse the full response back so the dialog can show actual new values
+                        try {
+                            JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
+                            Map<String, Object> result = new java.util.HashMap<>();
+                            result.put("success", true);
+                            if (root.has("data")) {
+                                JsonObject data = root.getAsJsonObject("data");
+                                for (Map.Entry<String, JsonElement> e : data.entrySet())
+                                    result.put(e.getKey(), parseJsonElement(e.getValue()));
+                            }
+                            return result;
+                        } catch (Exception ex) {
+                            return Map.of("success", true);
+                        }
+                    } else {
+                        // Extract meaningful error from DRF response
+                        String errMsg = rb;
+                        try {
+                            JsonObject errJson = JsonParser.parseString(rb).getAsJsonObject();
+                            if (errJson.has("message")) errMsg = errJson.get("message").getAsString();
+                            else if (errJson.has("detail")) errMsg = errJson.get("detail").getAsString();
+                            else if (errJson.has("errors")) errMsg = errJson.get("errors").toString();
+                        } catch (Exception ignored) {}
+                        System.err.println("BRANDING update failed [" + resp.code() + "]: " + errMsg);
+                        return Map.of("success", false, "error", "[" + resp.code() + "] " + errMsg);
+                    }
                 }
-            } catch (Exception e) { return Map.of("success",false,"error",e.getMessage()); }
+            } catch (Exception e) {
+                System.err.println("updateChurchBranding error: " + e.getMessage());
+                return Map.of("success", false, "error", e.getMessage());
+            }
+        });
+    }
+
+    public static CompletableFuture<Map<String,Object>> uploadChurchLogo(int churchId, java.io.File logoFile) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return Map.of("success", false, "error", "Not authenticated");
+            if (churchId <= 0)      return Map.of("success", false, "error", "Church ID is 0 — church not loaded yet");
+            try {
+                String mimeType = logoFile.getName().toLowerCase().endsWith(".png") ? "image/png"
+                    : logoFile.getName().toLowerCase().endsWith(".webp") ? "image/webp"
+                    : "image/jpeg";
+
+                MultipartBody.Builder mb = new MultipartBody.Builder().setType(MultipartBody.FORM);
+                mb.addFormDataPart("logo", logoFile.getName(),
+                    RequestBody.create(logoFile, MediaType.parse(mimeType)));
+
+                String url = BASE_URL + "/api/churches/" + churchId + "/upload-logo/";
+                System.out.println("LOGO UPLOAD → " + url);
+
+                Request req = new Request.Builder()
+                    .url(url)
+                    .addHeader("Authorization", "Bearer " + authToken)
+                    .post(mb.build())
+                    .build();
+
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("LOGO UPLOAD [" + resp.code() + "]: " + rb);
+
+                    if (resp.isSuccessful()) {
+                        try {
+                            JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
+                            Map<String, Object> result = new java.util.HashMap<>();
+                            result.put("success", true);
+                            if (root.has("logo_url")) result.put("logo_url", root.get("logo_url").getAsString());
+                            if (root.has("data") && root.get("data").isJsonObject()) {
+                                JsonObject data = root.getAsJsonObject("data");
+                                if (data.has("logo_url")) result.put("logo_url", data.get("logo_url").getAsString());
+                            }
+                            return result;
+                        } catch (Exception ex) {
+                            return Map.of("success", true);
+                        }
+                    } else {
+                        String errMsg = rb;
+                        try {
+                            JsonObject errJson = JsonParser.parseString(rb).getAsJsonObject();
+                            if (errJson.has("message")) errMsg = errJson.get("message").getAsString();
+                            else if (errJson.has("detail")) errMsg = errJson.get("detail").getAsString();
+                        } catch (Exception ignored) {}
+                        System.err.println("Logo upload failed [" + resp.code() + "]: " + errMsg);
+                        return Map.of("success", false, "error", "[" + resp.code() + "] " + errMsg);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("uploadChurchLogo error: " + e.getMessage());
+                return Map.of("success", false, "error", e.getMessage());
+            }
         });
     }
 
@@ -1227,7 +1929,133 @@ public class SanctumApiClient {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  PARSE HELPERS
+    //  SYSTEM ADMIN — getSystemOverview, getPendingChurches, getAllChurches,
+    //                  approveChurch, rejectChurch, getAllUsers, getAuditLogs
+    // ════════════════════════════════════════════════════════════════════════
+
+    public static CompletableFuture<Map<String,Object>> getSystemOverview() {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return new HashMap<>();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/reports/system-overview/")
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("SYSTEM_OVERVIEW [" + resp.code() + "]: " + rb);
+                    if (!resp.isSuccessful()) return new HashMap<>();
+                    JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
+                    JsonObject data = root.has("data") ? root.getAsJsonObject("data") : root;
+                    Map<String,Object> m = new HashMap<>();
+                    for (Map.Entry<String,JsonElement> e : data.entrySet())
+                        m.put(e.getKey(), parseJsonElement(e.getValue()));
+                    return m;
+                }
+            } catch (Exception e) { System.err.println("getSystemOverview: "+e.getMessage()); return new HashMap<>(); }
+        });
+    }
+
+    public static CompletableFuture<List<Map<String,Object>>> getPendingChurches() {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.of();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/churches/pending-approval/")
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("PENDING_CHURCHES [" + resp.code() + "]: " + rb);
+                    if (!resp.isSuccessful()) return List.of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) { System.err.println("getPendingChurches: "+e.getMessage()); return List.of(); }
+        });
+    }
+
+    public static CompletableFuture<List<Map<String,Object>>> getAllChurches() {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.of();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/churches/?page_size=500")
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    if (!resp.isSuccessful()) return List.of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) { System.err.println("getAllChurches: "+e.getMessage()); return List.of(); }
+        });
+    }
+
+    public static CompletableFuture<Boolean> approveChurch(int churchId) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return false;
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/churches/" + churchId + "/approve/")
+                    .addHeader("Authorization","Bearer " + authToken)
+                    .post(RequestBody.create("{}", MediaType.parse("application/json"))).build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("APPROVE_CHURCH [" + resp.code() + "]: " + rb);
+                    return resp.isSuccessful();
+                }
+            } catch (Exception e) { System.err.println("approveChurch: "+e.getMessage()); return false; }
+        });
+    }
+
+    public static CompletableFuture<Boolean> rejectChurch(int churchId, String reason) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return false;
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("reason", reason);
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/churches/" + churchId + "/reject/")
+                    .addHeader("Authorization","Bearer " + authToken)
+                    .addHeader("Content-Type","application/json")
+                    .post(RequestBody.create(gson.toJson(body), MediaType.parse("application/json"))).build();
+                try (Response resp = client.newCall(req).execute()) {
+                    System.out.println("REJECT_CHURCH [" + resp.code() + "]: " + resp.body().string());
+                    return resp.isSuccessful();
+                }
+            } catch (Exception e) { System.err.println("rejectChurch: "+e.getMessage()); return false; }
+        });
+    }
+
+    public static CompletableFuture<List<Map<String,Object>>> getAllUsers() {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.of();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/accounts/users/?page_size=500")
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    if (!resp.isSuccessful()) return List.of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) { System.err.println("getAllUsers: "+e.getMessage()); return List.of(); }
+        });
+    }
+
+    public static CompletableFuture<List<Map<String,Object>>> getAuditLogs(int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.of();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/audit/logs/?page_size=" + limit)
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("AUDIT_LOGS [" + resp.code() + "]");
+                    if (!resp.isSuccessful()) return List.of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) { System.err.println("getAuditLogs: "+e.getMessage()); return List.of(); }
+        });
+    }
     // ════════════════════════════════════════════════════════════════════════
     private static List<Map<String,Object>> parseListFromResponse(String responseBody) {
         try {

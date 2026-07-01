@@ -44,14 +44,15 @@ class DenominationSerializer(BaseSerializer):
 
 class ChurchSerializer(BaseSerializer):
     """Church serializer"""
-    
+
     denomination_name = serializers.CharField(source='denomination.name', read_only=True)
     member_count = serializers.ReadOnlyField()
     active_member_count = serializers.ReadOnlyField()
     total_giving_this_month = serializers.ReadOnlyField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     church_type_display = serializers.CharField(source='get_church_type_display', read_only=True)
-    
+    logo_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Church
         fields = [
@@ -62,7 +63,8 @@ class ChurchSerializer(BaseSerializer):
             'senior_pastor_email', 'established_date', 'membership_count',
             'average_attendance', 'registration_number', 'registration_date',
             'status', 'status_display', 'is_verified', 'verification_date',
-            'verified_by', 'logo', 'primary_color', 'secondary_color', 'accent_color',
+            'verified_by', 'logo', 'logo_url',
+            'primary_color', 'secondary_color', 'accent_color',
             'is_active', 'allow_online_giving', 'require_membership_approval',
             'member_count', 'active_member_count', 'total_giving_this_month',
             'created_at', 'updated_at'
@@ -70,6 +72,24 @@ class ChurchSerializer(BaseSerializer):
         read_only_fields = [
             'church_code', 'is_verified', 'verification_date', 'verified_by'
         ]
+
+    def get_logo_url(self, obj):
+        """Return absolute URL for the logo, or None if no logo set."""
+        if not obj.logo:
+            return None
+        request = self.context.get('request')
+        try:
+            url = obj.logo.url          # works for ImageField
+            return request.build_absolute_uri(url) if request else url
+        except (ValueError, AttributeError):
+            # Legacy: logo field may contain a raw URL string
+            logo_str = str(obj.logo).strip()
+            if not logo_str or logo_str == 'null':
+                return None
+            if logo_str.startswith('http'):
+                return logo_str
+            return (request.build_absolute_uri(f'/media/{logo_str}')
+                    if request else f'/media/{logo_str}')
     
     def validate_phone_number(self, value):
         """Validate phone number"""

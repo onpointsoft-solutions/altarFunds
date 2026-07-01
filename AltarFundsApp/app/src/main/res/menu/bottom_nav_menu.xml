@@ -2,22 +2,22 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_home"
-        android:icon="@android:drawable/ic_menu_view"
+        android:icon="@drawable/ic_nav_home"
         android:title="@string/nav_home" />
     <item
         android:id="@+id/nav_giving"
-        android:icon="@android:drawable/ic_menu_send"
+        android:icon="@drawable/ic_nav_give"
         android:title="@string/nav_giving" />
     <item
         android:id="@+id/nav_announcements"
-        android:icon="@android:drawable/ic_dialog_info"
+        android:icon="@drawable/ic_nav_announcement"
         android:title="@string/nav_announcements" />
     <item
         android:id="@+id/nav_devotionals"
-        android:icon="@android:drawable/ic_menu_agenda"
+        android:icon="@drawable/ic_nav_devotional"
         android:title="@string/nav_devotionals" />
     <item
         android:id="@+id/nav_profile"
-        android:icon="@android:drawable/ic_menu_myplaces"
+        android:icon="@drawable/ic_nav_profile"
         android:title="@string/nav_profile" />
 </menu>

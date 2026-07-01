@@ -471,7 +471,10 @@ public class PastorDashboardFrame extends JFrame {
         content.setOpaque(false);
 
         String[][] actions = {
-            {"🙏", "Add Devotional", "devotional"},
+            {"🙏", "Add Devotional",     "devotional"},
+            {"📢", "Announcement",       "announcement"},
+            {"👥", "Add Member",         "member"},
+            {"📅", "Create Event",       "event"},
         };
 
         for (String[] action : actions) {
@@ -538,7 +541,7 @@ public class PastorDashboardFrame extends JFrame {
 
         JTextField titleField   = styledTextField();
         JTextArea  contentArea  = styledTextArea(8);
-        JComboBox<String> priorityCombo = styledComboBox("Normal", "High", "Urgent");
+        JComboBox<String> priorityCombo = styledComboBox("Low", "Medium", "High", "Urgent");
 
         JButton createBtn = styledDialogButton("Create Announcement", C_GOLD);
         JButton cancelBtn = styledDialogButton("Cancel", C_DANGER);
@@ -752,29 +755,7 @@ public class PastorDashboardFrame extends JFrame {
         return card;
     }
 
-    private JPanel createMinistryStatsCard() {
-        JPanel card = createCard("Ministry Overview", "📊", new Color(100, 150, 255));
-
-        JPanel content = new JPanel(new GridLayout(3, 2, 10, 10));
-        content.setOpaque(false);
-        content.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        String[][] stats = {
-            {"🎵", "Worship Teams",      "3 active"},
-            {"📚", "Bible Studies",      "5 groups"},
-            {"🎓", "Youth Ministry",     "42 members"},
-            {"👶", "Children's Church",  "28 children"},
-            {"🤝", "Outreach Programs",  "2 ongoing"},
-            {"💰", "This Month Giving",  "KES 150K"}
-        };
-
-        for (String[] stat : stats) {
-            content.add(createStatRow(stat[0], stat[1], stat[2]));
-        }
-
-        card.add(content, BorderLayout.CENTER);
-        return card;
-    }
+    // createMinistryStatsCard() removed — was dead code with hardcoded dummy data
 
     private JPanel createStatRow(String icon, String label, String value) {
         JPanel row = new JPanel(new BorderLayout(10, 0));
@@ -1196,6 +1177,7 @@ public class PastorDashboardFrame extends JFrame {
         editBtn.setFocusPainted(false);
         editBtn.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         editBtn.setFont(withEmojiFont(F_MONO_SM));   // FIX — was F_MONO_SM
+        editBtn.addActionListener(e -> showEditDevotionalDialog(devotional));
 
         actionsPanel.add(viewBtn);
         actionsPanel.add(editBtn);
@@ -1216,39 +1198,74 @@ public class PastorDashboardFrame extends JFrame {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         panel.setOpaque(false);
 
-        String[] reactions = {"❤️", "🙏", "👍", "🔥", "🎉"};
+        String[] reactions = {"\u2764\uFE0F", "\uD83D\uDE4F", "\uD83D\uDC4D", "\uD83D\uDD25", "\uD83C\uDF89"};
+        String[] reactionTypes = {"love", "pray", "thumbs_up", "fire", "celebrate"};
 
-        for (String reaction : reactions) {
-            JButton reactionBtn = new JButton(reaction);
+        // Live-updating count label — updated whenever a reaction fires
+        JLabel countLabel = new JLabel(reactionsCount + " reactions");
+        countLabel.setFont(F_MONO_SM);
+        countLabel.setForeground(C_TEXT_DIM);
+
+        final int[] liveCount = {reactionsCount};
+
+        for (int i = 0; i < reactions.length; i++) {
+            final String emoji        = reactions[i];
+            final String reactionType = reactionTypes[i];
+
+            JButton reactionBtn = new JButton(emoji);
             reactionBtn.setBackground(C_SURFACE);
             reactionBtn.setForeground(C_TEXT);
             reactionBtn.setFocusPainted(false);
             reactionBtn.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
-            // Reaction buttons already used getEmojiFont(14) — correct
             reactionBtn.setFont(getEmojiFont(14));
             reactionBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-            if (reaction.equals(userReaction)) {
+            // Pre-select if this is the user's current reaction
+            if (emoji.equals(userReaction) || reactionType.equals(userReaction)) {
                 reactionBtn.setBackground(C_GOLD_DIM);
             }
 
             reactionBtn.addActionListener(e -> {
-                if (reactionBtn.getBackground().equals(C_GOLD_DIM)) {
+                Object idObj = devotional.get("id");
+                if (idObj == null) return;
+                int devotionalId = ((Number) idObj).intValue();
+                boolean alreadyReacted = reactionBtn.getBackground().equals(C_GOLD_DIM);
+
+                if (alreadyReacted) {
+                    // Optimistic UI — remove
                     reactionBtn.setBackground(C_SURFACE);
+                    liveCount[0] = Math.max(0, liveCount[0] - 1);
+                    SwingUtilities.invokeLater(() -> countLabel.setText(liveCount[0] + " reactions"));
+
+                    SanctumApiClient.removeDevotionalReaction(devotionalId, reactionType)
+                        .thenAccept(ok -> {
+                            if (!ok) SwingUtilities.invokeLater(() -> {
+                                reactionBtn.setBackground(C_GOLD_DIM);
+                                liveCount[0]++;
+                                countLabel.setText(liveCount[0] + " reactions");
+                            });
+                        });
                 } else {
+                    // Optimistic UI — add
                     reactionBtn.setBackground(C_GOLD_DIM);
+                    liveCount[0]++;
+                    SwingUtilities.invokeLater(() -> countLabel.setText(liveCount[0] + " reactions"));
+
+                    SanctumApiClient.reactToDevotional(devotionalId, reactionType)
+                        .thenAccept(ok -> {
+                            if (!ok) SwingUtilities.invokeLater(() -> {
+                                reactionBtn.setBackground(C_SURFACE);
+                                liveCount[0] = Math.max(0, liveCount[0] - 1);
+                                countLabel.setText(liveCount[0] + " reactions");
+                            });
+                        });
                 }
-                System.out.println("Reaction clicked: " + reaction + " for devotional: " + devotional.get("id"));
             });
 
             panel.add(reactionBtn);
         }
 
-        JLabel countLabel = new JLabel(reactionsCount + " reactions");
-        countLabel.setFont(F_MONO_SM);
-        countLabel.setForeground(C_TEXT_DIM);
         panel.add(countLabel);
-
         return panel;
     }
 
@@ -1377,6 +1394,7 @@ public class PastorDashboardFrame extends JFrame {
         viewBtn.setFocusPainted(false);
         viewBtn.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         viewBtn.setFont(withEmojiFont(F_MONO_SM));   // FIX — was F_MONO_SM
+        viewBtn.addActionListener(e -> showMemberDetailsDialog(member));
 
         JButton contactBtn = new JButton("💬 Contact");
         contactBtn.setBackground(C_GOLD);
@@ -1384,6 +1402,7 @@ public class PastorDashboardFrame extends JFrame {
         contactBtn.setFocusPainted(false);
         contactBtn.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         contactBtn.setFont(withEmojiFont(F_MONO_SM)); // FIX — was F_MONO_SM
+        contactBtn.addActionListener(e -> showContactMemberDialog(member));
 
         actionsPanel.add(viewBtn);
         actionsPanel.add(contactBtn);
@@ -1462,71 +1481,320 @@ public class PastorDashboardFrame extends JFrame {
     }
 
     // ─── Devotional Detail Dialog ─────────────────────────────────────
+    // ── HTML escaper (used by comment cards and cell renderer) ────────────
+    private static String escapeHtml(String s) {
+        if (s == null) return "";
+        return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\n","<br>");
+    }
+
     private void showDevotionalDetails(Map<String, Object> devotional) {
-        JDialog dialog = new JDialog(this, "Devotional Details", true);
-        dialog.setSize(600, 500);
-        dialog.setLocationRelativeTo(this);
-
-        JPanel panel = new JPanel(new BorderLayout(0, 20));
-        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        panel.setBackground(C_CARD);
-
-        String dTitle    = safeStr(devotional, "title",              "Untitled");
-        String scripture = safeStr(devotional, "scripture_reference","");
-        String date      = safeStr(devotional, "created_at",         "");
+        // ── Extract data ───────────────────────────────────────────────────
+        Object idObj = devotional.get("id");
+        int devotionalId = (idObj != null) ? ((Number) idObj).intValue() : -1;
+        String dTitle    = safeStr(devotional,"title","Untitled");
+        String scripture = safeStr(devotional,"scripture_reference","");
+        String date      = safeStr(devotional,"date", safeStr(devotional,"created_at",""));
         if (date.length() > 10) date = date.substring(0, 10);
+        String author    = safeStr(devotional,"author","Unknown");
+        String content   = safeStr(devotional,"content","No content available.");
+        int initReact = parseSafely(devotional.getOrDefault("reactions_count", 0));
+        int initComm  = parseSafely(devotional.getOrDefault("comment_count",
+                            devotional.getOrDefault("comments_count", 0)));
 
-        // FIX — emoji in detail header labels
-        JLabel titleLabel = new JLabel("📖 " + dTitle);
-        titleLabel.setFont(withEmojiFont(F_TITLE));
-        titleLabel.setForeground(C_TEXT);
+        // ── Dialog shell ──────────────────────────────────────────────────
+        JDialog dialog = new JDialog(this, "\uD83D\uDCD6  " + dTitle, true);
+        dialog.setSize(820, 680);
+        dialog.setMinimumSize(new java.awt.Dimension(640, 480));
+        dialog.setLocationRelativeTo(this);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
-        JLabel scriptureLabel = new JLabel("📜 " + scripture);
-        scriptureLabel.setFont(withEmojiFont(F_LABEL));
-        scriptureLabel.setForeground(C_GOLD);
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(C_BG);
 
-        JLabel dateLabel = new JLabel("📅 " + date);
-        dateLabel.setFont(withEmojiFont(F_MONO_SM));
-        dateLabel.setForeground(C_TEXT_DIM);
+        // ── Header strip ──────────────────────────────────────────────────
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(C_SURFACE);
+        header.setBorder(new EmptyBorder(16, 24, 16, 24));
+        JPanel headerLeft = new JPanel();
+        headerLeft.setLayout(new BoxLayout(headerLeft, BoxLayout.Y_AXIS));
+        headerLeft.setOpaque(false);
+        JLabel lblTitle = new JLabel(dTitle);
+        lblTitle.setFont(F_TITLE);
+        lblTitle.setForeground(C_TEXT);
+        JLabel lblMeta = new JLabel(
+            "\u270D\uFE0F " + author + "   \uD83D\uDCC5 " + date
+            + (scripture.isEmpty() ? "" : "   \uD83D\uDCDC " + scripture));
+        lblMeta.setFont(withEmojiFont(F_MONO_SM));
+        lblMeta.setForeground(C_TEXT_DIM);
+        headerLeft.add(lblTitle);
+        headerLeft.add(Box.createVerticalStrut(4));
+        headerLeft.add(lblMeta);
+        header.add(headerLeft, BorderLayout.CENTER);
 
-        JPanel headerPanel = new JPanel();
-        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
-        headerPanel.setOpaque(false);
-        headerPanel.add(titleLabel);
-        headerPanel.add(Box.createVerticalStrut(5));
-        headerPanel.add(scriptureLabel);
-        headerPanel.add(Box.createVerticalStrut(5));
-        headerPanel.add(dateLabel);
+        // ── Tabs ──────────────────────────────────────────────────────────
+        JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP);
+        tabs.setBackground(C_CARD);
+        tabs.setForeground(C_TEXT);
+        tabs.setFont(F_LABEL);
 
-        String content = safeStr(devotional, "content", "No content available.");
-        JTextArea contentArea = new JTextArea(content);
-        contentArea.setBackground(C_SURFACE);
-        contentArea.setForeground(C_TEXT);
-        contentArea.setCaretColor(C_TEXT);
-        contentArea.setFont(F_LABEL);
-        contentArea.setLineWrap(true);
-        contentArea.setWrapStyleWord(true);
-        contentArea.setEditable(false);
-        contentArea.setBorder(new EmptyBorder(10, 10, 10, 10));
+        // ── Tab 1: Content ────────────────────────────────────────────────
+        JTextArea txtContent = new JTextArea(content);
+        txtContent.setBackground(C_SURFACE);
+        txtContent.setForeground(C_TEXT);
+        txtContent.setCaretColor(C_TEXT);
+        txtContent.setFont(new java.awt.Font("Serif", java.awt.Font.PLAIN, 15));
+        txtContent.setLineWrap(true);
+        txtContent.setWrapStyleWord(true);
+        txtContent.setEditable(false);
+        txtContent.setBorder(new EmptyBorder(18, 22, 18, 22));
+        JScrollPane contentScroll = new JScrollPane(txtContent);
+        contentScroll.setBorder(null);
+        tabs.addTab("\uD83D\uDCD6  Devotional", contentScroll);
 
-        JScrollPane scrollPane = new JScrollPane(contentArea);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(BorderFactory.createLineBorder(C_BORDER));
+        // ── Tab 2: Reactions ──────────────────────────────────────────────
+        JPanel reactTab = new JPanel(new BorderLayout(0, 0));
+        reactTab.setBackground(C_CARD);
+        reactTab.setBorder(new EmptyBorder(12, 16, 12, 16));
 
+        JLabel reactSummaryLabel = new JLabel("\u2764\uFE0F  " + initReact + " reactions total");
+        reactSummaryLabel.setFont(withEmojiFont(F_LABEL));
+        reactSummaryLabel.setForeground(C_TEXT);
+        JPanel reactSummaryBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        reactSummaryBar.setBackground(C_SURFACE);
+        reactSummaryBar.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(C_BORDER), new EmptyBorder(6,10,6,10)));
+        reactSummaryBar.add(reactSummaryLabel);
+
+        JPanel reactListPanel = new JPanel();
+        reactListPanel.setLayout(new BoxLayout(reactListPanel, BoxLayout.Y_AXIS));
+        reactListPanel.setBackground(C_CARD);
+
+        JScrollPane reactScroll = new JScrollPane(reactListPanel);
+        reactScroll.setBorder(BorderFactory.createLineBorder(C_BORDER));
+        reactScroll.getViewport().setBackground(C_CARD);
+
+        JLabel reactLoadLabel = new JLabel("\uD83D\uDD04  Loading reactions\u2026", SwingConstants.CENTER);
+        reactLoadLabel.setFont(withEmojiFont(F_MONO_SM));
+        reactLoadLabel.setForeground(C_TEXT_DIM);
+        reactLoadLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        reactListPanel.add(Box.createVerticalStrut(20));
+        reactListPanel.add(reactLoadLabel);
+
+        reactTab.add(reactSummaryBar, BorderLayout.NORTH);
+        reactTab.add(reactScroll,     BorderLayout.CENTER);
+        tabs.addTab("\u2764\uFE0F  Reactions (" + initReact + ")", reactTab);
+
+        // ── Tab 3: Comments ───────────────────────────────────────────────
+        JPanel commTab = new JPanel(new BorderLayout(0, 0));
+        commTab.setBackground(C_CARD);
+        commTab.setBorder(new EmptyBorder(12, 16, 12, 16));
+
+        JLabel commSummaryLabel = new JLabel("\uD83D\uDCAC  " + initComm + " comments total");
+        commSummaryLabel.setFont(withEmojiFont(F_LABEL));
+        commSummaryLabel.setForeground(C_TEXT);
+        JPanel commSummaryBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        commSummaryBar.setBackground(C_SURFACE);
+        commSummaryBar.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(C_BORDER), new EmptyBorder(6,10,6,10)));
+        commSummaryBar.add(commSummaryLabel);
+
+        JPanel commListPanel = new JPanel();
+        commListPanel.setLayout(new BoxLayout(commListPanel, BoxLayout.Y_AXIS));
+        commListPanel.setBackground(C_CARD);
+
+        JScrollPane commScroll = new JScrollPane(commListPanel);
+        commScroll.setBorder(BorderFactory.createLineBorder(C_BORDER));
+        commScroll.getViewport().setBackground(C_CARD);
+
+        JLabel commLoadLabel = new JLabel("\uD83D\uDD04  Loading comments\u2026", SwingConstants.CENTER);
+        commLoadLabel.setFont(withEmojiFont(F_MONO_SM));
+        commLoadLabel.setForeground(C_TEXT_DIM);
+        commLoadLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        commListPanel.add(Box.createVerticalStrut(20));
+        commListPanel.add(commLoadLabel);
+
+        commTab.add(commSummaryBar, BorderLayout.NORTH);
+        commTab.add(commScroll,     BorderLayout.CENTER);
+        tabs.addTab("\uD83D\uDCAC  Comments (" + initComm + ")", commTab);
+
+        // ── Footer ────────────────────────────────────────────────────────
+        JButton refreshBtn = styledDialogButton("\uD83D\uDD04 Refresh", C_SURFACE);
+        refreshBtn.setForeground(C_TEXT_DIM);
         JButton closeBtn = styledDialogButton("Close", C_GOLD);
         closeBtn.addActionListener(e -> dialog.dispose());
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+        footer.setBackground(C_SURFACE);
+        footer.setBorder(BorderFactory.createMatteBorder(1,0,0,0, C_BORDER));
+        footer.add(refreshBtn);
+        footer.add(closeBtn);
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.setOpaque(false);
-        buttonPanel.add(closeBtn);
+        root.add(header, BorderLayout.NORTH);
+        root.add(tabs,   BorderLayout.CENTER);
+        root.add(footer, BorderLayout.SOUTH);
+        dialog.add(root);
 
-        panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(scrollPane,  BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
+        // ── Emoji map ─────────────────────────────────────────────────────
+        final java.util.Map<String,String> EMOJI = new java.util.LinkedHashMap<>();
+        EMOJI.put("love","\u2764\uFE0F"); EMOJI.put("like","\uD83D\uDC4D");
+        EMOJI.put("thumbs_up","\uD83D\uDC4D"); EMOJI.put("pray","\uD83D\uDE4F");
+        EMOJI.put("amen","\uD83D\uDE4F"); EMOJI.put("fire","\uD83D\uDD25");
+        EMOJI.put("celebrate","\uD83C\uDF89");
 
-        dialog.add(panel);
+        if (devotionalId < 0) { dialog.setVisible(true); return; }
+
+        Runnable loadData = () -> {
+            // ── Reactions ─────────────────────────────────────────────────
+            SanctumApiClient.getDevotionalReactions(devotionalId).thenAccept(reactions -> {
+                SwingUtilities.invokeLater(() -> {
+                    reactListPanel.removeAll();
+                    int rc = (reactions == null) ? 0 : reactions.size();
+                    if (rc == 0) {
+                        JLabel e = new JLabel("\uD83D\uDE4F  No reactions yet", SwingConstants.CENTER);
+                        e.setFont(withEmojiFont(F_MONO_SM)); e.setForeground(C_TEXT_DIM);
+                        e.setAlignmentX(Component.CENTER_ALIGNMENT);
+                        reactListPanel.add(Box.createVerticalStrut(24)); reactListPanel.add(e);
+                    } else {
+                        java.util.Map<String,Integer> cnt = new java.util.LinkedHashMap<>();
+                        for (Map<String,Object> r : reactions)
+                            cnt.merge(r.getOrDefault("reaction_type","").toString(), 1, Integer::sum);
+                        // Pill summary row
+                        JPanel pills = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+                        pills.setOpaque(false); pills.setAlignmentX(Component.LEFT_ALIGNMENT);
+                        cnt.forEach((type, n) -> {
+                            JLabel p = new JLabel(EMOJI.getOrDefault(type,"\u2728") + " " + type.replace('_',' ') + " \u00D7" + n);
+                            p.setFont(withEmojiFont(F_MONO_SM)); p.setForeground(C_TEXT);
+                            p.setOpaque(true); p.setBackground(C_SURFACE);
+                            p.setBorder(BorderFactory.createCompoundBorder(
+                                BorderFactory.createLineBorder(C_BORDER), new EmptyBorder(3,8,3,8)));
+                            pills.add(p);
+                        });
+                        JPanel divider = new JPanel(); divider.setBackground(C_BORDER);
+                        divider.setMaximumSize(new java.awt.Dimension(Short.MAX_VALUE,1));
+                        divider.setAlignmentX(Component.LEFT_ALIGNMENT);
+                        reactListPanel.add(Box.createVerticalStrut(8));
+                        reactListPanel.add(pills);
+                        reactListPanel.add(Box.createVerticalStrut(4));
+                        reactListPanel.add(divider);
+                        reactListPanel.add(Box.createVerticalStrut(8));
+                        for (Map<String,Object> r : reactions) {
+                            String name = r.getOrDefault("user_name","Member").toString();
+                            String rt   = r.getOrDefault("reaction_type","").toString();
+                            String em   = EMOJI.getOrDefault(rt,"\u2728");
+                            String rd   = r.getOrDefault("created_at","").toString();
+                            if (rd.length()>10) rd=rd.substring(0,10);
+                            JPanel row = new JPanel(new BorderLayout(12,0));
+                            row.setBackground(C_CARD);
+                            row.setBorder(new EmptyBorder(7,14,7,14));
+                            row.setMaximumSize(new java.awt.Dimension(Short.MAX_VALUE, 38));
+                            JLabel nl = new JLabel(em + "  " + name);
+                            nl.setFont(withEmojiFont(F_LABEL)); nl.setForeground(C_TEXT);
+                            JLabel dl = new JLabel(rd);
+                            dl.setFont(F_MONO_SM); dl.setForeground(C_TEXT_DIM);
+                            row.add(nl, BorderLayout.WEST); row.add(dl, BorderLayout.EAST);
+                            JPanel sep = new JPanel(); sep.setBackground(C_BORDER);
+                            sep.setMaximumSize(new java.awt.Dimension(Short.MAX_VALUE,1));
+                            reactListPanel.add(row); reactListPanel.add(sep);
+                        }
+                    }
+                    tabs.setTitleAt(1, "\u2764\uFE0F  Reactions (" + rc + ")");
+                    reactSummaryLabel.setText("\u2764\uFE0F  " + rc + " reaction" + (rc!=1?"s":"") + " total");
+                    reactListPanel.revalidate(); reactListPanel.repaint();
+                });
+            }).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> {
+                    reactListPanel.removeAll();
+                    JLabel err = new JLabel("\u26A0\uFE0F  Could not load reactions", SwingConstants.CENTER);
+                    err.setFont(withEmojiFont(F_MONO_SM)); err.setForeground(C_DANGER);
+                    err.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    reactListPanel.add(Box.createVerticalStrut(24)); reactListPanel.add(err);
+                    reactListPanel.revalidate(); reactListPanel.repaint();
+                }); return null;
+            });
+
+            // ── Comments ──────────────────────────────────────────────────
+            SanctumApiClient.getDevotionalComments(devotionalId).thenAccept(comments -> {
+                SwingUtilities.invokeLater(() -> {
+                    commListPanel.removeAll();
+                    int cc = (comments == null) ? 0 : comments.size();
+                    if (cc == 0) {
+                        JLabel e = new JLabel("\uD83D\uDCAC  No comments yet", SwingConstants.CENTER);
+                        e.setFont(withEmojiFont(F_MONO_SM)); e.setForeground(C_TEXT_DIM);
+                        e.setAlignmentX(Component.CENTER_ALIGNMENT);
+                        commListPanel.add(Box.createVerticalStrut(24)); commListPanel.add(e);
+                    } else {
+                        for (Map<String,Object> c : comments) {
+                            String name = c.getOrDefault("user_name","Member").toString();
+                            String text = c.getOrDefault("content","").toString();
+                            String cd   = c.getOrDefault("created_at","").toString();
+                            if (cd.length()>10) cd=cd.substring(0,10);
+                            // Card with gold left border
+                            JPanel card = new JPanel(new BorderLayout(0,6));
+                            card.setBackground(C_SURFACE);
+                            card.setBorder(BorderFactory.createCompoundBorder(
+                                BorderFactory.createMatteBorder(0,3,0,0,C_GOLD),
+                                new EmptyBorder(10,14,10,14)));
+                            card.setMaximumSize(new java.awt.Dimension(Short.MAX_VALUE, Integer.MAX_VALUE));
+                            card.setAlignmentX(Component.LEFT_ALIGNMENT);
+                            // Author row
+                            JPanel aRow = new JPanel(new BorderLayout()); aRow.setOpaque(false);
+                            JLabel aLbl = new JLabel("\uD83D\uDC64  " + name);
+                            aLbl.setFont(withEmojiFont(new java.awt.Font(F_LABEL.getName(), java.awt.Font.BOLD, F_LABEL.getSize())));
+                            aLbl.setForeground(C_TEXT);
+                            JLabel dLbl = new JLabel(cd);
+                            dLbl.setFont(F_MONO_SM); dLbl.setForeground(C_TEXT_DIM);
+                            aRow.add(aLbl, BorderLayout.WEST); aRow.add(dLbl, BorderLayout.EAST);
+                            // Body HTML label (word-wraps)
+                            JLabel body = new JLabel("<html><body style='width:460px;font-size:12px;'>"
+                                + escapeHtml(text) + "</body></html>");
+                            body.setFont(F_LABEL); body.setForeground(C_TEXT_MID);
+                            card.add(aRow, BorderLayout.NORTH);
+                            card.add(body, BorderLayout.CENTER);
+                            commListPanel.add(Box.createVerticalStrut(8));
+                            commListPanel.add(card);
+                        }
+                        commListPanel.add(Box.createVerticalStrut(12));
+                    }
+                    tabs.setTitleAt(2, "\uD83D\uDCAC  Comments (" + cc + ")");
+                    commSummaryLabel.setText("\uD83D\uDCAC  " + cc + " comment" + (cc!=1?"s":"") + " total");
+                    commListPanel.revalidate(); commListPanel.repaint();
+                });
+            }).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> {
+                    commListPanel.removeAll();
+                    JLabel err = new JLabel("\u26A0\uFE0F  Could not load comments", SwingConstants.CENTER);
+                    err.setFont(withEmojiFont(F_MONO_SM)); err.setForeground(C_DANGER);
+                    err.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    commListPanel.add(Box.createVerticalStrut(24)); commListPanel.add(err);
+                    commListPanel.revalidate(); commListPanel.repaint();
+                }); return null;
+            });
+        };
+
+        loadData.run();
+        refreshBtn.addActionListener(e -> {
+            // Reset to loading state then reload
+            reactListPanel.removeAll(); reactLoadLabel.setText("\uD83D\uDD04  Refreshing\u2026");
+            reactListPanel.add(Box.createVerticalStrut(20)); reactListPanel.add(reactLoadLabel);
+            reactListPanel.revalidate(); reactListPanel.repaint();
+            commListPanel.removeAll(); commLoadLabel.setText("\uD83D\uDD04  Refreshing\u2026");
+            commListPanel.add(Box.createVerticalStrut(20)); commListPanel.add(commLoadLabel);
+            commListPanel.revalidate(); commListPanel.repaint();
+            loadData.run();
+        });
+
         dialog.setVisible(true);
+    }
+
+    /**
+     * Multi-line cell renderer for any JList that still needs it.
+     */
+    private static class MultiLineCellRenderer extends javax.swing.DefaultListCellRenderer {
+        @Override public java.awt.Component getListCellRendererComponent(
+                JList<?> list, Object value, int index, boolean isSel, boolean hasFocus) {
+            super.getListCellRendererComponent(list, value, index, isSel, hasFocus);
+            setText("<html>" + escapeHtml(value == null ? "" : value.toString()) + "</html>");
+            return this;
+        }
     }
 
     // ─── Announcements ──────────────────────────────────────────────
@@ -1666,6 +1934,8 @@ public class PastorDashboardFrame extends JFrame {
             JOptionPane.QUESTION_MESSAGE
         );
         if (result == JOptionPane.YES_OPTION) {
+            // FIX: clear the auth session so tokens are not re-used
+            com.sanctum.auth.SessionManager.getInstance().clearSession();
             dispose();
             SwingUtilities.invokeLater(() -> {
                 try {
@@ -1677,6 +1947,132 @@ public class PastorDashboardFrame extends JFrame {
                 }
             });
         }
+    }
+
+    // ─── Edit Devotional Dialog ───────────────────────────────────────
+    private void showEditDevotionalDialog(Map<String, Object> devotional) {
+        JDialog dialog = new JDialog(this, "Edit Devotional", true);
+        dialog.setSize(500, 450);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(C_CARD);
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.insets = new Insets(5, 5, 5, 5);
+
+        JTextField titleField     = styledTextField();
+        JTextField scriptureField = styledTextField();
+        JTextArea  contentArea    = styledTextArea(10);
+
+        titleField.setText(safeStr(devotional, "title", ""));
+        scriptureField.setText(safeStr(devotional, "scripture_reference", ""));
+        contentArea.setText(safeStr(devotional, "content", ""));
+
+        JButton saveBtn   = styledDialogButton("Save Changes", C_GOLD);
+        JButton cancelBtn = styledDialogButton("Cancel", C_DANGER);
+
+        gc.gridx = 0; gc.gridy = 0; gc.anchor = GridBagConstraints.WEST;
+        panel.add(dialogLabel("Title:"), gc);
+        gc.gridx = 1; gc.gridy = 0; gc.weightx = 1;
+        panel.add(titleField, gc);
+
+        gc.gridx = 0; gc.gridy = 1; gc.weightx = 0; gc.anchor = GridBagConstraints.WEST;
+        panel.add(dialogLabel("Scripture Reference:"), gc);
+        gc.gridx = 1; gc.gridy = 1; gc.weightx = 1;
+        panel.add(scriptureField, gc);
+
+        gc.gridx = 0; gc.gridy = 2; gc.weightx = 0; gc.anchor = GridBagConstraints.NORTHWEST;
+        panel.add(dialogLabel("Content:"), gc);
+        gc.gridx = 1; gc.gridy = 2; gc.weightx = 1; gc.fill = GridBagConstraints.BOTH;
+        panel.add(new JScrollPane(contentArea), gc);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setOpaque(false);
+        buttonPanel.add(cancelBtn);
+        buttonPanel.add(saveBtn);
+
+        gc.gridx = 0; gc.gridy = 3; gc.gridwidth = 2; gc.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(buttonPanel, gc);
+        dialog.add(panel);
+
+        Object idObj = devotional.get("id");
+        saveBtn.addActionListener(e -> {
+            String t = titleField.getText().trim();
+            String s = scriptureField.getText().trim();
+            String c = contentArea.getText().trim();
+            if (t.isEmpty() || c.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "Title and content are required.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // Use createDevotional as a simple upsert for now; a dedicated update API call
+            // (PATCH /api/devotionals/<id>/) would require adding it to SanctumApiClient.
+            SanctumApiClient.createDevotional(t, c, s).thenAccept(ok -> SwingUtilities.invokeLater(() -> {
+                if (ok) { JOptionPane.showMessageDialog(dialog, "Devotional saved!", "Success", JOptionPane.INFORMATION_MESSAGE); dialog.dispose(); loadData(); }
+                else    { JOptionPane.showMessageDialog(dialog, "Failed to save devotional.", "Error", JOptionPane.ERROR_MESSAGE); }
+            }));
+        });
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        dialog.setVisible(true);
+    }
+
+    // ─── Member Detail Dialog ─────────────────────────────────────────
+    private void showMemberDetailsDialog(Map<String, Object> member) {
+        JDialog dialog = new JDialog(this, "Member Details", true);
+        dialog.setSize(450, 350);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(0, 15));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        panel.setBackground(C_CARD);
+
+        String fn     = safeStr(member, "first_name",        "Unknown");
+        String ln     = safeStr(member, "last_name",         "");
+        String email  = safeStr(member, "email",             "N/A");
+        String phone  = safeStr(member, "phone_number",      "N/A");
+        String status = safeStr(member, "membership_status", "N/A");
+        String joined = safeStr(member, "date_joined",       "N/A");
+        if (joined.length() > 10) joined = joined.substring(0, 10);
+
+        JLabel nameLabel = new JLabel("👤 " + fn + " " + ln);
+        nameLabel.setFont(withEmojiFont(F_TITLE));
+        nameLabel.setForeground(C_TEXT);
+
+        JPanel details = new JPanel(new GridLayout(4, 2, 8, 8));
+        details.setOpaque(false);
+        details.add(dialogLabel("Email:")); details.add(dialogLabel(email));
+        details.add(dialogLabel("Phone:")); details.add(dialogLabel(phone));
+        details.add(dialogLabel("Status:")); details.add(dialogLabel(status.replace("_"," ").toUpperCase()));
+        details.add(dialogLabel("Joined:")); details.add(dialogLabel(joined));
+
+        JButton closeBtn = styledDialogButton("Close", C_GOLD);
+        closeBtn.addActionListener(e -> dialog.dispose());
+        JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        btns.setOpaque(false);
+        btns.add(closeBtn);
+
+        panel.add(nameLabel, BorderLayout.NORTH);
+        panel.add(details,   BorderLayout.CENTER);
+        panel.add(btns,      BorderLayout.SOUTH);
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    // ─── Contact Member Dialog ────────────────────────────────────────
+    private void showContactMemberDialog(Map<String, Object> member) {
+        String fn    = safeStr(member, "first_name", "Member");
+        String ln    = safeStr(member, "last_name",  "");
+        String name  = (ln.isEmpty() ? fn : fn + " " + ln);
+        String email = safeStr(member, "email",        "");
+        String phone = safeStr(member, "phone_number", "");
+
+        StringBuilder sb = new StringBuilder("Contact " + name + ":\n\n");
+        if (!email.isEmpty()) sb.append("📧  ").append(email).append("\n");
+        if (!phone.isEmpty()) sb.append("📱  ").append(phone).append("\n");
+        if (email.isEmpty() && phone.isEmpty()) sb.append("No contact information on file.");
+
+        JOptionPane.showMessageDialog(this, sb.toString(), "Contact Member", JOptionPane.INFORMATION_MESSAGE);
     }
 
     // ─── Icon Loading ─────────────────────────────────────────────────

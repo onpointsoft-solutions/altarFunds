@@ -141,22 +141,19 @@ public class SessionManager {
     }
     
     /**
-     * Determines user role based on username (simplified for demo)
+    /**
+     * Determines user role based on username — last-resort fallback only.
+     * In practice this should never be called because the API login response
+     * always contains the role.  If it is called, return a safe default.
      */
     private String determineUserRole(String username) {
-        // In production, this would come from the API response
-        if (username.toLowerCase().contains("admin")) {
-            return "ADMIN";
-        } else if (username.toLowerCase().contains("pastor")) {
-            return "PASTOR";
-        } else if (username.toLowerCase().contains("treasurer")) {
-            return "TREASURER";
-        } else if (username.toLowerCase().contains("secretary")) {
-            return "SECRETARY";
-        } else if (username.toLowerCase().contains("usher")) {
-            return "USHER";
-        }
-        return "MEMBER";
+        // Do NOT guess from the username — that was unreliable.
+        // Return "member" so the user gets the least-privileged dashboard.
+        // If the role is truly unknown, the admin can re-login and the
+        // API response will populate it correctly.
+        System.err.println("WARNING: role could not be determined from API for " + username
+            + " — defaulting to 'member'. Check SanctumApiClient.getCurrentUserRole().");
+        return "member";
     }
     
     /**

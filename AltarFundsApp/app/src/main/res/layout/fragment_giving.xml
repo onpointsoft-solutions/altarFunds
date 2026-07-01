@@ -1,67 +1,178 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/secondary">
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefresh"
-        android:background="@color/secondary"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="16dp">
+            android:layout_height="match_parent">
 
-            <TextView
-                android:id="@+id/tvTitle"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/donation_history"
-                android:textColor="@color/text_primary"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-            <TextView
-                android:id="@+id/tvSubtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Your giving history"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvTitle" />
+                <!-- ── Page header ── -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/donation_history"
+                    android:textColor="@color/text_primary"
+                    android:textSize="26sp"
+                    android:textStyle="bold" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvDonations"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_marginTop="16dp"
-                android:clipToPadding="false"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvSubtitle" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Your giving history"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
 
-            <TextView
-                android:id="@+id/tvEmpty"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/no_data"
-                android:textColor="@color/text_secondary"
-                android:textSize="16sp"
-                android:visibility="gone"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                <!-- ── Summary card ── -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    app:cardBackgroundColor="@color/primary"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp">
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Total Given"
+                            android:textColor="@color/white"
+                            android:alpha="0.75"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/tvTotalGiving"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="KES 0"
+                            android:textColor="@color/white"
+                            android:textSize="28sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="This Month"
+                                    android:textColor="@color/white"
+                                    android:alpha="0.75"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:id="@+id/tvMonthlyGiving"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="KES 0"
+                                    android:textColor="@color/white"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Transactions"
+                                    android:textColor="@color/white"
+                                    android:alpha="0.75"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:id="@+id/tvTxCount"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="0 transactions"
+                                    android:textColor="@color/white"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- ── View Budget PIN button ── -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnViewBudget"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="🔑  View Church Budget (PIN Required)"
+                    android:textColor="@color/primary"
+                    app:strokeColor="@color/primary"
+                    app:cornerRadius="8dp" />
+
+                <!-- ── Section label ── -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="8dp"
+                    android:text="Recent Transactions"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <!-- ── Empty state ── -->
+                <TextView
+                    android:id="@+id/tvEmpty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="32dp"
+                    android:gravity="center"
+                    android:text="No giving transactions yet.\nTap the + button to make your first gift."
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+
+                <!-- ── Transactions list (non-scrolling, inside NestedScrollView) ── -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvDonations"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:clipToPadding="false" />
+
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -70,9 +181,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:background="@color/primary"
         android:contentDescription="@string/give_now"
         android:src="@android:drawable/ic_input_add"
-        app:tint="@color/primary" />
+        app:backgroundTint="@color/primary"
+        app:tint="@color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

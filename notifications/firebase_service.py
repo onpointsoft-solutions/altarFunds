@@ -76,6 +76,13 @@ def get_firebase_app():
                 "Add it to your .env file pointing to the service-account JSON."
             )
 
+        # Resolve relative paths against BASE_DIR so the file is found
+        # regardless of the process CWD (important on PythonAnywhere / WSGI).
+        if not os.path.isabs(cred_path):
+            base_dir = getattr(settings, 'BASE_DIR', None)
+            if base_dir:
+                cred_path = os.path.join(str(base_dir), cred_path)
+
         if not os.path.exists(cred_path):
             raise FileNotFoundError(
                 f"Firebase service-account file not found at: {cred_path}\n"

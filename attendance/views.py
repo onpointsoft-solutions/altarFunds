@@ -17,7 +17,14 @@ from accounts.models import User
 class AttendanceRecordViewSet(viewsets.ModelViewSet):
     """ViewSet for AttendanceRecord model"""
     
-    permission_classes = [permissions.IsAuthenticated]
+    def get_permissions(self):
+        # Ushers can list, retrieve, create and use the custom actions
+        if self.action in ('list', 'retrieve', 'create',
+                           'quick_mark_attendance', 'mark_member_present',
+                           'attendance_summary'):
+            return [IsUsher()]
+        return [IsChurchAdmin()]
+    
     serializer_class = AttendanceRecordSerializer
     
     def get_queryset(self):
@@ -127,19 +134,34 @@ class AttendanceRecordViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'], permission_classes=[IsUsher])
     def mark_member_present(self, request, pk=None):
-        """Mark a specific member as present for this attendance record"""
+        """Mark a specific member as present for this attendance record.
+
+        Accepts either:
+          • member_id  — the User.id (preferred)
+          • member_profile_id — the Member (profile) pk, resolved to User
+        """
         attendance_record = self.get_object()
         member_id = request.data.get('member_id')
         notes = request.data.get('notes', '')
-        
+
         if not member_id:
             return Response(
                 {"error": "member_id is required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
-            member = User.objects.get(id=member_id, church=attendance_record.church)
+            # First try direct User lookup (member_id IS the user pk)
+            try:
+                member = User.objects.get(id=member_id, church=attendance_record.church)
+            except User.DoesNotExist:
+                # Fallback: member_id might be the Member profile pk
+                from accounts.models import Member as MemberProfile
+                member_profile = MemberProfile.objects.get(
+                    id=member_id,
+                    church=attendance_record.church
+                )
+                member = member_profile.user
             
             member_attendance, created = MemberAttendance.objects.get_or_create(
                 attendance_record=attendance_record,
@@ -212,12 +234,18 @@ class MemberAttendanceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return MemberAttendance.objects.all()
-        
-        # Filter by user's church
-        if user.church:
-            return MemberAttendance.objects.filter(attendance_record__church=user.church)
-        return MemberAttendance.objects.none()
+            qs = MemberAttendance.objects.all()
+        elif user.church:
+            qs = MemberAttendance.objects.filter(attendance_record__church=user.church)
+        else:
+            return MemberAttendance.objects.none()
+
+        # Optional date filter — ?service_date=YYYY-MM-DD
+        service_date = self.request.query_params.get('service_date')
+        if service_date:
+            qs = qs.filter(attendance_record__service_date=service_date)
+
+        return qs.select_related('member', 'attendance_record')
     
     def perform_create(self, serializer):
         # Validate that user can create attendance for this record
@@ -233,7 +261,13 @@ class MemberAttendanceViewSet(viewsets.ModelViewSet):
 class ServiceTypeViewSet(viewsets.ModelViewSet):
     """ViewSet for ServiceType model"""
     
-    permission_classes = [IsChurchAdmin]
+    def get_permissions(self):
+        # Ushers (and above) can list/retrieve service types
+        # Only admins can create/update/delete
+        if self.action in ('list', 'retrieve'):
+            return [permissions.IsAuthenticated()]
+        return [IsChurchAdmin()]
+    
     serializer_class = ServiceTypeSerializer
     
     def get_queryset(self):

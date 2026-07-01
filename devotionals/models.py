@@ -28,6 +28,12 @@ class Devotional(models.Model):
         verbose_name=_('Scripture Reference')
     )
     date = models.DateField(verbose_name=_('Date'))
+    banner_image = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name=_('Banner Image URL')
+    )
     is_published = models.BooleanField(default=True, verbose_name=_('Published'))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -75,10 +81,13 @@ class DevotionalReaction(models.Model):
     """Reactions to devotionals"""
     
     REACTION_CHOICES = [
-        ('like', _('Like')),
-        ('love', _('Love')),
-        ('pray', _('Praying')),
-        ('amen', _('Amen')),
+        ('like',      _('Like')),
+        ('love',      _('Love')),
+        ('pray',      _('Praying')),
+        ('amen',      _('Amen')),
+        ('thumbs_up', _('Thumbs Up')),
+        ('fire',      _('Fire')),
+        ('celebrate', _('Celebrate')),
     ]
     
     devotional = models.ForeignKey(

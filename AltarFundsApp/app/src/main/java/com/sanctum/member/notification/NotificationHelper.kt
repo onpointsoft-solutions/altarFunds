@@ -13,16 +13,20 @@ import com.sanctum.member.R
 import com.sanctum.member.ui.MainActivity
 
 /**
- * Single shared helper used by NotificationService, NotificationWorker,
- * and NotificationSyncWorker to create channels and post notifications.
+ * Central notification utility.
  *
- * Heads-up (peek) display requirements — ALL of the following must be true:
- *  1. Channel importance = IMPORTANCE_HIGH  (Android O+)
+ * Responsibilities:
+ *  - Create and manage all notification channels (idempotent, call freely).
+ *  - Build and post heads-up notifications with correct priority/channel.
+ *  - Provide stable, collision-free notification IDs.
+ *
+ * Heads-up requirements (all must be true simultaneously):
+ *  1. Channel importance ≥ IMPORTANCE_HIGH          (Android 8+)
  *  2. Builder priority  = PRIORITY_HIGH
- *  3. setDefaults() includes DEFAULT_SOUND or DEFAULT_ALL
- *  4. Channel ID in builder exactly matches a registered channel ID
- *  5. POST_NOTIFICATIONS permission granted (Android 13+)
- *  6. App must not be in full-screen / DND / battery-saver blocking mode
+ *  3. setDefaults(DEFAULT_ALL)                       (triggers sound + vibration)
+ *  4. Channel ID in builder matches a registered channel
+ *  5. POST_NOTIFICATIONS permission granted          (Android 13+)
+ *  6. App not in DND / battery-saver / full-screen
  */
 object NotificationHelper {
 
@@ -33,25 +37,31 @@ object NotificationHelper {
     const val CH_GIVING        = "ch_giving"
     const val CH_GENERAL       = "ch_general"
 
-    // Used for the silent foreground notification while a worker is executing
+    // Reserved ID for the silent foreground-service notification while a worker runs
     const val NID_PROCESSING = 9999
 
-    private const val TAG = "NotificationHelper"
+    // Tag prefix used with notify(tag, id) to make IDs unique per type
+    private const val NOTIF_TAG = "sanctum"
+    private const val TAG       = "NotificationHelper"
 
-    /**
-     * Maps an FCM notification type string to the correct stable channel ID.
-     */
+    // ── Channel map ───────────────────────────────────────────────────────
+
     fun channelIdForType(type: String): String = when (type) {
-        "devotional_new", "devotional_shared"  -> CH_DEVOTIONALS
-        "announcement_posted", "announcement"  -> CH_ANNOUNCEMENTS
-        "church_event"                          -> CH_EVENTS
-        "giving_reminder"                       -> CH_GIVING
-        else                                    -> CH_GENERAL
+        "devotional_new",
+        "devotional_shared"                    -> CH_DEVOTIONALS
+        "announcement_posted",
+        "announcement"                         -> CH_ANNOUNCEMENTS
+        "church_event"                         -> CH_EVENTS
+        "giving_reminder",
+        "payment_received"                     -> CH_GIVING
+        else                                   -> CH_GENERAL
     }
 
+    // ── Channel creation ──────────────────────────────────────────────────
+
     /**
-     * Create all notification channels.
-     * Safe to call multiple times — the OS ignores already-registered channels.
+     * Create / verify all notification channels.
+     * Safe to call on every app start — the OS ignores already-registered channels.
      * Must be called before posting any notification on Android O+.
      */
     fun createChannels(context: Context) {
@@ -59,95 +69,60 @@ object NotificationHelper {
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        val channels = listOf(
-            NotificationChannel(
-                CH_DEVOTIONALS, "Devotionals",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "New devotionals and shares"
-                enableLights(true)
-                enableVibration(true)
-                setShowBadge(true)
-            },
-            NotificationChannel(
-                CH_ANNOUNCEMENTS, "Announcements",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Church announcements and notices"
-                enableLights(true)
-                enableVibration(true)
-                setShowBadge(true)
-            },
-            NotificationChannel(
-                CH_EVENTS, "Church Events",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Upcoming events and activities"
-                enableLights(true)
-                enableVibration(true)
-                setShowBadge(true)
-            },
-            NotificationChannel(
-                CH_GIVING, "Giving",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Giving reminders and confirmations"
-                enableLights(true)
-                enableVibration(true)
-                setShowBadge(true)
-            },
-            NotificationChannel(
-                CH_GENERAL, "General",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Other Sanctum updates"
+        val definitions = listOf(
+            Triple(CH_DEVOTIONALS,   "Devotionals",    "New devotionals and shares"),
+            Triple(CH_ANNOUNCEMENTS, "Announcements",  "Church announcements and notices"),
+            Triple(CH_EVENTS,        "Church Events",  "Upcoming events and activities"),
+            Triple(CH_GIVING,        "Giving",         "Giving reminders and confirmations"),
+            Triple(CH_GENERAL,       "General",        "Other Sanctum updates"),
+        )
+
+        val channels = definitions.map { (id, name, desc) ->
+            NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH).apply {
+                description = desc
                 enableLights(true)
                 enableVibration(true)
                 setShowBadge(true)
             }
-        )
+        }
 
         nm.createNotificationChannels(channels)
         Log.d(TAG, "All notification channels created/verified")
     }
 
+    // ── Notification posting ──────────────────────────────────────────────
+
     /**
      * Build and post a heads-up notification.
      *
-     * Returns `true` if the notification was posted, `false` if it was
-     * suppressed (permission denied or notifications disabled by the user).
+     * Uses a **tag + stable ID** strategy:
+     *  - tag  = "sanctum_$type"       → groups by type so updates replace each other
+     *  - id   = stable hash of title  → same logical notification replaces itself
      *
-     * @param context   Application context
-     * @param type      FCM notification type string (used to pick the channel)
-     * @param title     Notification title
-     * @param message   Notification body text
-     * @param extras    Extra key→value pairs forwarded to the tap intent
-     * @param notifId   Notification ID (defaults to timestamp-based unique ID)
+     * This prevents the overflow / collision problem with `currentTimeMillis().toInt()`.
+     *
+     * @return true if the notification was posted, false if suppressed.
      */
     fun show(
-        context: Context,
-        type: String,
-        title: String,
-        message: String,
-        extras: Map<String, String?> = emptyMap(),
-        notifId: Int = System.currentTimeMillis().toInt()
+        context  : Context,
+        type     : String,
+        title    : String,
+        message  : String,
+        extras   : Map<String, String?> = emptyMap(),
+        // Callers may pass a stable ID; defaults to hash of title for dedup
+        notifId  : Int = stableId(title),
     ): Boolean {
-        // ── Guard: are notifications enabled at all? ──────────────────────
-        // NotificationManagerCompat.areNotificationsEnabled() covers both the
-        // Android 13 POST_NOTIFICATIONS runtime permission and the per-app
-        // toggle in system settings — one check handles both cases.
         val nmc = NotificationManagerCompat.from(context)
         if (!nmc.areNotificationsEnabled()) {
-            Log.w(TAG, "Notifications disabled for this app — skipping post")
+            Log.w(TAG, "Notifications disabled — skipping post")
             return false
         }
 
-        // Ensure channels exist before building (idempotent)
         createChannels(context)
 
         val channelId = channelIdForType(type)
+        val tag       = "${NOTIF_TAG}_$type"
 
-        // Build tap intent — opens MainActivity with notification data attached
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("notification_type", type)
@@ -156,6 +131,7 @@ object NotificationHelper {
             extras.forEach { (k, v) -> v?.let { putExtra(k, it) } }
         }
 
+        // Unique request code per notification so each gets its own back-stack
         val pendingIntent = PendingIntent.getActivity(
             context,
             notifId,
@@ -170,25 +146,35 @@ object NotificationHelper {
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            // These three together guarantee heads-up on both pre-O and O+
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            // Show badge on launcher icon
+            .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
             .build()
 
         return try {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.notify(notifId, notification)
-            Log.d(TAG, "Notification posted: type=$type id=$notifId channel=$channelId")
+            // notify(tag, id) — tag isolates types, id replaces same notification
+            nm.notify(tag, notifId, notification)
+            Log.d(TAG, "Posted: tag=$tag id=$notifId channel=$channelId title=$title")
             true
         } catch (e: SecurityException) {
-            // POST_NOTIFICATIONS denied on Android 13+ — areNotificationsEnabled()
-            // should have caught this, but handle defensively just in case.
-            Log.w(TAG, "SecurityException posting notification (POST_NOTIFICATIONS denied)")
+            Log.w(TAG, "POST_NOTIFICATIONS denied", e)
             false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to post notification", e)
             false
         }
+    }
+
+    /**
+     * Convert a string to a stable positive int ID.
+     * Uses Math.abs to avoid negative IDs that confuse some devices.
+     * Guaranteed non-zero (falls back to 1 on the rare hash==0 case).
+     */
+    fun stableId(key: String): Int {
+        val h = Math.abs(key.hashCode())
+        return if (h == 0) 1 else h
     }
 }

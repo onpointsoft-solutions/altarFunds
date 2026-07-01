@@ -68,15 +68,8 @@ public class BudgetStudio extends JPanel {
     // ─── Editing state ────────────────────────────────────────────────────────
     private int editingRow = -1;   // -1 = adding new; ≥0 = editing that row
 
-    // ─── Sample user list (replace with SanctumApiClient.getUsers()) ─────────
-    private static final String[] SAMPLE_USERS = {
-        "vincenttres@gmail.com",
-        "usher@gmail.com",
-        "vincen@gmail.com",
-        "vincent@gmail.com",
-        "dkituyi@gmail.com",
-        "cyrusmiya@gmail.com"
-    };
+    // ─── User combo — populated from API, falls back to empty if unavailable ──
+    private static final String[] SAMPLE_USERS = {};  // replaced by loadUsersIntoCombo()
 
     // =========================================================================
     // Constructor
@@ -90,8 +83,36 @@ public class BudgetStudio extends JPanel {
         add(buildPageHeader(),   BorderLayout.NORTH);
         add(buildBody(),         BorderLayout.CENTER);
 
-        // Load budgets from API on initialization
-        SwingUtilities.invokeLater(this::refreshBudgets);
+        // Load budgets and staff from API on initialization
+        SwingUtilities.invokeLater(() -> {
+            refreshBudgets();
+            loadUsersIntoCombo();
+        });
+    }
+
+    /** Populate the fUser combo with real staff emails from the API. */
+    private void loadUsersIntoCombo() {
+        SanctumApiClient.getStaff().thenAccept(staff -> SwingUtilities.invokeLater(() -> {
+            if (fUser == null) return;
+            fUser.removeAllItems();
+            if (staff.isEmpty()) {
+                fUser.addItem("(no staff found)");
+            } else {
+                for (Map<String, Object> s : staff) {
+                    String email = s.getOrDefault("email",
+                                   s.getOrDefault("user_email", "")).toString();
+                    if (!email.isEmpty()) fUser.addItem(email);
+                }
+            }
+        })).exceptionally(ex -> {
+            SwingUtilities.invokeLater(() -> {
+                if (fUser != null) {
+                    fUser.removeAllItems();
+                    fUser.addItem("(could not load staff)");
+                }
+            });
+            return null;
+        });
     }
 
     // =========================================================================

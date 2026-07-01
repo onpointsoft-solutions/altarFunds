@@ -11,9 +11,12 @@ class MemberSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
+    # Expose the User pk explicitly so clients can use it for attendance marking
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    phone_number = serializers.CharField(source='user.phone_number', read_only=True)
     membership_number = serializers.CharField()
     membership_date = serializers.DateField()
-    
+
     class Meta:
         model = Member
         fields = '__all__'

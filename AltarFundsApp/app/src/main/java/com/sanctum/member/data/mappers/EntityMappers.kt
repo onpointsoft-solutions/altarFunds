@@ -211,10 +211,10 @@ fun SuggestionEntity.toModel(): Suggestion {
         status = status,
         statusDisplay = statusDisplay,
         createdAt = createdAt,
-        isAnonymous = TODO(),
-        response = TODO(),
-        reviewedByName = TODO(),
-        reviewedAt = TODO()
+        isAnonymous = false,
+        response = null,
+        reviewedByName = null,
+        reviewedAt = null
     )
 }
 

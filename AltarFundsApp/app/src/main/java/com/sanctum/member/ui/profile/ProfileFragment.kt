@@ -128,7 +128,7 @@ class ProfileFragment : Fragment() {
             try {
                 // Deregister FCM token from backend so no notifications
                 // are sent to this device after logout
-                app.apiService.deregisterFcmToken()
+                app.onUserLoggedOut()
             } catch (e: Exception) {
                 // Non-fatal — proceed with local logout regardless
             }

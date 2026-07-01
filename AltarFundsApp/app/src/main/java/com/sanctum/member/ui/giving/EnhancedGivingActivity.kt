@@ -8,8 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.sanctum.member.databinding.ActivityGivingBinding
 import com.sanctum.member.models.*
-import com.sanctum.member.utils.OptimizedTokenManager
-import com.sanctum.member.utils.TokenManager
 import com.sanctum.member.utils.ThemeManager
 import com.sanctum.member.viewmodel.GivingViewModel
 import com.sanctum.member.viewmodel.Resource
@@ -18,7 +16,6 @@ class EnhancedGivingActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityGivingBinding
     private lateinit var viewModel: GivingViewModel
-    private lateinit var tokenManager: OptimizedTokenManager
     
     private var selectedCategory: GivingCategory? = null
     private var churchPaymentDetails: ChurchPaymentDetails? = null
@@ -30,11 +27,7 @@ class EnhancedGivingActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // Initialize components
-        tokenManager = OptimizedTokenManager(this)
         viewModel = ViewModelProvider(this)[GivingViewModel::class.java]
-        
-        // Initialize API service
-        viewModel.initializeApiService(tokenManager)
         
         setupUI()
         loadData()

@@ -3,186 +3,141 @@ package com.sanctum.member.utils
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.appcompat.widget.Toolbar
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.sanctum.member.models.ChurchThemeColors
 import com.sanctum.member.R
 
 /**
- * Global theme manager for applying church branding across the app
+ * Global theme manager — applies church branding to:
+ *  - App top bar (stays app primary purple — only text/logo changes)
+ *  - Bottom nav (church primary colour for selected, muted for unselected)
+ *  - Church logo in top bar
+ *  - Church name in top bar
  */
 object ThemeManager {
-    
+
     private var currentTheme: ChurchThemeColors? = null
-    
-    /**
-     * Apply church theme to the entire app
-     */
+
+    // ── Public entry point ────────────────────────────────────────────────
+
     fun applyChurchTheme(context: Context, theme: ChurchThemeColors?) {
         currentTheme = theme
-        
+        if (context !is AppCompatActivity) return
         try {
-            // Apply theme to activity if it's AppCompatActivity
-            if (context is AppCompatActivity) {
-                applyActivityTheme(context, theme)
+            applyBottomNav(context, theme)
+            applyTopBar(context, theme)
+        } catch (_: Exception) { /* never crash on theme errors */ }
+    }
+
+    // ── Top bar ───────────────────────────────────────────────────────────
+    // Top bar stays the app brand colour (#260E68). Only the church logo
+    // and church name are swapped in.
+
+    private fun applyTopBar(activity: AppCompatActivity, theme: ChurchThemeColors?) {
+        val toolbar = activity.findViewById<Toolbar>(R.id.topBar) ?: return
+
+        // Church name
+        val tvName = toolbar.findViewById<TextView>(R.id.tvChurchName)
+        tvName?.text = theme?.church_name?.ifBlank { "AltarFunds" } ?: "AltarFunds"
+
+        // Church logo — load with Glide, fall back to default launcher icon
+        val imgLogo = toolbar.findViewById<ImageView>(R.id.imgChurchLogo)
+        imgLogo?.let { iv ->
+            val logoUrl = theme?.logo_url
+            if (!logoUrl.isNullOrBlank()) {
+                Glide.with(activity)
+                    .load(logoUrl)
+                    .placeholder(R.mipmap.ic_launcher)
+                    .error(R.mipmap.ic_launcher)
+                    .transition(DrawableTransitionOptions.withCrossFade())
+                    .circleCrop()
+                    .into(iv)
+            } else {
+                iv.setImageResource(R.mipmap.ic_launcher)
             }
-            
-            // Apply theme to bottom navigation if available
-            applyBottomNavigationTheme(context, theme)
-            
-        } catch (e: Exception) {
-            // If theme application fails, continue with default theme
         }
     }
-    
-    /**
-     * Apply theme to activity components
-     */
-    private fun applyActivityTheme(activity: AppCompatActivity, theme: ChurchThemeColors?) {
-        try {
-            val primaryColor = Color.parseColor(theme?.primary_color)
-            val secondaryColor = Color.parseColor(theme?.secondary_color)
-            val accentColor = Color.parseColor(theme?.accent_color)
-            
-            // Update action bar
-            activity.supportActionBar?.let { actionBar ->
-                actionBar.setBackgroundDrawable(ColorDrawable(primaryColor))
-                
-                // Set status bar color
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                    activity.window.statusBarColor = primaryColor
-                }
-            }
-            
-            // Update navigation bar color
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                activity.window.navigationBarColor = accentColor
-            }
-            
-        } catch (e: Exception) {
-            // Continue with default colors if parsing fails
-        }
+
+    // ── Bottom nav ────────────────────────────────────────────────────────
+    // Background  → white (church-agnostic, clean look)
+    // Selected    → church primary colour
+    // Unselected  → 40 % opacity version of church primary (grey-ish feel)
+    // Indicator   → church primary at 12 % alpha (Material 3 pill)
+
+    private fun applyBottomNav(activity: AppCompatActivity, theme: ChurchThemeColors?) {
+        val nav = activity.findViewById<BottomNavigationView>(R.id.bottomNav) ?: return
+
+        val primaryHex  = theme?.primary_color  ?: "#260E68"
+        val primary     = parseColorSafe(primaryHex, ContextCompat.getColor(activity, R.color.primary))
+        val inactive    = Color.argb(120, Color.red(primary), Color.green(primary), Color.blue(primary))
+        val indicator   = Color.argb(30,  Color.red(primary), Color.green(primary), Color.blue(primary))
+
+        val states = arrayOf(
+            intArrayOf(-android.R.attr.state_checked),
+            intArrayOf( android.R.attr.state_checked)
+        )
+        val iconColors = intArrayOf(inactive, primary)
+        val csl = ColorStateList(states, iconColors)
+
+        nav.itemIconTintList  = csl
+        nav.itemTextColor     = csl
+        nav.itemActiveIndicatorColor = ColorStateList.valueOf(indicator)
+        nav.setBackgroundColor(Color.WHITE)
     }
-    
-    /**
-     * Apply theme to bottom navigation
-     */
-    private fun applyBottomNavigationTheme(context: Context, theme: ChurchThemeColors?) {
-        try {
-            val primaryColor = Color.parseColor(theme?.primary_color)
-            val secondaryColor = Color.parseColor(theme?.secondary_color)
-            
-            // Find bottom navigation in the current activity
-            val bottomNav = (context as? AppCompatActivity)?.findViewById<BottomNavigationView>(
-                R.id.bottomNav
-            )
-            
-            bottomNav?.let { navView ->
-                // Create color state list for navigation items
-                val colors = intArrayOf(secondaryColor, primaryColor)
-                val states = arrayOf(
-                    intArrayOf(-android.R.attr.state_checked),
-                    intArrayOf(android.R.attr.state_checked)
-                )
-                
-                val colorStateList = ColorStateList(states, colors)
-                navView.itemTextColor = colorStateList
-                navView.itemIconTintList = colorStateList
-                
-                // Apply background color
-                navView.setBackgroundColor(
-                    ContextCompat.getColor(context, R.color.surface)
-                )
-            }
-            
-        } catch (e: Exception) {
-            // Continue with default bottom navigation theme
-        }
-    }
-    
-    /**
-     * Get the current theme colors
-     */
-    fun getCurrentTheme(): ChurchThemeColors? = currentTheme
-    
-    /**
-     * Get primary color with fallback
-     */
-    fun getPrimaryColor(context: Context): Int {
-        return try {
-            currentTheme?.let { Color.parseColor(it.primary_color) }
-                ?: ContextCompat.getColor(context, R.color.primary)
-        } catch (e: Exception) {
+
+    // ── Colour helpers ────────────────────────────────────────────────────
+
+    private fun parseColorSafe(hex: String, fallback: Int): Int = try {
+        Color.parseColor(hex)
+    } catch (_: Exception) { fallback }
+
+    fun getPrimaryColor(context: Context): Int =
+        parseColorSafe(
+            currentTheme?.primary_color ?: "",
             ContextCompat.getColor(context, R.color.primary)
-        }
-    }
-    
-    /**
-     * Get secondary color with fallback
-     */
-    fun getSecondaryColor(context: Context): Int {
-        return try {
-            currentTheme?.let { Color.parseColor(it.secondary_color) }
-                ?: ContextCompat.getColor(context, R.color.secondary)
-        } catch (e: Exception) {
+        )
+
+    fun getSecondaryColor(context: Context): Int =
+        parseColorSafe(
+            currentTheme?.secondary_color ?: "",
             ContextCompat.getColor(context, R.color.secondary)
-        }
-    }
-    
-    /**
-     * Get accent color with fallback
-     */
-    fun getAccentColor(context: Context): Int {
-        return try {
-            currentTheme?.let { Color.parseColor(it.accent_color) }
-                ?: ContextCompat.getColor(context, R.color.accent)
-        } catch (e: Exception) {
+        )
+
+    fun getAccentColor(context: Context): Int =
+        parseColorSafe(
+            currentTheme?.accent_color ?: "",
             ContextCompat.getColor(context, R.color.accent)
-        }
-    }
-    
+        )
+
+    fun getCurrentTheme(): ChurchThemeColors? = currentTheme
+
+    fun resetTheme() { currentTheme = null }
+
     /**
-     * Apply theme to a specific view
+     * Apply a single theme colour to a view (primary / secondary / accent).
      */
     fun applyThemeToView(view: android.view.View, colorType: String = "primary") {
-        try {
-            val color = when (colorType.lowercase()) {
-                "primary" -> currentTheme?.let { Color.parseColor(it.primary_color) }
-                "secondary" -> currentTheme?.let { Color.parseColor(it.secondary_color) }
-                "accent" -> currentTheme?.let { Color.parseColor(it.accent_color) }
-                else -> null
+        val color = when (colorType.lowercase()) {
+            "primary"   -> currentTheme?.let { parseColorSafe(it.primary_color,   0) }
+            "secondary" -> currentTheme?.let { parseColorSafe(it.secondary_color, 0) }
+            "accent"    -> currentTheme?.let { parseColorSafe(it.accent_color,    0) }
+            else        -> null
+        } ?: return
+
+        when (view) {
+            is com.google.android.material.button.MaterialButton -> {
+                view.setBackgroundColor(color); view.setTextColor(Color.WHITE)
             }
-            
-            color?.let {
-                when (view) {
-                    is com.google.android.material.button.MaterialButton -> {
-                        view.setBackgroundColor(it)
-                        view.setTextColor(Color.WHITE)
-                    }
-                    is android.widget.Button -> {
-                        view.setBackgroundColor(it)
-                        view.setTextColor(Color.WHITE)
-                    }
-                    is android.widget.TextView -> {
-                        view.setTextColor(it)
-                    }
-                    else -> {
-                        // For other view types, try to set background
-                        view.setBackgroundColor(it)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            // Continue with default styling
+            is android.widget.Button   -> { view.setBackgroundColor(color); view.setTextColor(Color.WHITE) }
+            is android.widget.TextView -> view.setTextColor(color)
+            else                       -> view.setBackgroundColor(color)
         }
-    }
-    
-    /**
-     * Reset theme to default
-     */
-    fun resetTheme() {
-        currentTheme = null
     }
 }

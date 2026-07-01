@@ -88,6 +88,17 @@
         <item name="android:background">@color/white</item>
         <item name="elevation">8dp</item>
     </style>
+
+    <!-- Bottom nav text styles (used by activity_main.xml) -->
+    <style name="BottomNavTextActive">
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="BottomNavTextInactive">
+        <item name="android:textSize">10sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
     
     <!-- Custom Dialog style -->
     <style name="CustomDialog" parent="ThemeOverlay.Material3.Dialog">

@@ -80,53 +80,64 @@ public class LogoLoader {
      * @return JLabel with text logo
      */
     private static JLabel createFallbackLogo(Dimension size) {
-        JLabel logoLabel = new JLabel("🏛️", SwingConstants.CENTER) {
+        JLabel logoLabel = new JLabel("", SwingConstants.CENTER) {
             @Override protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Draw custom church logo
-                int logoSize = Math.min(size.width, size.height) - 20;
-                int x = (getWidth() - logoSize) / 2;
+
+                int logoSize = Math.min(size.width, size.height) - 16;
+                int x = (getWidth()  - logoSize) / 2;
                 int y = (getHeight() - logoSize) / 2;
-                
-                // Church building
-                g2.setColor(new Color(0, 212, 255));
-                
-                // Base
-                g2.fillRect(x + logoSize/4, y + logoSize*2/3, logoSize/2, logoSize/3);
-                
-                // Roof
-                int[] roofX = {x, x + logoSize/2, x + logoSize};
-                int[] roofY = {y + logoSize*2/3, y + logoSize/3, y + logoSize*2/3};
-                g2.fillPolygon(roofX, roofY, 3);
-                
-                // Cross
-                g2.fillRect(x + logoSize/2 - 2, y + logoSize/4, 4, logoSize/3);
-                g2.fillRect(x + logoSize/2 - logoSize/8, y + logoSize/3 - 2, logoSize/4, 4);
-                
-                // Door
-                g2.setColor(new Color(10, 14, 26));
-                g2.fillRect(x + logoSize/2 - 8, y + logoSize*3/4, 16, logoSize/4);
-                
-                // Windows
-                g2.fillRect(x + logoSize/4 + 4, y + logoSize/2 + 4, 8, 8);
-                g2.fillRect(x + 3*logoSize/4 - 12, y + logoSize/2 + 4, 8, 8);
-                
-                // Glow effect
-                g2.setColor(new Color(0, 212, 255, 30));
-                g2.fillRoundRect(x - 5, y - 5, logoSize + 10, logoSize + 10, 15, 15);
-                
+
+                // Outer glow ring
+                g2.setColor(new Color(212, 175, 55, 25));
+                g2.fillOval(x - 6, y - 6, logoSize + 12, logoSize + 12);
+
+                // Gold circle background
+                g2.setColor(new Color(212, 175, 55, 40));
+                g2.fillOval(x, y, logoSize, logoSize);
+
+                // Gold border ring
+                g2.setColor(new Color(212, 175, 55));
+                g2.setStroke(new java.awt.BasicStroke(2f));
+                g2.drawOval(x, y, logoSize, logoSize);
+
+                // ── Church building (gold on dark green) ──────────────
+                g2.setColor(new Color(212, 175, 55));
+
+                // Base rectangle
+                g2.fillRect(x + logoSize/4, y + logoSize*58/100,
+                            logoSize/2,     logoSize*42/100);
+
+                // Roof triangle
+                int[] rx = {x + logoSize/8, x + logoSize/2, x + logoSize*7/8};
+                int[] ry = {y + logoSize*58/100, y + logoSize*30/100, y + logoSize*58/100};
+                g2.fillPolygon(rx, ry, 3);
+
+                // Cross — vertical
+                g2.fillRect(x + logoSize/2 - 2, y + logoSize*10/100, 4, logoSize*22/100);
+                // Cross — horizontal
+                g2.fillRect(x + logoSize/2 - logoSize/9, y + logoSize*18/100,
+                            logoSize*2/9, 4);
+
+                // Door cutout (dark so it looks recessed)
+                g2.setColor(new Color(14, 46, 42));
+                g2.fillRoundRect(x + logoSize/2 - logoSize/12, y + logoSize*72/100,
+                                 logoSize/6, logoSize*28/100, 4, 4);
+
+                // Two window cutouts
+                g2.fillRect(x + logoSize*3/10, y + logoSize*63/100, logoSize/9, logoSize/9);
+                g2.fillRect(x + logoSize*59/100, y + logoSize*63/100, logoSize/9, logoSize/9);
+
                 g2.dispose();
+                // Do NOT call super — we drew everything ourselves
             }
         };
-        
-        logoLabel.setFont(new Font("Monospaced", Font.BOLD, 48));
-        logoLabel.setForeground(new Color(0, 212, 255));
+
         logoLabel.setPreferredSize(size);
-        logoLabel.setToolTipText("Place your logo.png in src/main/resources/images/");
-        
+        logoLabel.setMinimumSize(size);
+        logoLabel.setMaximumSize(size);
+        logoLabel.setToolTipText("Place logo.png in src/main/resources/images/");
         return logoLabel;
     }
     

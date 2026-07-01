@@ -1,61 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/swipeRefresh"
     android:layout_width="match_parent"
-    android:background="@color/success"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/secondary">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefresh"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="16dp">
+        android:layout_height="match_parent">
 
-        <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/devotionals"
-            android:textColor="@color/text_primary"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
 
-        <TextView
-            android:id="@+id/tvSubtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Daily spiritual nourishment"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvTitle" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="20dp"
+                android:paddingBottom="16dp">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvDevotionals"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_marginTop="16dp"
-            android:clipToPadding="false"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvSubtitle" />
+                <!-- Header -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="20dp"
+                    android:paddingBottom="12dp">
 
-        <TextView
-            android:id="@+id/tvEmpty"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/no_data"
-            android:textColor="@color/text_secondary"
-            android:textSize="16sp"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+                    <TextView
+                        android:id="@+id/tvTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/devotionals"
+                        android:textColor="@color/text_primary"
+                        android:textSize="30sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="-0.02" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+                    <TextView
+                        android:id="@+id/tvSubtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Daily spiritual nourishment"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <!-- Empty state -->
+                <TextView
+                    android:id="@+id/tvEmpty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="80dp"
+                    android:gravity="center"
+                    android:text="No devotionals available.\nCheck back soon!"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="15sp"
+                    android:visibility="gone" />
+
+                <!-- List (non-scrolling inside NestedScrollView) -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvDevotionals"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:clipToPadding="false"
+                    android:paddingBottom="8dp" />
+
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
