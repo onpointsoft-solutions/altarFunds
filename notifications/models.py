@@ -48,40 +48,6 @@ PLATFORM_CHOICES = [
 ]
 
 
-class FCMToken(models.Model):
-    """
-    Firebase Cloud Messaging device token.
-
-    One user → many devices.
-    Same device_id + user → always one active token (old one deactivated on update).
-    """
-    user        = models.ForeignKey(User, on_delete=models.CASCADE, related_name='fcm_tokens')
-    token       = models.CharField(max_length=255, unique=True)
-    device_id   = models.CharField(max_length=255, blank=True, null=True)
-    platform    = models.CharField(max_length=10, choices=PLATFORM_CHOICES,
-                                   default=PLATFORM_ANDROID)
-    is_active   = models.BooleanField(default=True, db_index=True)
-    last_used   = models.DateTimeField(null=True, blank=True)
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'fcm_tokens'
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['user', 'is_active']),
-            models.Index(fields=['device_id']),
-            models.Index(fields=['updated_at']),
-        ]
-
-    def __str__(self):
-        return f"{self.user.email} [{self.platform}] – {self.token[:24]}…"
-
-    def mark_used(self):
-        self.last_used = timezone.now()
-        self.save(update_fields=['last_used'])
-
-
 class PushNotification(models.Model):
     """
     Persisted push notification record.
@@ -223,3 +189,37 @@ class DevotionalShare(models.Model):
         indexes = [
             models.Index(fields=['user', 'is_read']),
         ]
+
+class FCMToken(models.Model):
+    """
+    Firebase Cloud Messaging device token.
+
+    One user → many devices.
+    Same device_id + user → always one active token (old one deactivated on update).
+    """
+    user        = models.ForeignKey(User, on_delete=models.CASCADE, related_name='fcm_tokens')
+    token       = models.CharField(max_length=255, unique=True)
+    device_id   = models.CharField(max_length=255, blank=True, null=True)
+    platform    = models.CharField(max_length=10, choices=PLATFORM_CHOICES,
+                                   default=PLATFORM_ANDROID)
+    is_active   = models.BooleanField(default=True, db_index=True)
+    last_used   = models.DateTimeField(null=True, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'fcm_tokens'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['device_id']),
+            models.Index(fields=['updated_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} [{self.platform}] – {self.token[:24]}…"
+
+    def mark_used(self):
+        self.last_used = timezone.now()
+        self.save(update_fields=['last_used'])
+

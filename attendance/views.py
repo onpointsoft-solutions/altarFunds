@@ -245,7 +245,14 @@ class MemberAttendanceViewSet(viewsets.ModelViewSet):
         if service_date:
             qs = qs.filter(attendance_record__service_date=service_date)
 
-        return qs.select_related('member', 'attendance_record')
+        # Optional member filter — ?member=<user_id>
+        member_id = self.request.query_params.get('member')
+        if member_id:
+            qs = qs.filter(member_id=member_id)
+
+        return qs.select_related('member', 'attendance_record').order_by(
+            '-attendance_record__service_date'
+        )
     
     def perform_create(self, serializer):
         # Validate that user can create attendance for this record

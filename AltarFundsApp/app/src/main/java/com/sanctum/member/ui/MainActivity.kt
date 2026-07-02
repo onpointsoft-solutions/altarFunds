@@ -187,7 +187,7 @@ class MainActivity : AppCompatActivity() {
             "devotional_new", "devotional_shared" -> {
                 navigateToDevotional(intent?.getStringExtra("devotional_id"))
             }
-            "announcement" -> {
+            "announcement", "announcement_posted" -> {
                 navigateToAnnouncements()
             }
             else -> {

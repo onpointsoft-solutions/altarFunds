@@ -1197,8 +1197,55 @@ public class SanctumApiClient {
     }
 
     /**
-     * Fetch individual MemberAttendance rows for today — these contain
-     * member_name, arrival_time, is_present, is_visitor, notes.
+     * GET /api/attendance/members/?member=<userId>&page_size=N
+     * Returns all attendance records for a specific member.
+     */
+    public static CompletableFuture<List<Map<String,Object>>> getMemberAttendanceHistory(int userId, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.<Map<String,Object>>of();
+            try {
+                String url = BASE_URL + "/api/attendance/members/?member=" + userId + "&page_size=" + limit;
+                Request req = new Request.Builder()
+                    .url(url)
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("MEMBER_ATTENDANCE_HISTORY [" + resp.code() + "]: " + rb.substring(0,Math.min(200,rb.length())));
+                    if (!resp.isSuccessful()) return List.<Map<String,Object>>of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) {
+                System.err.println("getMemberAttendanceHistory: " + e.getMessage());
+                return List.<Map<String,Object>>of();
+            }
+        });
+    }
+
+    /**
+     * GET /api/giving/transactions-list/?member__user=<userId>
+     * Returns giving history for a specific member (using GivingTransactionViewSet list).
+     */
+    public static CompletableFuture<List<Map<String,Object>>> getMemberGivingHistory(int userId, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return List.<Map<String,Object>>of();
+            try {
+                String url = BASE_URL + "/api/giving/transactions-list/?member__user=" + userId + "&page_size=" + limit;
+                Request req = new Request.Builder()
+                    .url(url)
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("MEMBER_GIVING_HISTORY [" + resp.code() + "]");
+                    if (!resp.isSuccessful()) return List.<Map<String,Object>>of();
+                    return parseListFromResponse(rb);
+                }
+            } catch (Exception e) {
+                System.err.println("getMemberGivingHistory: " + e.getMessage());
+                return List.<Map<String,Object>>of();
+            }
+        });
+    }
+     /* member_name, arrival_time, is_present, is_visitor, notes.
      * GET /api/attendance/members/?service_date=YYYY-MM-DD
      */
     public static CompletableFuture<List<Map<String,Object>>> getMemberAttendances(String serviceDate) {
@@ -1929,7 +1976,78 @@ public class SanctumApiClient {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  SYSTEM ADMIN — getSystemOverview, getPendingChurches, getAllChurches,
+    //  SYSTEM ADMIN — dedicated endpoints (financials, users, giving)
+    // ════════════════════════════════════════════════════════════════════════
+
+    public static CompletableFuture<Map<String,Object>> getSystemFinancials() {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return new HashMap<>();
+            try {
+                Request req = new Request.Builder()
+                    .url(BASE_URL + "/api/system/financials/")
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("SYSTEM_FINANCIALS [" + resp.code() + "]: " + rb.substring(0, Math.min(200, rb.length())));
+                    if (!resp.isSuccessful()) return new HashMap<>();
+                    JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
+                    JsonObject data = root.has("data") ? root.getAsJsonObject("data") : root;
+                    Map<String,Object> m = new HashMap<>();
+                    for (Map.Entry<String,JsonElement> e : data.entrySet())
+                        m.put(e.getKey(), parseJsonElement(e.getValue()));
+                    return m;
+                }
+            } catch (Exception e) { System.err.println("getSystemFinancials: " + e.getMessage()); return new HashMap<>(); }
+        });
+    }
+
+    public static CompletableFuture<Map<String,Object>> getSystemUsers(String search, String role, int pageSize) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return new HashMap<>();
+            try {
+                StringBuilder url = new StringBuilder(BASE_URL + "/api/system/users/?page_size=" + pageSize);
+                if (search != null && !search.isEmpty()) url.append("&search=").append(java.net.URLEncoder.encode(search, "UTF-8"));
+                if (role   != null && !role.isEmpty())   url.append("&role=").append(role);
+                Request req = new Request.Builder()
+                    .url(url.toString())
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("SYSTEM_USERS [" + resp.code() + "]");
+                    if (!resp.isSuccessful()) return new HashMap<>();
+                    JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
+                    Map<String,Object> m = new HashMap<>();
+                    for (Map.Entry<String,JsonElement> e : root.entrySet())
+                        m.put(e.getKey(), parseJsonElement(e.getValue()));
+                    return m;
+                }
+            } catch (Exception e) { System.err.println("getSystemUsers: " + e.getMessage()); return new HashMap<>(); }
+        });
+    }
+
+    public static CompletableFuture<Map<String,Object>> getSystemGiving(String churchId, String txStatus, int pageSize) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isAuthenticated()) return new HashMap<>();
+            try {
+                StringBuilder url = new StringBuilder(BASE_URL + "/api/system/giving/?page_size=" + pageSize);
+                if (churchId != null && !churchId.isEmpty()) url.append("&church=").append(churchId);
+                if (txStatus != null && !txStatus.isEmpty()) url.append("&status=").append(txStatus);
+                Request req = new Request.Builder()
+                    .url(url.toString())
+                    .addHeader("Authorization","Bearer " + authToken).get().build();
+                try (Response resp = client.newCall(req).execute()) {
+                    String rb = resp.body() != null ? resp.body().string() : "";
+                    System.out.println("SYSTEM_GIVING [" + resp.code() + "]");
+                    if (!resp.isSuccessful()) return new HashMap<>();
+                    JsonObject root = JsonParser.parseString(rb).getAsJsonObject();
+                    Map<String,Object> m = new HashMap<>();
+                    for (Map.Entry<String,JsonElement> e : root.entrySet())
+                        m.put(e.getKey(), parseJsonElement(e.getValue()));
+                    return m;
+                }
+            } catch (Exception e) { System.err.println("getSystemGiving: " + e.getMessage()); return new HashMap<>(); }
+        });
+    }
     //                  approveChurch, rejectChurch, getAllUsers, getAuditLogs
     // ════════════════════════════════════════════════════════════════════════
 

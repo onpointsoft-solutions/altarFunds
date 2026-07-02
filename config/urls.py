@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import (
 )
 from django.views.decorators.csrf import csrf_exempt
 from admin_management.custom_admin import altar_admin_site
+from admin_management.system_views import system_financials, system_users, system_giving
 
 def api_root(request):
     """API root endpoint"""
@@ -81,8 +82,16 @@ urlpatterns = [
     # Health check
     path('api/health/', include('common.urls')),
 
-    # Dashboard
-    path('dashboard/', include('dashboard.urls')),
+    # System Admin dedicated endpoints
+    path('api/system/financials/', system_financials, name='system_financials'),
+    path('api/system/users/',      system_users,      name='system_users'),
+    path('api/system/giving/',     system_giving,     name='system_giving'),
+
+    # Public demo booking endpoint
+    path('api/demo-booking/', include('demo_booking.urls')),
+
+    # Dashboard template views (no API namespace needed)
+    path('dashboard/', include(('dashboard.urls', 'dashboard_web'), namespace='dashboard_web')),
     
     # API Dashboard endpoints
     path('api/dashboard/', include('dashboard.urls')),

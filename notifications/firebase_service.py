@@ -294,11 +294,19 @@ class FirebaseNotificationService:
             return {'success': 0, 'failure': 0, 'skipped': 1}
 
         # ── Fetch active tokens ───────────────────────────────────────────
-        tokens = list(
-            FCMToken.objects
-            .filter(user=user, is_active=True)
-            .only('id', 'token')
-        )
+        try:
+            tokens = list(
+                FCMToken.objects
+                .filter(user=user, is_active=True)
+                .only('id', 'token')
+            )
+        except Exception as db_err:
+            logger.error(
+                "Cannot query FCMToken for user %s — table may not exist yet: %s. "
+                "Run: python manage.py migrate notifications",
+                user.pk, db_err
+            )
+            return {'success': 0, 'failure': 0, 'db_error': 1}
 
         if not tokens:
             logger.warning("No active FCM tokens for user %s", user.pk)
@@ -350,16 +358,22 @@ class FirebaseNotificationService:
         """
         from .models import FCMToken
 
-        # Fetch all active tokens for this church in one query
-        token_qs = (
-            FCMToken.objects
-            .filter(user__church=church, user__is_active=True, is_active=True)
-            .select_related('user')
-        )
-        if exclude_user:
-            token_qs = token_qs.exclude(user=exclude_user)
-
-        tokens = list(token_qs.only('id', 'token', 'user_id'))
+        try:
+            token_qs = (
+                FCMToken.objects
+                .filter(user__church=church, user__is_active=True, is_active=True)
+                .select_related('user')
+            )
+            if exclude_user:
+                token_qs = token_qs.exclude(user=exclude_user)
+            tokens = list(token_qs.only('id', 'token', 'user_id'))
+        except Exception as db_err:
+            logger.error(
+                "Cannot query FCMToken for church %s — table may not exist yet: %s. "
+                "Run: python manage.py migrate notifications",
+                church.pk, db_err
+            )
+            return {'success': 0, 'failure': 0, 'db_error': 1}
 
         if not tokens:
             logger.info("No active FCM tokens found for church %s", church.pk)

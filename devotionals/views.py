@@ -58,7 +58,7 @@ class DevotionalViewSet(viewsets.ModelViewSet):
         
         # Send Firebase push notification to church members
         try:
-            FirebaseNotificationService.send_devotional_notification(devotional)
+            FirebaseNotificationService.notify_new_devotional(devotional)
         except Exception as e:
             # Log error but don't fail the creation
             import logging

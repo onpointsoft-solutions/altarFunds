@@ -63,6 +63,7 @@ public class PastorDashboardFrame extends JFrame {
         {"🏠", "Overview"},
         {"📖", "Devotionals"},
         {"👥", "Members"},
+        {"📋", "Attendance"},
         {"🙏", "Announcements"}
     };
 
@@ -185,10 +186,11 @@ public class PastorDashboardFrame extends JFrame {
 
         contentArea = new JPanel(cardLayout);
         contentArea.setOpaque(false);
-        contentArea.add(buildMainDashboard(),   "overview");
-        contentArea.add(buildDevotionalsPage(), "devotionals");
-        contentArea.add(buildMembersPage(),     "members");
-        contentArea.add(buildAnnouncementsPage(),      "announcements");
+        contentArea.add(buildMainDashboard(),    "overview");
+        contentArea.add(buildDevotionalsPage(),  "devotionals");
+        contentArea.add(buildMembersPage(),      "members");
+        contentArea.add(buildAttendancePage(),   "attendance");
+        contentArea.add(buildAnnouncementsPage(),"announcements");
 
         main.add(contentArea, BorderLayout.CENTER);
         add(main);
@@ -1069,6 +1071,220 @@ public class PastorDashboardFrame extends JFrame {
         return panel;
     }
 
+    // ─── Attendance Page ──────────────────────────────────────────────
+    private JPanel buildAttendancePage() {
+        JPanel panel = new JPanel(new BorderLayout(0, 0));
+        panel.setOpaque(false);
+        panel.setBorder(new EmptyBorder(30, 30, 30, 30));
+
+        // ── Header ────────────────────────────────────────────────────
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        JLabel title = new JLabel("\uD83D\uDCCB  Attendance");
+        title.setFont(F_TITLE); title.setForeground(C_TEXT);
+        JLabel subtitle = new JLabel("Church attendance records and member check-in summary");
+        subtitle.setFont(F_MONO_SM); subtitle.setForeground(C_TEXT_DIM);
+        JPanel titleBlock = new JPanel(); titleBlock.setLayout(new BoxLayout(titleBlock, BoxLayout.Y_AXIS));
+        titleBlock.setOpaque(false);
+        titleBlock.add(title); titleBlock.add(Box.createVerticalStrut(4)); titleBlock.add(subtitle);
+        header.add(titleBlock, BorderLayout.WEST);
+        header.setBorder(new EmptyBorder(0, 0, 22, 0));
+
+        // ── KPI strip: total sessions / avg attendance / last session ─
+        JPanel kpiRow = new JPanel(new GridLayout(1, 4, 14, 0));
+        kpiRow.setOpaque(false);
+        kpiRow.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 100));
+        JLabel[] kpi = new JLabel[4];
+        kpiRow.add(buildKpiCard("Total Sessions",  "0", "All time",    C_GOLD,             "\uD83D\uDCCB", kpi, 0));
+        kpiRow.add(buildKpiCard("Last Attendance", "0", "Most recent", C_SUCCESS,          "\u2705",       kpi, 1));
+        kpiRow.add(buildKpiCard("Avg Attendance",  "0", "Per session", new Color(100,150,255), "\uD83D\uDCCA", kpi, 2));
+        kpiRow.add(buildKpiCard("Visitors",        "0", "All time",    C_TEXT_DIM,         "\uD83D\uDC64", kpi, 3));
+
+        // ── Date picker for filtering ──────────────────────────────────
+        JPanel filterRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        filterRow.setOpaque(false);
+        filterRow.setBorder(new EmptyBorder(14, 0, 10, 0));
+
+        JLabel dateLabel = new JLabel("Date filter:");
+        dateLabel.setFont(F_MONO_SM); dateLabel.setForeground(C_TEXT_DIM);
+
+        JTextField dateField = new JTextField(java.time.LocalDate.now().toString(), 12);
+        dateField.setFont(F_MONO_SM); dateField.setForeground(C_TEXT); dateField.setBackground(C_CARD);
+        dateField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(C_BORDER), new EmptyBorder(4,8,4,8)));
+        dateField.setCaretColor(C_GOLD);
+
+        JButton loadBtn = styledDialogButton("Load", C_GOLD);
+        loadBtn.setFont(F_MONO_SM);
+
+        JButton todayBtn = styledDialogButton("Today", C_SUCCESS);
+        todayBtn.setFont(F_MONO_SM);
+
+        filterRow.add(dateLabel); filterRow.add(dateField);
+        filterRow.add(loadBtn);   filterRow.add(todayBtn);
+
+        // ── Attendance records table ───────────────────────────────────
+        String[] recCols = {"Date","Service","Total","Male","Female","Children","Visitors","New Converts"};
+        javax.swing.table.DefaultTableModel recModel = new javax.swing.table.DefaultTableModel(recCols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable recTable = buildStyledTable(recModel);
+        recTable.setRowHeight(32);
+        JScrollPane recScroll = new JScrollPane(recTable);
+        recScroll.getViewport().setBackground(C_CARD);
+        recScroll.setBorder(BorderFactory.createLineBorder(C_BORDER));
+
+        JLabel recStatus = new JLabel("  Click 'Load' or 'Today' to fetch attendance records");
+        recStatus.setFont(F_MONO_SM); recStatus.setForeground(C_TEXT_DIM);
+        recStatus.setBorder(new EmptyBorder(6, 0, 6, 0));
+
+        // ── Member check-in table (for a specific date) ───────────────
+        JPanel memberSection = new JPanel(new BorderLayout(0, 6));
+        memberSection.setOpaque(false);
+        memberSection.setBorder(new EmptyBorder(16, 0, 0, 0));
+
+        JLabel memberTitle = new JLabel("\uD83D\uDC65  Member Check-ins");
+        memberTitle.setFont(F_LABEL); memberTitle.setForeground(C_TEXT);
+
+        String[] memCols = {"Member","Email","Present","Visitor","Arrival","Notes"};
+        javax.swing.table.DefaultTableModel memModel = new javax.swing.table.DefaultTableModel(memCols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable memTable = buildStyledTable(memModel);
+        memTable.setRowHeight(30);
+        // Colour present column
+        memTable.getColumnModel().getColumn(2).setCellRenderer(
+            new javax.swing.table.DefaultTableCellRenderer() {
+                @Override public java.awt.Component getTableCellRendererComponent(
+                        JTable t, Object v, boolean sel, boolean foc, int r, int c) {
+                    super.getTableCellRendererComponent(t, v, sel, foc, r, c);
+                    setBackground(sel ? C_GOLD : (r%2==0 ? C_CARD : C_SURFACE));
+                    boolean present = "Yes".equals(v);
+                    setForeground(present ? C_SUCCESS : C_DANGER);
+                    setFont(F_MONO_SM);
+                    setBorder(new EmptyBorder(4,8,4,8));
+                    return this;
+                }
+            });
+        JScrollPane memScroll = new JScrollPane(memTable);
+        memScroll.getViewport().setBackground(C_CARD);
+        memScroll.setBorder(BorderFactory.createLineBorder(C_BORDER));
+
+        JLabel memStatus = new JLabel("  Select a date and click 'Load' to see member check-ins");
+        memStatus.setFont(F_MONO_SM); memStatus.setForeground(C_TEXT_DIM);
+
+        memberSection.add(memberTitle,  BorderLayout.NORTH);
+        memberSection.add(memStatus,    BorderLayout.CENTER);
+        memberSection.add(memScroll,    BorderLayout.SOUTH);
+        memScroll.setPreferredSize(new java.awt.Dimension(0, 260));
+
+        // ── Layout ────────────────────────────────────────────────────
+        JPanel recPanel = new JPanel(new BorderLayout(0, 4));
+        recPanel.setOpaque(false);
+        recPanel.add(recStatus, BorderLayout.NORTH);
+        recScroll.setPreferredSize(new java.awt.Dimension(0, 220));
+        recPanel.add(recScroll,  BorderLayout.CENTER);
+        recPanel.add(memberSection, BorderLayout.SOUTH);
+
+        JPanel body = new JPanel(new BorderLayout(0, 0));
+        body.setOpaque(false);
+        body.add(kpiRow,    BorderLayout.NORTH);
+        body.add(filterRow, BorderLayout.CENTER);
+        body.add(recPanel,  BorderLayout.SOUTH);
+
+        panel.add(header, BorderLayout.NORTH);
+        panel.add(body,   BorderLayout.CENTER);
+
+        // ── Load logic ────────────────────────────────────────────────
+        Runnable doLoad = () -> {
+            String date = dateField.getText().trim();
+            recStatus.setText("  Loading attendance for " + date + "\u2026");
+            recModel.setRowCount(0);
+            memModel.setRowCount(0);
+            memStatus.setText("  Loading\u2026");
+
+            // ── Primary: member-level check-ins for the selected date ──
+            // Uses /api/attendance/members/?service_date=YYYY-MM-DD
+            // Same endpoint the UsherDashboard uses successfully.
+            SanctumApiClient.getMemberAttendances(date).thenAccept(records ->
+                SwingUtilities.invokeLater(() -> {
+                    memModel.setRowCount(0);
+                    int presentCount = 0, absentCount = 0, visitorCount = 0;
+                    for (Map<String, Object> r : records) {
+                        String memberName = safeStr(r, "member_name",  "Unknown");
+                        String email      = safeStr(r, "member_email", "");
+                        boolean present   = Boolean.TRUE.equals(r.get("is_present"));
+                        boolean visitor   = Boolean.TRUE.equals(r.get("is_visitor"));
+                        if (visitor)      visitorCount++;
+                        else if (present) presentCount++;
+                        else              absentCount++;
+                        String arrival = safeStr(r, "arrival_time", "");
+                        if (arrival.length() > 5) arrival = arrival.substring(0, 5);
+                        String notes = safeStr(r, "notes", "");
+                        if (notes.length() > 50) notes = notes.substring(0, 50) + "\u2026";
+                        memModel.addRow(new Object[]{
+                            memberName, email,
+                            present ? "Yes" : "No",
+                            visitor ? "Yes" : "No",
+                            arrival, notes
+                        });
+                    }
+                    int total = records.size();
+                    memStatus.setText(String.format(
+                        "  %d check-in(s)  \u2022  %d present  \u2022  %d absent  \u2022  %d visitor(s)",
+                        total, presentCount, absentCount, visitorCount));
+                    recStatus.setText("  Date: " + date + "  \u2022  " + total + " record(s)");
+                    // Update KPIs
+                    if (kpi[1] != null) kpi[1].setText(String.valueOf(presentCount));
+                    if (kpi[3] != null) kpi[3].setText(String.valueOf(visitorCount));
+                })
+            ).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> {
+                    memStatus.setText("  Failed to load: " + ex.getMessage());
+                    recStatus.setText("  Error loading attendance data");
+                });
+                return null;
+            });
+
+            // ── Secondary: all-time session records for the records table ──
+            // Uses /api/attendance/records/?church=<id>
+            SanctumApiClient.getAttendanceRecords().thenAccept(records ->
+                SwingUtilities.invokeLater(() -> {
+                    recModel.setRowCount(0);
+                    int totalSessions = 0, totalAttendees = 0, totalVisitors = 0;
+                    for (Map<String, Object> r : records) {
+                        String sDate   = safeStr(r, "service_date", "");
+                        String sName   = safeStr(r, "service_name", safeStr(r, "notes", "Service"));
+                        int tAtt       = parseSafely(r.getOrDefault("total_attendance", 0));
+                        int male       = parseSafely(r.getOrDefault("male_attendance",  0));
+                        int female     = parseSafely(r.getOrDefault("female_attendance",0));
+                        int children   = parseSafely(r.getOrDefault("children_attendance", 0));
+                        int vis        = parseSafely(r.getOrDefault("visitors_count",    0));
+                        int nc         = parseSafely(r.getOrDefault("new_converts",      0));
+                        totalSessions++;
+                        totalAttendees += tAtt;
+                        totalVisitors  += vis;
+                        recModel.addRow(new Object[]{sDate, sName, tAtt, male, female, children, vis, nc});
+                    }
+                    if (kpi[0] != null) kpi[0].setText(String.valueOf(totalSessions));
+                    if (kpi[2] != null && totalSessions > 0)
+                        kpi[2].setText(String.valueOf(totalAttendees / totalSessions));
+                })
+            ).exceptionally(ex -> null);
+        };
+
+        loadBtn.addActionListener(e -> doLoad.run());
+        todayBtn.addActionListener(e -> {
+            dateField.setText(java.time.LocalDate.now().toString());
+            doLoad.run();
+        });
+
+        // Auto-load today on first open
+        SwingUtilities.invokeLater(doLoad);
+
+        return panel;
+    }
+
     // ─── Devotionals Grid ─────────────────────────────────────────────
     private void loadDevotionalsGridData(JPanel grid) {
         System.out.println("Loading devotionals data...");
@@ -1912,10 +2128,39 @@ public class PastorDashboardFrame extends JFrame {
     private JLabel dialogLabel(String text) {
         JLabel lbl = new JLabel(text);
         lbl.setForeground(C_TEXT);
-        lbl.setFont(F_LABEL);  // no emoji — safe to use F_LABEL directly
+        lbl.setFont(F_MONO_SM);
         return lbl;
     }
 
+    /** Build a consistently styled JTable used in member detail and other dialogs. */
+    private JTable buildStyledTable(javax.swing.table.DefaultTableModel model) {
+        JTable table = new JTable(model);
+        table.setBackground(C_CARD);
+        table.setForeground(C_TEXT);
+        table.setFont(F_MONO_SM);
+        table.setGridColor(C_BORDER);
+        table.setRowHeight(30);
+        table.setShowGrid(true);
+        table.setIntercellSpacing(new java.awt.Dimension(1, 1));
+        table.setSelectionBackground(C_GOLD);
+        table.setSelectionForeground(C_BG);
+        table.getTableHeader().setBackground(C_SURFACE);
+        table.getTableHeader().setForeground(C_TEXT_DIM);
+        table.getTableHeader().setFont(
+            new java.awt.Font(F_MONO_SM.getName(), java.awt.Font.BOLD, F_MONO_SM.getSize()));
+        table.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+            @Override public java.awt.Component getTableCellRendererComponent(
+                    JTable t, Object v, boolean sel, boolean foc, int r, int c) {
+                super.getTableCellRendererComponent(t, v, sel, foc, r, c);
+                setBackground(sel ? C_GOLD : (r % 2 == 0 ? C_CARD : C_SURFACE));
+                setForeground(sel ? C_BG : C_TEXT);
+                setFont(F_MONO_SM);
+                setBorder(new EmptyBorder(4, 8, 4, 8));
+                return this;
+            }
+        });
+        return table;
+    }
     /**
      * Null-safe map string getter — avoids repeated
      * getOrDefault(...).toString() + null-check patterns.
@@ -2019,43 +2264,276 @@ public class PastorDashboardFrame extends JFrame {
 
     // ─── Member Detail Dialog ─────────────────────────────────────────
     private void showMemberDetailsDialog(Map<String, Object> member) {
-        JDialog dialog = new JDialog(this, "Member Details", true);
-        dialog.setSize(450, 350);
-        dialog.setLocationRelativeTo(this);
 
-        JPanel panel = new JPanel(new BorderLayout(0, 15));
-        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        panel.setBackground(C_CARD);
-
+        // ── Extract basic data ────────────────────────────────────────
+        Object idObj  = member.get("id");
+        int memberId  = (idObj instanceof Number) ? ((Number) idObj).intValue() : -1;
         String fn     = safeStr(member, "first_name",        "Unknown");
         String ln     = safeStr(member, "last_name",         "");
         String email  = safeStr(member, "email",             "N/A");
         String phone  = safeStr(member, "phone_number",      "N/A");
-        String status = safeStr(member, "membership_status", "N/A");
+        String role   = safeStr(member, "role",              "member");
+        String status = safeStr(member, "membership_status", safeStr(member, "status", "N/A"));
         String joined = safeStr(member, "date_joined",       "N/A");
         if (joined.length() > 10) joined = joined.substring(0, 10);
+        String church = safeStr(member, "church_name",       safeStr(member, "church", "N/A"));
+        String gender = safeStr(member, "gender",            "N/A");
+        String city   = safeStr(member, "city",              "");
+        String county = safeStr(member, "county",            "");
+        String location = city.isEmpty() ? county : (county.isEmpty() ? city : city + ", " + county);
+        String memberNo = safeStr(member, "membership_number", "N/A");
+        String lastLogin= safeStr(member, "last_login",      "N/A");
+        if (lastLogin.length() > 10) lastLogin = lastLogin.substring(0, 10);
 
-        JLabel nameLabel = new JLabel("👤 " + fn + " " + ln);
-        nameLabel.setFont(withEmojiFont(F_TITLE));
-        nameLabel.setForeground(C_TEXT);
+        String fullName = ln.isEmpty() ? fn : fn + " " + ln;
 
-        JPanel details = new JPanel(new GridLayout(4, 2, 8, 8));
-        details.setOpaque(false);
-        details.add(dialogLabel("Email:")); details.add(dialogLabel(email));
-        details.add(dialogLabel("Phone:")); details.add(dialogLabel(phone));
-        details.add(dialogLabel("Status:")); details.add(dialogLabel(status.replace("_"," ").toUpperCase()));
-        details.add(dialogLabel("Joined:")); details.add(dialogLabel(joined));
+        // ── Dialog shell ──────────────────────────────────────────────
+        JDialog dialog = new JDialog(this, "\uD83D\uDC64  " + fullName, true);
+        dialog.setSize(760, 580);
+        dialog.setMinimumSize(new java.awt.Dimension(600, 480));
+        dialog.setLocationRelativeTo(this);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
-        JButton closeBtn = styledDialogButton("Close", C_GOLD);
+        JPanel root = new JPanel(new BorderLayout(0, 0));
+        root.setBackground(C_CARD);
+
+        // ── Header strip ──────────────────────────────────────────────
+        JPanel header = new JPanel(new BorderLayout(12, 0));
+        header.setBackground(C_SURFACE);
+        header.setBorder(new EmptyBorder(16, 22, 16, 22));
+
+        // Avatar circle with initials
+        String initials = (fn.isEmpty() ? "?" : String.valueOf(fn.charAt(0)).toUpperCase())
+                        + (ln.isEmpty() ? ""  : String.valueOf(ln.charAt(0)).toUpperCase());
+        JPanel avatar = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(C_GOLD); g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        avatar.setOpaque(false);
+        avatar.setPreferredSize(new java.awt.Dimension(56, 56));
+        JLabel initLbl = new JLabel(initials, SwingConstants.CENTER);
+        initLbl.setFont(F_TITLE); initLbl.setForeground(C_CARD);
+        avatar.add(initLbl, BorderLayout.CENTER);
+
+        // Name + meta
+        JPanel namePanel = new JPanel();
+        namePanel.setOpaque(false);
+        namePanel.setLayout(new BoxLayout(namePanel, BoxLayout.Y_AXIS));
+        JLabel nameLbl = new JLabel(fullName); nameLbl.setFont(F_TITLE); nameLbl.setForeground(C_TEXT);
+        JLabel metaLbl = new JLabel(role.replace("_"," ").toUpperCase()
+            + "  \u2022  " + church
+            + (memberNo.equals("N/A") ? "" : "  \u2022  #" + memberNo));
+        metaLbl.setFont(F_MONO_SM); metaLbl.setForeground(C_TEXT_DIM);
+        namePanel.add(nameLbl); namePanel.add(Box.createVerticalStrut(3)); namePanel.add(metaLbl);
+
+        header.add(avatar,    BorderLayout.WEST);
+        header.add(namePanel, BorderLayout.CENTER);
+
+        // ── Tabs ──────────────────────────────────────────────────────
+        JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP);
+        tabs.setBackground(C_CARD); tabs.setForeground(C_TEXT); tabs.setFont(F_LABEL);
+
+        // ── Tab 1: Profile ────────────────────────────────────────────
+        JPanel profileTab = new JPanel(new GridBagLayout());
+        profileTab.setBackground(C_CARD);
+        profileTab.setBorder(new EmptyBorder(18, 24, 18, 24));
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.insets = new Insets(7, 8, 7, 8); gc.anchor = GridBagConstraints.WEST;
+
+        String[][] profileRows = {
+            {"\uD83D\uDCE7 Email",          email},
+            {"\uD83D\uDCF1 Phone",          phone},
+            {"\uD83D\uDCC5 Joined",         joined},
+            {"\uD83D\uDCCD Location",       location.isEmpty() ? "N/A" : location},
+            {"\uD83C\uDF0D Gender",         gender},
+            {"\uD83D\uDD12 Last Login",     lastLogin},
+            {"\uD83C\uDFAB Membership",     status.replace("_"," ").toUpperCase()},
+            {"\u26EA Church",               church},
+        };
+        for (int i = 0; i < profileRows.length; i++) {
+            gc.gridx=0; gc.gridy=i; gc.weightx=0;
+            JLabel k = new JLabel(profileRows[i][0]); k.setFont(withEmojiFont(F_LABEL)); k.setForeground(C_TEXT_DIM);
+            profileTab.add(k, gc);
+            gc.gridx=1; gc.weightx=1;
+            JLabel v = new JLabel(profileRows[i][1]); v.setFont(F_MONO_SM); v.setForeground(C_TEXT);
+            profileTab.add(v, gc);
+        }
+        tabs.addTab("\uD83D\uDC64  Profile", profileTab);
+
+        // ── Tab 2: Attendance ─────────────────────────────────────────
+        JPanel attendanceTab = new JPanel(new BorderLayout(0, 8));
+        attendanceTab.setBackground(C_CARD);
+        attendanceTab.setBorder(new EmptyBorder(12, 14, 12, 14));
+
+        JLabel attSummaryLbl = new JLabel("  Loading attendance history\u2026");
+        attSummaryLbl.setFont(F_MONO_SM); attSummaryLbl.setForeground(C_TEXT_DIM);
+
+        String[] attCols = {"Date","Service","Present","Arrival Time","Notes"};
+        javax.swing.table.DefaultTableModel attModel = new javax.swing.table.DefaultTableModel(attCols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable attTable = buildStyledTable(attModel);
+        attTable.setRowHeight(30);
+        // Colour the Present column
+        attTable.getColumnModel().getColumn(2).setCellRenderer(
+            new javax.swing.table.DefaultTableCellRenderer() {
+                @Override public Component getTableCellRendererComponent(JTable t, Object v,
+                        boolean sel, boolean foc, int r, int c) {
+                    super.getTableCellRendererComponent(t, v, sel, foc, r, c);
+                    setBackground(sel ? C_GOLD : C_CARD);
+                    boolean present = "Yes".equals(v);
+                    setForeground(present ? C_SUCCESS : C_DANGER);
+                    setFont(F_MONO_SM);
+                    setText(present ? "\u2705 Yes" : "\u274C No");
+                    setBorder(new EmptyBorder(4, 8, 4, 8));
+                    return this;
+                }
+            }
+        );
+
+        JScrollPane attScroll = new JScrollPane(attTable);
+        attScroll.getViewport().setBackground(C_CARD); attScroll.setBorder(null);
+
+        attendanceTab.add(attSummaryLbl, BorderLayout.NORTH);
+        attendanceTab.add(attScroll,     BorderLayout.CENTER);
+        tabs.addTab("\uD83D\uDCCB  Attendance", attendanceTab);
+
+        // ── Tab 3: Giving ─────────────────────────────────────────────
+        JPanel givingTab = new JPanel(new BorderLayout(0, 8));
+        givingTab.setBackground(C_CARD);
+        givingTab.setBorder(new EmptyBorder(12, 14, 12, 14));
+
+        JLabel givingSummaryLbl = new JLabel("  Loading giving history\u2026");
+        givingSummaryLbl.setFont(F_MONO_SM); givingSummaryLbl.setForeground(C_TEXT_DIM);
+
+        String[] givCols = {"Date","Category","Amount (KES)","Method","Status"};
+        javax.swing.table.DefaultTableModel givModel = new javax.swing.table.DefaultTableModel(givCols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable givTable = buildStyledTable(givModel);
+        givTable.setRowHeight(30);
+
+        JScrollPane givScroll = new JScrollPane(givTable);
+        givScroll.getViewport().setBackground(C_CARD); givScroll.setBorder(null);
+
+        givingTab.add(givingSummaryLbl, BorderLayout.NORTH);
+        givingTab.add(givScroll,        BorderLayout.CENTER);
+        //tabs.addTab("\uD83D\uDCB0  Giving", givingTab);
+
+        // ── Footer ────────────────────────────────────────────────────
+        JButton refreshBtn = styledDialogButton("\uD83D\uDD04 Refresh", C_SURFACE);
+        refreshBtn.setForeground(C_TEXT_DIM);
+        JButton closeBtn   = styledDialogButton("Close", C_GOLD);
         closeBtn.addActionListener(e -> dialog.dispose());
-        JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        btns.setOpaque(false);
-        btns.add(closeBtn);
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
+        footer.setBackground(C_SURFACE);
+        footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, C_BORDER));
+        footer.add(refreshBtn); footer.add(closeBtn);
 
-        panel.add(nameLabel, BorderLayout.NORTH);
-        panel.add(details,   BorderLayout.CENTER);
-        panel.add(btns,      BorderLayout.SOUTH);
-        dialog.add(panel);
+        root.add(header, BorderLayout.NORTH);
+        root.add(tabs,   BorderLayout.CENTER);
+        root.add(footer, BorderLayout.SOUTH);
+        dialog.add(root);
+
+        // ── Async data loaders ────────────────────────────────────────
+        Runnable loadAttendance = () -> {
+            if (memberId <= 0) {
+                SwingUtilities.invokeLater(() -> attSummaryLbl.setText("  Member ID not available"));
+                return;
+            }
+            SanctumApiClient.getMemberAttendanceHistory(memberId, 50).thenAccept(records -> {
+                SwingUtilities.invokeLater(() -> {
+                    attModel.setRowCount(0);
+                    int presentCount = 0;
+                    for (Map<String, Object> r : records) {
+                        // service date comes from attendance_record
+                        Object arObj = r.get("attendance_record");
+                        String sDate = "";
+                        String sName = "";
+                        if (arObj instanceof java.util.Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String,Object> ar = (Map<String,Object>) arObj;
+                            sDate = safeStr(ar, "service_date", "");
+                            sName = safeStr(ar, "service_name", "");
+                        } else {
+                            sDate = safeStr(r, "service_date", "");
+                        }
+                        boolean present = Boolean.TRUE.equals(r.get("is_present"));
+                        if (present) presentCount++;
+                        String arrival = safeStr(r, "arrival_time", "");
+                        if (arrival.length() > 5) arrival = arrival.substring(0, 5);
+                        String notes = safeStr(r, "notes", "");
+                        attModel.addRow(new Object[]{sDate, sName, present ? "Yes" : "No", arrival, notes});
+                    }
+                    int total = records.size();
+                    int pct   = total > 0 ? (presentCount * 100 / total) : 0;
+                    attSummaryLbl.setText(String.format(
+                        "  %d session(s) recorded  \u2022  %d present (%d%%)  \u2022  %d absent",
+                        total, presentCount, pct, total - presentCount));
+                    tabs.setTitleAt(1, "\uD83D\uDCCB  Attendance (" + total + ")");
+                });
+            }).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> attSummaryLbl.setText("  Could not load attendance: " + ex.getMessage()));
+                return null;
+            });
+        };
+
+        Runnable loadGiving = () -> {
+            if (memberId <= 0) {
+                SwingUtilities.invokeLater(() -> givingSummaryLbl.setText("  Member ID not available"));
+                return;
+            }
+            SanctumApiClient.getMemberGivingHistory(memberId, 50).thenAccept(txns -> {
+                SwingUtilities.invokeLater(() -> {
+                    givModel.setRowCount(0);
+                    double total = 0;
+                    for (Map<String, Object> tx : txns) {
+                        String date = safeStr(tx, "transaction_date", safeStr(tx, "created_at", ""));
+                        if (date.length() > 10) date = date.substring(0, 10);
+                        String cat  = "";
+                        Object catObj = tx.get("category");
+                        if (catObj instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String,Object> cm = (Map<String,Object>) catObj;
+                            cat = safeStr(cm, "name", "");
+                        } else { cat = catObj != null ? catObj.toString() : ""; }
+                        double amt = 0;
+                        try { amt = Double.parseDouble(safeStr(tx, "amount", "0")); } catch (Exception ignored) {}
+                        total += "completed".equalsIgnoreCase(safeStr(tx, "status", "")) ? amt : 0;
+                        givModel.addRow(new Object[]{
+                            date, cat,
+                            String.format("%,.2f", amt),
+                            safeStr(tx, "payment_method", ""),
+                            safeStr(tx, "status", "")
+                        });
+                    }
+                    givingSummaryLbl.setText(String.format(
+                        "  %d transaction(s)  \u2022  Total completed: KES %,.0f",
+                        txns.size(), total));
+                    tabs.setTitleAt(2, "\uD83D\uDCB0  Giving (" + txns.size() + ")");
+                });
+            }).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> givingSummaryLbl.setText("  Could not load giving: " + ex.getMessage()));
+                return null;
+            });
+        };
+
+        // Load both when dialog opens
+        loadAttendance.run();
+        loadGiving.run();
+
+        // Refresh button reloads both tabs
+        refreshBtn.addActionListener(e -> {
+            attSummaryLbl.setText("  Refreshing\u2026");  attModel.setRowCount(0);
+            givingSummaryLbl.setText("  Refreshing\u2026"); givModel.setRowCount(0);
+            loadAttendance.run();
+            loadGiving.run();
+        });
+
         dialog.setVisible(true);
     }
 
